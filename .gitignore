@@ -4,3 +4,4 @@
 /logs/*
 /uploads/
 /webroot/uploads/
+*.swp
