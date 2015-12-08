@@ -9,16 +9,15 @@
     <table cellpadding="0" cellspacing="0">
         <thead>
             <tr>
-                <th><?= $this->Paginator->sort('id') ?></th>
-                <th><?= $this->Paginator->sort('filename') ?></th>
+                <th><?= $this->Paginator->sort('Name') ?></th>
                 <th class="actions"><?= __('Actions') ?></th>
             </tr>
         </thead>
         <tbody>
             <?php foreach ($maps as $map): ?>
             <tr>
-                <td><?= $this->Number->format($map->id) ?></td>
-                <td><?= h($map->filename) ?></td>
+                <td><?= h($map->name) ?></td>
+				<td><?= $this->Html->image($map->name + '.jpg', ['alt' => 'CakePHP' ]); ?> </td>
                 <td class="actions">
                     <?= $this->Html->link(__('View'), ['action' => 'view', $map->id]) ?>
                     <?= $this->Html->link(__('Edit'), ['action' => 'edit', $map->id]) ?>

@@ -29,8 +29,20 @@ class MapsTable extends Table
         $this->primaryKey('id');
 
 		$this->addBehavior('Utils.Uploadable', [
-			'filename',
+			'map' => [
+				'fields' => [
+					'filePath' => 'mappath'
+				],
+				'path' => '{ROOT}{DS}uploads{DS}{model}{DS}{field}{DS}'
+			],
+			'rgb' => [
+				'fields' => [
+					'filePath' => 'imagepath'
+				],
+				'path' => '{ROOT}{DS}uploads{DS}{model}{DS}{field}{DS}'
+			],
 		]);
+			
 
     }
 
