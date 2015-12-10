@@ -33,17 +33,15 @@ class MapsTable extends Table
 				'fields' => [
 					'filePath' => 'mappath'
 				],
-				'path' => '{ROOT}{DS}uploads{DS}{model}{DS}{field}{DS}'
+				'path' => '{ROOT}{DS}{WEBROOT}{DS}uploads{DS}{model}{DS}{field}{DS}'
 			],
 			'rgb' => [
 				'fields' => [
 					'filePath' => 'imagepath'
 				],
-				'path' => '{ROOT}{DS}uploads{DS}{model}{DS}{field}{DS}'
+				'path' => '{ROOT}{DS}{WEBROOT}{DS}uploads{DS}{model}{DS}{field}{DS}'
 			],
 		]);
-			
-
     }
 
     /**

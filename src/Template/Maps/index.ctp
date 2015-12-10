@@ -17,7 +17,7 @@
             <?php foreach ($maps as $map): ?>
             <tr>
                 <td><?= h($map->name) ?></td>
-				<td><?= $this->Html->image($map->name + '.jpg', ['alt' => 'CakePHP' ]); ?> </td>
+				<td><?= $this->Html->image( 'maps/' . $map->id . '/thumb64.jpeg', ['alt' => 'CakePHP' ]); ?> </td>
                 <td class="actions">
                     <?= $this->Html->link(__('View'), ['action' => 'view', $map->id]) ?>
                     <?= $this->Html->link(__('Edit'), ['action' => 'edit', $map->id]) ?>

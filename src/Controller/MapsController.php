@@ -49,6 +49,20 @@ class MapsController extends AppController
         if ($this->request->is('post')) {
             $map = $this->Maps->patchEntity($map, $this->request->data);
             if ($this->Maps->save($map)) {
+				//$pathpart = pathinfo( $map->imagepath, PATHINFO_FILENAME );
+				//system( "convert " . $pathpart . ".rgb -resize 64x-1 " . $pathpart .".jpeg" );
+				$imgname = WWW_ROOT . "uploads/maps/" . $map->id . "/" . pathinfo( $map->imagepath, PATHINFO_FILENAME ) . ".jpeg";
+				system( "convert " . $map->imagepath . " " . $imgname );
+				$mapdir = WWW_ROOT . 'img/maps/' . $map->id;
+				if( !file_exists( $mapdir ) )
+					mkdir( $mapdir, 0777, true );
+				$img = new \Imagick();
+				$handle = fopen($imgname, 'r' );
+				$img->readImageFile( $handle, $imgname );
+				$img->resizeImage( 512, -1, 0, 1 );
+				$img->writeImages( WWW_ROOT . 'img/maps/' . $map->id . '/thumb128.jpeg', false );
+				$img->resizeImage( 64, -1, 0, 1 );
+				$img->writeImages( WWW_ROOT . 'img/maps/' . $map->id . '/thumb64.jpeg', false );
                 $this->Flash->success(__('The map has been saved.'));
                 return $this->redirect(['action' => 'index']);
             } else {
