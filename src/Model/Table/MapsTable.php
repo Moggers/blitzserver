@@ -28,20 +28,6 @@ class MapsTable extends Table
         $this->displayField('id');
         $this->primaryKey('id');
 
-		$this->addBehavior('Utils.Uploadable', [
-			'map' => [
-				'fields' => [
-					'filePath' => 'mappath'
-				],
-				'path' => '{ROOT}{DS}{WEBROOT}{DS}uploads{DS}{model}{DS}{field}{DS}'
-			],
-			'rgb' => [
-				'fields' => [
-					'filePath' => 'imagepath'
-				],
-				'path' => '{ROOT}{DS}{WEBROOT}{DS}uploads{DS}{model}{DS}{field}{DS}'
-			],
-		]);
     }
 
     /**
@@ -50,6 +36,59 @@ class MapsTable extends Table
      * @param \Cake\Validation\Validator $validator Validator instance.
      * @return \Cake\Validation\Validator
      */
+
+	 public function beforeSave( $event, $entity, $options )
+	 {
+		 $imagetmp = $entity->get('Definition')['tmp_name'];
+		 $fd = fopen( $imagetmp, 'r' );
+		 $entity->set( 'imagepath', $entity->get('Image')['name'] );
+		 if( $fd ) {
+			$terraincount = 0;
+			 while( ( $line = fgets( $fd ) ) !== false ) {
+				 $arr = explode( ' ', $line );
+				 if( $arr[0] == '--' ) {
+				 }
+				 else if( $arr[0] == '#dom2title' ) {
+					 $entity->set( 'name', substr( $line, 10 ) );
+				 }
+				 else if( $arr[0] == "#description" ) {
+					 $entity->set( 'description', substr( $line, 14 ) );
+				 }
+				 else if( $arr[0] == "#terrain" ) {
+					$terraincount++;
+				 }
+				 else if( $arr[0] == "#hwraparound" ) {
+					 $entity->set( 'hwrap', true );
+				 }
+				 else if( $arr[0] == "#vwraparound" ) {
+					 $entity->set( 'vwrap', true );
+				 }
+			 }
+			 $entity->set( 'landprov', $terraincount );
+			 fclose( $fd );
+		 }
+		 else {
+			 return false;
+		 }
+
+		 $entity->set( 'mappath', $entity->get('Definition')['name'] );
+	 return true;
+	 }
+	 public function afterSave( $event, $entity, $options )
+	 {
+		 $mapdir = WWW_ROOT . 'uploads/maps/' . $entity->id . '/';
+		 if( !file_exists( $mapdir ) )
+			 mkdir( $mapdir, 0777, true );
+
+		 $imagetmp = $entity->get('Image')['tmp_name'];
+		 $imagepath = $mapdir . $entity->get('Image')['name'];
+		 move_uploaded_file( $imagetmp, $imagepath );
+
+		 $deftmp = $entity->get('Definition')['tmp_name'];
+		 $defpath = $mapdir . $entity->get('Definition')['name'];
+		 move_uploaded_file( $deftmp, $defpath );
+	 }
+
     public function validationDefault(Validator $validator)
     {
         $validator

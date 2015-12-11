@@ -6,23 +6,22 @@
 </nav>
 <div class="maps index large-9 medium-8 columns content">
     <h3><?= __('Maps') ?></h3>
-    <table cellpadding="0" cellspacing="0">
+    <table>
         <thead>
             <tr>
+                <th><?= $this->Paginator->sort('') ?></th>
                 <th><?= $this->Paginator->sort('Name') ?></th>
-                <th class="actions"><?= __('Actions') ?></th>
+                <th><?= $this->Paginator->sort('Description') ?></th>
+                <th><?= $this->Paginator->sort('Province Count') ?></th>
             </tr>
         </thead>
         <tbody>
             <?php foreach ($maps as $map): ?>
             <tr>
-                <td><?= h($map->name) ?></td>
 				<td><?= $this->Html->image( 'maps/' . $map->id . '/thumb64.jpeg', ['alt' => 'CakePHP' ]); ?> </td>
-                <td class="actions">
-                    <?= $this->Html->link(__('View'), ['action' => 'view', $map->id]) ?>
-                    <?= $this->Html->link(__('Edit'), ['action' => 'edit', $map->id]) ?>
-                    <?= $this->Form->postLink(__('Delete'), ['action' => 'delete', $map->id], ['confirm' => __('Are you sure you want to delete # {0}?', $map->id)]) ?>
-                </td>
+                <td><?= h($map->name) ?></td>
+                <td><?= h($map->description) ?></td>
+                <td><?= h($map->landprov) ?></td>
             </tr>
             <?php endforeach; ?>
         </tbody>

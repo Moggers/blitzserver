@@ -8,9 +8,8 @@
     <?= $this->Form->create($map, ['type'=>'file']) ?>
     <fieldset>
 		<legend><?= __('Add Map') ?></legend>
-		<?= $this->Form->input('name'); ?>
-		<?= $this->Form->input('map', ['type'=>'file']); ?>
-		<?= $this->Form->input('rgb', ['type'=>'file']); ?>
+		<?= $this->Form->input('Definition', ['type'=>'file']); ?>
+		<?= $this->Form->input('Image', ['type'=>'file']); ?>
     </fieldset>
     <?= $this->Form->button(__('Submit')) ?>
     <?= $this->Form->end() ?>
