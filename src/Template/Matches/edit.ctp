@@ -8,6 +8,8 @@
             )
         ?></li>
         <li><?= $this->Html->link(__('List Matches'), ['action' => 'index']) ?></li>
+        <li><?= $this->Html->link(__('List Maps'), ['controller' => 'Maps', 'action' => 'index']) ?></li>
+        <li><?= $this->Html->link(__('New Map'), ['controller' => 'Maps', 'action' => 'add']) ?></li>
     </ul>
 </nav>
 <div class="matches form large-9 medium-8 columns content">
@@ -15,9 +17,8 @@
     <fieldset>
         <legend><?= __('Edit Match') ?></legend>
         <?php
-            echo $this->Form->input('port');
-            echo $this->Form->input('map');
-            echo $this->Form->input('status');
+            echo $this->Form->input('map_id', ['options' => $maps]);
+            echo $this->Form->input('age');
         ?>
     </fieldset>
     <?= $this->Form->button(__('Submit')) ?>

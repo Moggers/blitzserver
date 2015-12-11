@@ -18,6 +18,9 @@ class MatchesController extends AppController
      */
     public function index()
     {
+        $this->paginate = [
+            'contain' => ['Maps']
+        ];
         $this->set('matches', $this->paginate($this->Matches));
         $this->set('_serialize', ['matches']);
     }
@@ -32,7 +35,7 @@ class MatchesController extends AppController
     public function view($id = null)
     {
         $match = $this->Matches->get($id, [
-            'contain' => []
+            'contain' => ['Maps']
         ]);
         $this->set('match', $match);
         $this->set('_serialize', ['match']);
@@ -48,16 +51,22 @@ class MatchesController extends AppController
         $match = $this->Matches->newEntity();
         if ($this->request->is('post')) {
             $match = $this->Matches->patchEntity($match, $this->request->data);
-			$match->status = 0;
-			$match->port = 0;
             if ($this->Matches->save($match)) {
                 $this->Flash->success(__('The match has been saved.'));
                 return $this->redirect(['action' => 'index']);
             } else {
                 $this->Flash->error(__('The match could not be saved. Please, try again.'));
             }
+			$address = '127.0.0.1';
+			$sock = socket_create( AF_INET, SOCK_STREAM, SOL_TCP );
+			socket_bind( $sock, $address );
+			socket_getsockname( $sock, $address, $port );
+			echo $port;
+			socket_close( $sock );
+			die();
         }
-        $this->set(compact('match'));
+        $maps = $this->Matches->Maps->find('list', ['limit' => 200]);
+        $this->set(compact('match', 'maps'));
         $this->set('_serialize', ['match']);
     }
 
@@ -82,7 +91,8 @@ class MatchesController extends AppController
                 $this->Flash->error(__('The match could not be saved. Please, try again.'));
             }
         }
-        $this->set(compact('match'));
+        $maps = $this->Matches->Maps->find('list', ['limit' => 200]);
+        $this->set(compact('match', 'maps'));
         $this->set('_serialize', ['match']);
     }
 

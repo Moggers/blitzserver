@@ -25,7 +25,7 @@ class MapsTable extends Table
         parent::initialize($config);
 
         $this->table('maps');
-        $this->displayField('id');
+        $this->displayField('name');
         $this->primaryKey('id');
 
     }

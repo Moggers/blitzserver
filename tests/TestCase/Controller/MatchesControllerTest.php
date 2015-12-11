@@ -16,7 +16,8 @@ class MatchesControllerTest extends IntegrationTestCase
      * @var array
      */
     public $fixtures = [
-        'app.matches'
+        'app.matches',
+        'app.maps'
     ];
 
     /**

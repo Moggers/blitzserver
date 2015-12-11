@@ -10,6 +10,7 @@ use Cake\Validation\Validator;
 /**
  * Matches Model
  *
+ * @property \Cake\ORM\Association\BelongsTo $Maps
  */
 class MatchesTable extends Table
 {
@@ -25,9 +26,13 @@ class MatchesTable extends Table
         parent::initialize($config);
 
         $this->table('matches');
-        $this->displayField('id');
+        $this->displayField('name');
         $this->primaryKey('id');
 
+        $this->belongsTo('Maps', [
+            'foreignKey' => 'map_id',
+            'joinType' => 'INNER'
+        ]);
     }
 
     /**
@@ -43,16 +48,22 @@ class MatchesTable extends Table
             ->allowEmpty('id', 'create');
 
         $validator
-            ->add('port', 'valid', ['rule' => 'numeric'])
-            ->allowEmpty('port');
-
-        $validator
-            ->allowEmpty('map');
-
-        $validator
-            ->add('status', 'valid', ['rule' => 'numeric'])
-            ->allowEmpty('status');
+            ->add('age', 'valid', ['rule' => 'numeric'])
+            ->allowEmpty('age');
 
         return $validator;
+    }
+
+    /**
+     * Returns a rules checker object that will be used for validating
+     * application integrity.
+     *
+     * @param \Cake\ORM\RulesChecker $rules The rules object to be modified.
+     * @return \Cake\ORM\RulesChecker
+     */
+    public function buildRules(RulesChecker $rules)
+    {
+        $rules->add($rules->existsIn(['map_id'], 'Maps'));
+        return $rules;
     }
 }

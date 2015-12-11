@@ -2,6 +2,8 @@
     <ul class="side-nav">
         <li class="heading"><?= __('Actions') ?></li>
         <li><?= $this->Html->link(__('List Matches'), ['action' => 'index']) ?></li>
+        <li><?= $this->Html->link(__('List Maps'), ['controller' => 'Maps', 'action' => 'index']) ?></li>
+        <li><?= $this->Html->link(__('New Map'), ['controller' => 'Maps', 'action' => 'add']) ?></li>
     </ul>
 </nav>
 <div class="matches form large-9 medium-8 columns content">
@@ -9,8 +11,9 @@
     <fieldset>
         <legend><?= __('Add Match') ?></legend>
         <?php
-            echo $this->Form->input('map');
+            echo $this->Form->input('map_id', ['options' => $maps]);
             echo $this->Form->input('age');
+			echo $this->Form->input('name');
         ?>
     </fieldset>
     <?= $this->Form->button(__('Submit')) ?>

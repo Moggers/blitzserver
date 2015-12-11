@@ -7,9 +7,9 @@ use Cake\ORM\Entity;
  * Match Entity.
  *
  * @property int $id
- * @property int $port
- * @property string $map
- * @property int $status
+ * @property int $map_id
+ * @property \App\Model\Entity\Map $map
+ * @property int $age
  */
 class Match extends Entity
 {

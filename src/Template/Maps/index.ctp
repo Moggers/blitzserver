@@ -9,7 +9,6 @@
     <table>
         <thead>
             <tr>
-                <th><?= $this->Paginator->sort('') ?></th>
                 <th><?= $this->Paginator->sort('Name') ?></th>
                 <th><?= $this->Paginator->sort('Description') ?></th>
                 <th><?= $this->Paginator->sort('Province Count') ?></th>
@@ -18,8 +17,8 @@
         <tbody>
             <?php foreach ($maps as $map): ?>
             <tr>
-				<td><?= $this->Html->image( 'maps/' . $map->id . '/thumb64.jpeg', ['alt' => 'CakePHP' ]); ?> </td>
-                <td><?= h($map->name) ?></td>
+				<td><?= $this->Html->image( 'maps/' . $map->id . '/thumb64.jpeg', ['alt' => 'CakePHP' ]); ?>
+                <?= h($map->name) ?></td>
                 <td><?= h($map->description) ?></td>
                 <td><?= h($map->prov . '(' . $map->seaprov) . ')' ?></td>
             </tr>
