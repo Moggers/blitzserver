@@ -44,6 +44,7 @@ class MapsTable extends Table
 		 $entity->set( 'imagepath', $entity->get('Image')['name'] );
 		 if( $fd ) {
 			$terraincount = 0;
+			$watercount = 0;
 			 while( ( $line = fgets( $fd ) ) !== false ) {
 				 $arr = explode( ' ', $line );
 				 if( $arr[0] == '--' ) {
@@ -56,6 +57,9 @@ class MapsTable extends Table
 				 }
 				 else if( $arr[0] == "#terrain" ) {
 					$terraincount++;
+					$water = intval( $arr[2] ) & 4;
+					if( $water == 8 || $water == 4 || $water == 12 ) 
+						$watercount++;
 				 }
 				 else if( $arr[0] == "#hwraparound" ) {
 					 $entity->set( 'hwrap', true );
@@ -64,7 +68,8 @@ class MapsTable extends Table
 					 $entity->set( 'vwrap', true );
 				 }
 			 }
-			 $entity->set( 'landprov', $terraincount );
+			 $entity->set( 'prov', $terraincount );
+			 $entity->set( 'seaprov', $watercount );
 			 fclose( $fd );
 		 }
 		 else {
