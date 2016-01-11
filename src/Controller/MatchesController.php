@@ -51,19 +51,14 @@ class MatchesController extends AppController
         $match = $this->Matches->newEntity();
         if ($this->request->is('post')) {
             $match = $this->Matches->patchEntity($match, $this->request->data);
+			$match->status = 0;
+			$match->port = 0;
             if ($this->Matches->save($match)) {
                 $this->Flash->success(__('The match has been saved.'));
                 return $this->redirect(['action' => 'index']);
             } else {
                 $this->Flash->error(__('The match could not be saved. Please, try again.'));
             }
-			$address = '127.0.0.1';
-			$sock = socket_create( AF_INET, SOCK_STREAM, SOL_TCP );
-			socket_bind( $sock, $address );
-			socket_getsockname( $sock, $address, $port );
-			echo $port;
-			socket_close( $sock );
-			die();
         }
         $maps = $this->Matches->Maps->find('list', ['limit' => 200]);
         $this->set(compact('match', 'maps'));

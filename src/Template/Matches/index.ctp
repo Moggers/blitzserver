@@ -13,6 +13,8 @@
             <tr>
                 <th><?= $this->Paginator->sort('map_id') ?></th>
                 <th><?= $this->Paginator->sort('age') ?></th>
+				<th><?= $this->Paginator->sort('port') ?></th>
+				<th><?= $this->Paginator->sort('status') ?></th>
             </tr>
         </thead>
         <tbody>
@@ -23,6 +25,8 @@
 					['controller' => 'Maps', 'action' => 'view', $match->map->id], 
 					['escape' => false]) : '' ?> </td>
                 <td><?= $this->Number->format($match->age) ?></td>
+                <td><?= $this->Number->format($match->port) ?></td>
+                <td><?= $this->Number->format($match->status) ?></td>
                 <td class="actions">
                 </td>
             </tr>

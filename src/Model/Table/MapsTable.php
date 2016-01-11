@@ -100,8 +100,10 @@ class MapsTable extends Table
             ->add('id', 'valid', ['rule' => 'numeric'])
             ->allowEmpty('id', 'create');
 
-        $validator
-            ->allowEmpty('file');
+		// What the fuck
+        /*$validator-> add('Image', 'file', [
+				'rule' => ['mimeType', ['image/x-tga,image/x-rgb']],
+				'message' => 'RGB or TGA only, please' ]);*/
 
         return $validator;
     }
