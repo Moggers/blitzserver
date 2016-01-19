@@ -53,7 +53,7 @@ class MapsController extends AppController
 				if( !file_exists( $thumbdir ) )
 					mkdir( $thumbdir, 0777, true );
 				$thumbname = $thumbdir . "thumb64.jpeg";
-				$rgbname =  WWW_ROOT . 'uploads/maps/' . $map->id . '/' . $map->imagepath;
+				$rgbname =  DOM4_MAPS . '/' . $map->id . '/' . $map->imagepath;
 				system( "convert \"" . $rgbname . "\" -scale 64x-1 \"" . $thumbname . "\"" );
                 return $this->redirect(['action' => 'index']);
             } else {

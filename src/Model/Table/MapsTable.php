@@ -81,7 +81,7 @@ class MapsTable extends Table
 	 }
 	 public function afterSave( $event, $entity, $options )
 	 {
-		 $mapdir = WWW_ROOT . 'uploads/maps/' . $entity->id . '/';
+		 $mapdir = DOM4_MAPS . '/' . $entity->id . '/';
 		 if( !file_exists( $mapdir ) )
 			 mkdir( $mapdir, 0777, true );
 
