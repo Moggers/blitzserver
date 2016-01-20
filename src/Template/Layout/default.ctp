@@ -42,6 +42,10 @@ $cakeDescription = 'Blitzserver';
         </ul>
         <section class="top-bar-section">
             <ul class="right">
+				<li><?= $this->Html->link(__('Show Matches'), ['controller' => 'Matches', 'action' => 'index']) ?></li>
+				<li><?= $this->Html->link(__('New Match'), ['controller' => 'Matches', 'action' => 'add']) ?></li>
+				<li><?= $this->Html->link(__('Show Maps'), ['controller' => 'Maps', 'action' => 'index']) ?></li>
+				<li><?= $this->Html->link(__('Upload Map'), ['controller' => 'Maps', 'action' => 'add']) ?></li>
             </ul>
         </section>
     </nav>

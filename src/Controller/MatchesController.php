@@ -129,4 +129,23 @@ class MatchesController extends AppController
         $this->set(compact('match', 'maps'));
         $this->set('_serialize', ['match']);
 	}
+	public function destroy($id = null)
+	{
+        $match = $this->Matches->get($id, [
+            'contain' => []
+        ]);
+        if ($this->request->is(['patch', 'get', 'put'])) {
+            $match = $this->Matches->patchEntity($match, $this->request->data);
+			$match->status = -1;
+            if ($this->Matches->save($match)) {
+                $this->Flash->success(__('The match has been marked for death and should disappear shortly'));
+                return $this->redirect(['action' => 'index']);
+            } else {
+                $this->Flash->error(__('Oh fuck'));
+            }
+        }
+        $maps = $this->Matches->Maps->find('list', ['limit' => 200]);
+        $this->set(compact('match', 'maps'));
+        $this->set('_serialize', ['match']);
+	}
 }

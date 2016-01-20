@@ -30,7 +30,10 @@
                 <td><?= $this->Number->format($match->age) ?></td>
                 <td><?= $this->Number->format($match->port) ?></td>
                 <td><?= $this->Number->format($match->status) ?></td>
-				<td><?= $this->Html->link(__('Start Game'), ['action' => 'start', $match->id]) ?> </td>
+				<?php if ($match->status < 3 ): ?>
+					<td><?= $this->Html->link(__('Start Game'), ['action' => 'start', $match->id]) ?> </td>
+				<?php endif; ?>
+				<td><?= $this->Html->link(__('KILL THE GAME'), ['action' => 'destroy', $match->id]) ?> </td>
                 <td class="actions">
                 </td>
             </tr>
