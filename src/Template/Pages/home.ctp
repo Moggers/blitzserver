@@ -52,9 +52,11 @@ $cakeDescription = 'One day this wont be so ugly';
             <div class="columns large-5 platform checks">
 				<li><?= $this->Html->link(__('Request New Match'), [ 'controller' => 'Matches', 'action' => 'add']) ?></li>
 				<li><?= $this->Html->link(__('Show Matches'), [ 'controller' => 'Matches', 'action' => 'index']) ?></li>
+            </div>
+			<div class="columns large-5 filesystem checks">
 				<li><?= $this->Html->link(__('Upload Map'), [ 'controller' => 'Maps', 'action' => 'add']) ?></li>
 				<li><?= $this->Html->link(__('Show Maps'), [ 'controller' => 'Maps', 'action' => 'index']) ?></li>
-            </div>
+			</div>
         </div>
         <hr/>
     </div>
