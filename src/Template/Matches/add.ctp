@@ -23,13 +23,13 @@
 			<h5>Thrones</h5>
 			<?php
 			echo $this->Form->input('tone',
-			array('label' => 'T1 Thrones', 'default' => 5 ));
+				array('label' => 'T1 Thrones', 'default' => 5 ));
 			echo $this->Form->input('ttwo',
-			array('label' => 'T2 Thrones', 'default' => 0 ));
+				array('label' => 'T2 Thrones', 'default' => 0 ));
 			echo $this->Form->input('tthree',
-			array('label' => 'T3 Thrones', 'default' => 0 ));
+				array('label' => 'T3 Thrones', 'default' => 0 ));
 			echo $this->Form->input('points',
-			array('label' => 'Points To Win', 'default' => 5 ));
+				array('label' => 'Points To Win', 'default' => 5 ));
 			?>
 			<h5>Misc</h5>
 			<?php

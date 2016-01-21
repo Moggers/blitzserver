@@ -29,6 +29,13 @@ class MatchesTable extends Table
         $this->displayField('name');
         $this->primaryKey('id');
 
+		$this->addBehavior( 'Enum', [ 'options' => [
+			-1 => 'Deleted',
+			0 => 'Pending',
+			1 => 'In Lobby',
+			2 => 'Starting',
+			3 => 'Running' ]] );
+
         $this->belongsTo('Maps', [
             'foreignKey' => 'map_id',
             'joinType' => 'INNER'

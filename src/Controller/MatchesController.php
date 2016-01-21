@@ -49,6 +49,8 @@ class MatchesController extends AppController
     public function add()
     {
         $match = $this->Matches->newEntity();
+		pr( $this->Matches->lookUp( 1 ) );
+		die();
         if ($this->request->is('post')) {
             $match = $this->Matches->patchEntity($match, $this->request->data);
 			$match->status = 0;
