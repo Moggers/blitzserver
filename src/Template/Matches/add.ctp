@@ -34,7 +34,7 @@
 			<h5>Misc</h5>
 			<?php
 			echo $this->Form->input( 'research_diff', array(
-				'options' => array(1 => "Very Easy", 2 => "Easy", 3 => "Normal", 4 => "Hard", 5 => "Very Hard"),
+				'options' => array(-1 => "Very Easy", 0 => "Easy", 1 => "Normal", 2 => "Hard", 3 => "Very Hard"),
 				'value' => 3,
 				'label' => 'Research Difficulty'));
 			echo $this->Form->input( 'renaming', array(
