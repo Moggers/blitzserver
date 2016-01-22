@@ -35,7 +35,7 @@
 			<?php
 			echo $this->Form->input( 'research_diff', array(
 				'options' => array(-1 => "Very Easy", 0 => "Easy", 1 => "Normal", 2 => "Hard", 3 => "Very Hard"),
-				'value' => 3,
+				'value' => 1,
 				'label' => 'Research Difficulty'));
 			echo $this->Form->input( 'renaming', array(
 				'label' => 'Commander Renaming',
