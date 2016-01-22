@@ -49,8 +49,6 @@ class MatchesController extends AppController
     public function add()
     {
         $match = $this->Matches->newEntity();
-		pr( $this->Matches->lookUp( 1 ) );
-		die();
         if ($this->request->is('post')) {
             $match = $this->Matches->patchEntity($match, $this->request->data);
 			$match->status = 0;
@@ -119,7 +117,7 @@ class MatchesController extends AppController
         ]);
         if ($this->request->is(['patch', 'get', 'put'])) {
             $match = $this->Matches->patchEntity($match, $this->request->data);
-			$match->status = 3;
+			$match->status = 2;
             if ($this->Matches->save($match)) {
                 $this->Flash->success(__('The match has been started.'));
                 return $this->redirect(['action' => 'index']);

@@ -27,4 +27,45 @@ class Match extends Entity
         '*' => true,
         'id' => false,
     ];
+
+	public static function enum( $value, $options, $default = '' ) {
+		if( $value !== null ) {
+			if( array_key_Exists( $value, $options )) {
+				return $options[$value];
+			}
+		return $default;
+		}
+		return $options;
+	}
+
+	public static function statuses( $value = null )
+	{
+		$options = [
+			self::STATUS_DELETED => __('Marked for Deletion', true ),
+			self::STATUS_NEW => __('Pending', true ),
+			self::STATUS_LOBBY => __('In Lobby', true ),
+			self::STATUS_STARTED => __('Starting', true ),
+			self::STATUS_RUNNING => __('Running', true ) ];
+		return Match::enum( $value, $options );
+	}
+
+	public static function ages( $value = null )
+	{
+		$options = [
+			self::AGE_EARLY => __('Early', true ),
+			self::AGE_MIDDLE => __('Middle', true ),
+			self::AGE_LATE => __('Late', true ) ];
+
+		return Match::enum( $value, $options );
+	}
+
+	const STATUS_DELETED = -1;
+	const STATUS_NEW = 0;
+	const STATUS_LOBBY = 1;
+	const STATUS_STARTED = 2;
+	const STATUS_RUNNING = 3;
+
+	const AGE_EARLY = 1;
+	const AGE_MIDDLE = 2;
+	const AGE_LATE = 3;
 }

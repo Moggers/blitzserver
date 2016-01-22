@@ -29,13 +29,6 @@ class MatchesTable extends Table
         $this->displayField('name');
         $this->primaryKey('id');
 
-		$this->addBehavior( 'Enum', [ 'options' => [
-			-1 => 'Deleted',
-			0 => 'Pending',
-			1 => 'In Lobby',
-			2 => 'Starting',
-			3 => 'Running' ]] );
-
         $this->belongsTo('Maps', [
             'foreignKey' => 'map_id',
             'joinType' => 'INNER'
@@ -57,6 +50,11 @@ class MatchesTable extends Table
         $validator
             ->add('age', 'valid', ['rule' => 'numeric'])
             ->allowEmpty('age');
+		
+		$validator->add('name', 'valid', [
+		'rule' =>array('custom', '/^[a-z0-9]{3,}$/i'),
+		'message' => 'No whitespaces allowed!' ] );
+			
 
         return $validator;
     }
