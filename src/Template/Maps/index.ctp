@@ -12,6 +12,7 @@
                 <th><?= $this->Paginator->sort('Name') ?></th>
                 <th><?= $this->Paginator->sort('Description') ?></th>
                 <th><?= $this->Paginator->sort('Province Count') ?></th>
+				<th><?= $this->Paginator->sort('Actions') ?> </th>
             </tr>
         </thead>
         <tbody>
@@ -21,6 +22,7 @@
                 <?= h($map->name) ?></td>
                 <td><?= h($map->description) ?></td>
                 <td><?= h($map->prov . '(' . $map->seaprov) . ')' ?></td>
+				<td><?= $this->Html->link(__('Delete'), ['action' => 'delete', $map->id]) ?> </td>
             </tr>
             <?php endforeach; ?>
         </tbody>
