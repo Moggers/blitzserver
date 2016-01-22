@@ -40,6 +40,10 @@
 			echo $this->Form->input( 'renaming', array(
 				'label' => 'Commander Renaming',
 				'type' => 'checkbox'  ));
+			echo "Until I fix the no thrones bug, this needs to be enabled, and the game needs to be started using the Start Game button from inside the client once everyone has joined. Starting the match from this interface will cause there to be NO THRONES";
+			echo $this->Form->input( 'clientstart', array(
+				'label' => 'Clients Can Start Game',
+				'type' => 'checkbox'  ));
         ?>
     </fieldset>
     <?= $this->Form->button(__('Submit')) ?>
