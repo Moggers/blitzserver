@@ -21,6 +21,10 @@ class MatchesController extends AppController
         $this->paginate = [
             'contain' => ['Maps']
         ];
+
+		if( $this->request->query('layout') == 'false' ) {
+			$this->viewBuilder()->layout( false );
+		}
         $this->set('matches', $this->paginate($this->Matches));
         $this->set('_serialize', ['matches']);
     }

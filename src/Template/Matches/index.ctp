@@ -1,3 +1,14 @@
+<script src="https://code.jquery.com/jquery-2.2.0.min.js" type='text/javascript'></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.0.0/lodash.js" type='text/javascript'></script>
+<script type='text/javascript' >
+	$(document).ready( function() {
+		setInterval( function() { 
+			$.get( window.location.pathname + '?layout=false', function( data, res ) {  
+				$(".matches table" ).html($("table", data));
+			} );
+		}, 5000 );
+	} );
+</script>
 <nav class="large-3 medium-4 columns" id="actions-sidebar">
     <ul class="side-nav">
         <li class="heading"><?= __('Actions') ?></li>
@@ -20,29 +31,7 @@
             </tr>
         </thead>
         <tbody>
-            <?php foreach ($matches as $match): ?>
-            <tr>
-                <td><?= $match->name ?></td>
-                <td><?= $match->has('map') ? $this->Html->link(
-					$this->Html->image( 'maps/' . $match->map->id . '/thumb64.jpeg', ['alt' => 'CakePHP' ]), 
-					['controller' => 'Maps', 'action' => 'view', $match->map->id], 
-					['escape' => false]) : '' ?> </td>
-                <td><?= $match::ages( $match->age ) ?></td>
-				<?php if ($match->status < 1 ): ?>
-					<td><?= 'N/A' ?></td>
-				<?php else: ?>
-					<td><?= $this->Number->format($match->port) ?></td>
-				<?php endif;?>
-                <td><?= $match::statuses( $match->status ) ?></td>
-				<td>
-				<?php if ($match->status < 2 ): ?>
-					<?= $this->Html->link(__('Start Game'), ['action' => 'start', $match->id]) ?> <br />
-				<?php endif; ?>
-				<?= $this->Html->link(__('KILL THE GAME'), ['action' => 'destroy', $match->id]) ?> </td>
-                <td class="actions">
-                </td>
-            </tr>
-            <?php endforeach; ?>
+			<?= $this->element( 'matchtable', array( 'matches' => $matches ) ); ?>
         </tbody>
     </table>
     <div class="paginator">
