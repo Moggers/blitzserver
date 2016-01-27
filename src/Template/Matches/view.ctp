@@ -14,7 +14,10 @@
     <table class="vertical-table">
         <tr>
             <th><?= __('Map') ?></th>
-            <td><?= $match->has('map') ? $this->Html->link($match->map->name, ['controller' => 'Maps', 'action' => 'view', $match->map->id]) : '' ?></td>
+			<td><?= $match->has('map') ? $this->Html->link(
+				$this->Html->image( 'maps/' . $match->map->id . '/thumb512.jpeg', ['alt' => 'CakePHP' ]), 
+				['controller' => 'Maps', 'action' => 'view', $match->map->id], 
+				['escape' => false]) : '' ?> </td>
         </tr>
         <tr>
             <th><?= __('Id') ?></th>
