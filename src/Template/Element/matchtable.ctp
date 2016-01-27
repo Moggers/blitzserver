@@ -13,10 +13,12 @@
 	<?php endif;?>
 	<td><?= $match::statuses( $match->status ) ?></td>
 	<td>
-	<?php if ($match->status < 2 ): ?>
-		<?= $this->Html->link(__('Start Game'), ['action' => 'start', $match->id]) ?> <br />
+	<?php if ($match->status !== -1): ?>
+		<?php if ($match->status < 2 ): ?>
+			<?= $this->Html->link(__('Start Game'), ['action' => 'start', $match->id]) ?> <br />
+		<?php endif; ?>
+		<?= $this->Html->link(__('KILL THE GAME'), ['action' => 'destroy', $match->id]) ?> </td>
 	<?php endif; ?>
-	<?= $this->Html->link(__('KILL THE GAME'), ['action' => 'destroy', $match->id]) ?> </td>
 	<td class="actions">
 	</td>
 </tr>

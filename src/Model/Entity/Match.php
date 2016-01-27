@@ -49,7 +49,8 @@ class Match extends Entity
 			self::STATUS_RUNNING_C => __('Running', true ),
 			self::STATUS_COUNTDOWN_5 => __('Starting in 5 seconds', true ),
 			self::STATUS_COUNTDOWN_10 => __('Starting in 10 seconds', true ),
-			self::STATUS_COUNTDOWN_15 => __('Starting in 15 seconds', true )];
+			self::STATUS_COUNTDOWN_15 => __('Starting in 15 seconds', true ),
+			self::STATUS_CRIT_FAILURE => __('Nagot gick fel', true)];
 		return Match::enum( $value, $options );
 	}
 
@@ -72,6 +73,7 @@ class Match extends Entity
 	const STATUS_COUNTDOWN_5 = 11;
 	const STATUS_COUNTDOWN_10 = 12;
 	const STATUS_COUNTDOWN_15 = 13;
+	const STATUS_CRIT_FAILURE = 99;
 
 	const AGE_EARLY = 1;
 	const AGE_MIDDLE = 2;
