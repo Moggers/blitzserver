@@ -18,7 +18,11 @@ class MapsController extends AppController
      */
     public function index()
     {
-        $this->set('maps', $this->paginate($this->Maps));
+        $this->set('maps', $this->paginate($this->Maps->find('all', [ 
+			'conditions' => [
+				'Maps.hide =' => 0
+			]
+		])));
         $this->set('_serialize', ['maps']);
     }
 
@@ -48,6 +52,7 @@ class MapsController extends AppController
         $map = $this->Maps->newEntity();
         if ($this->request->is('post')) {
             $map = $this->Maps->patchEntity($map, $this->request->data);
+			$map->hide = 0;
             if ($this->Maps->save($map)) {
 				$thumbdir = WWW_ROOT . 'img/maps/' . $map->id . '/';
 				if( !file_exists( $thumbdir ) )
@@ -100,11 +105,13 @@ class MapsController extends AppController
     {
         $this->request->allowMethod(['post', 'delete']);
         $map = $this->Maps->get($id);
-        if ($this->Maps->delete($map)) {
-            $this->Flash->success(__('The map has been deleted.'));
-        } else {
-            $this->Flash->error(__('The map could not be deleted. Please, try again.'));
-        }
+		$map->hide = 1;
+		if ($this->Maps->save($map)) {
+			$this->Flash->success(__('The map has been deleted.'));
+			return $this->redirect(['action' => 'index']);
+		} else {
+			$this->Flash->error(__('The map could not be deleted. Please, try again.'));
+		}
         return $this->redirect(['action' => 'index']);
     }
 }

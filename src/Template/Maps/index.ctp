@@ -22,7 +22,7 @@
                 <?= h($map->name) ?></td>
                 <td><?= h($map->description) ?></td>
                 <td><?= h($map->prov . '(' . $map->seaprov) . ')' ?></td>
-				<td><?= $this->Html->link(__('Delete'), ['action' => 'delete', $map->id]) ?> </td>
+				<td><?= $this->Form->postLink(__('Delete'), ['action' => 'delete', $map->id]) ?> </td>
             </tr>
             <?php endforeach; ?>
         </tbody>

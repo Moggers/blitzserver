@@ -39,59 +39,63 @@ class MapsTable extends Table
 
 	 public function beforeSave( $event, $entity, $options )
 	 {
-		 $imagetmp = $entity->get('Definition')['tmp_name'];
-		 $fd = fopen( $imagetmp, 'r' );
-		 $entity->set( 'imagepath', $entity->get('Image')['name'] );
-		 if( $fd ) {
-			$terraincount = 0;
-			$watercount = 0;
-			 while( ( $line = fgets( $fd ) ) !== false ) {
-				 $arr = explode( ' ', $line );
-				 if( $arr[0] == '--' ) {
+		if( $entity->get('Definition')['tmp_name'] != '' ) {
+			 $imagetmp = $entity->get('Definition')['tmp_name'];
+			 $fd = fopen( $imagetmp, 'r' );
+			 $entity->set( 'imagepath', $entity->get('Image')['name'] );
+			 if( $fd ) {
+				$terraincount = 0;
+				$watercount = 0;
+				 while( ( $line = fgets( $fd ) ) !== false ) {
+					 $arr = explode( ' ', $line );
+					 if( $arr[0] == '--' ) {
+					 }
+					 else if( $arr[0] == '#dom2title' ) {
+						 $entity->set( 'name', substr( $line, 10 ) );
+					 }
+					 else if( $arr[0] == "#description" ) {
+						 $entity->set( 'description', substr( $line, 14 ) );
+					 }
+					 else if( $arr[0] == "#terrain" ) {
+						$terraincount++;
+						$water = intval( $arr[2] ) & 4;
+						if( $water == 8 || $water == 4 || $water == 12 ) 
+							$watercount++;
+					 }
+					 else if( $arr[0] == "#hwraparound" ) {
+						 $entity->set( 'hwrap', true );
+					 }
+					 else if( $arr[0] == "#vwraparound" ) {
+						 $entity->set( 'vwrap', true );
+					 }
 				 }
-				 else if( $arr[0] == '#dom2title' ) {
-					 $entity->set( 'name', substr( $line, 10 ) );
-				 }
-				 else if( $arr[0] == "#description" ) {
-					 $entity->set( 'description', substr( $line, 14 ) );
-				 }
-				 else if( $arr[0] == "#terrain" ) {
-					$terraincount++;
-					$water = intval( $arr[2] ) & 4;
-					if( $water == 8 || $water == 4 || $water == 12 ) 
-						$watercount++;
-				 }
-				 else if( $arr[0] == "#hwraparound" ) {
-					 $entity->set( 'hwrap', true );
-				 }
-				 else if( $arr[0] == "#vwraparound" ) {
-					 $entity->set( 'vwrap', true );
-				 }
+				 $entity->set( 'prov', $terraincount );
+				 $entity->set( 'seaprov', $watercount );
+				 fclose( $fd );
 			 }
-			 $entity->set( 'prov', $terraincount );
-			 $entity->set( 'seaprov', $watercount );
-			 fclose( $fd );
-		 }
-		 else {
-			 return false;
+			 else {
+				 return false;
+			 }
+			 $entity->set( 'mappath', $entity->get('Definition')['name'] );
 		 }
 
-		 $entity->set( 'mappath', $entity->get('Definition')['name'] );
 	 return true;
 	 }
 	 public function afterSave( $event, $entity, $options )
 	 {
-		 $mapdir = DOM4_MAPS . '/' . $entity->id . '/';
-		 if( !file_exists( $mapdir ) )
-			 mkdir( $mapdir, 0777, true );
+		 if( $entity->get('Image')['tmp_name'] != '' ) {
+			 $mapdir = DOM4_MAPS . '/' . $entity->id . '/';
+			 if( !file_exists( $mapdir ) )
+				 mkdir( $mapdir, 0777, true );
 
-		 $imagetmp = $entity->get('Image')['tmp_name'];
-		 $imagepath = $mapdir . $entity->get('Image')['name'];
-		 move_uploaded_file( $imagetmp, $imagepath );
+			 $imagetmp = $entity->get('Image')['tmp_name'];
+			 $imagepath = $mapdir . $entity->get('Image')['name'];
+			 move_uploaded_file( $imagetmp, $imagepath );
 
-		 $deftmp = $entity->get('Definition')['tmp_name'];
-		 $defpath = $mapdir . $entity->get('Definition')['name'];
-		 move_uploaded_file( $deftmp, $defpath );
+			 $deftmp = $entity->get('Definition')['tmp_name'];
+			 $defpath = $mapdir . $entity->get('Definition')['name'];
+			 move_uploaded_file( $deftmp, $defpath );
+		 }
 	 }
 
     public function validationDefault(Validator $validator)
