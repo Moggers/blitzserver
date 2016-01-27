@@ -24,5 +24,10 @@
             <th><?= __('Age') ?></th>
             <td><?= $this->Number->format($match->age) ?></td>
         </tr>
+			<th><?= __('Races') ?></th>
+			<td>
+				<?php foreach ($match::getRaces( $match->playerstring) as $race): ?>
+					<?= $race ?> <br />
+				<?php endforeach; ?>
     </table>
 </div>

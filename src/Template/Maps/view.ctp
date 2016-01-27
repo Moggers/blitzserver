@@ -8,15 +8,18 @@
     </ul>
 </nav>
 <div class="maps view large-9 medium-8 columns content">
-    <h3><?= h($map->id) ?></h3>
+    <h3><?= h($map->name) ?></h3>
     <table class="vertical-table">
         <tr>
-            <th><?= __('Id') ?></th>
-            <td><?= $this->Number->format($map->id) ?></td>
+			<th><?= __('Description') ?></th>
+            <th><?= h($map->description) ?></td>
         </tr>
         <tr>
-            <th><?= __('Filename') ?></th>
-            <td><?= h($map->filename) ?></td>
+			<th><?= __('Provinces(Sea Provinces)')?> </th>
+			<th><?= h($map->prov.'('.$map->seaprov) .')' ?> </td>
         </tr>
+		<tr>
+			<th><?=$this->Html->image( 'maps/' . $map->id . '/thumb512.jpeg', ['alt' => 'CakePHP' ]) ?></th>
+		</tr>
     </table>
 </div>

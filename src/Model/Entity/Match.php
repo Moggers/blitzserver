@@ -46,7 +46,6 @@ class Match extends Entity
 			self::STATUS_LOBBY => __('In Lobby', true ),
 			self::STATUS_STARTED => __('Starting', true ),
 			self::STATUS_RUNNING => __('Running', true ),
-			self::STATUS_RUNNING_C => __('Running', true ),
 			self::STATUS_COUNTDOWN_5 => __('Starting in 5 seconds', true ),
 			self::STATUS_COUNTDOWN_10 => __('Starting in 10 seconds', true ),
 			self::STATUS_COUNTDOWN_15 => __('Starting in 15 seconds', true ),
@@ -64,12 +63,31 @@ class Match extends Entity
 		return Match::enum( $value, $options );
 	}
 
+
+	public static function races( $value = null )
+	{
+		$options = [
+			self::RACE_EARLY_CTIS => __('EA C\'tis, Lizard Kings')];
+		return Match::enum( $value, $options );
+	}
+	public static function getRaces( $value = null )
+	{
+		$ii = 0;
+		$raceset = array();
+		for( $ii = 0; $ii < 32; $ii++ ) {
+			if( ($value >> $ii ) & 1 == 1 )
+			{
+				array_push( $raceset, match::races( $ii) );
+			}
+		}
+		return $raceset;
+	}
+
 	const STATUS_DELETED = -1;
 	const STATUS_NEW = 0;
 	const STATUS_LOBBY = 1;
 	const STATUS_STARTED = 2;
 	const STATUS_RUNNING = 3;
-	const STATUS_RUNNING_C = 10;
 	const STATUS_COUNTDOWN_5 = 11;
 	const STATUS_COUNTDOWN_10 = 12;
 	const STATUS_COUNTDOWN_15 = 13;
@@ -78,4 +96,6 @@ class Match extends Entity
 	const AGE_EARLY = 1;
 	const AGE_MIDDLE = 2;
 	const AGE_LATE = 3;
+
+	const RACE_EARLY_CTIS = 15;
 }
