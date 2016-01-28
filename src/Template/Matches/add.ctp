@@ -15,7 +15,7 @@
 			<h5>Important Stuff</h5>
 			<?php
 			echo $this->Form->input('name');
-            echo $this->Form->input('map_id', ['options' => $maps]);
+            echo $this->Form->input('map_id', ['options' => $maps->where(['hide' => 0])]);
             echo $this->Form->input('age', array(
 				'options' => array( 1 => 'Early', 2 => 'Middle', 3 => 'Late'),
 				'value' => 1 ));
