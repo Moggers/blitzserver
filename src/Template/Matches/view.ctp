@@ -27,9 +27,9 @@
             <th><?= __('Age') ?></th>
             <td><?= $this->Number->format($match->age) ?></td>
         </tr>
-			<th><?= __('Races') ?></th>
+			<th><?= __('Nations') ?></th>
 			<td>
-				<?php foreach ($match::getRaces( $match->playerstring) as $race): ?>
+				<?php foreach ($match::getNations( $match->playerstring) as $race): ?>
 					<?= $race ?> <br />
 				<?php endforeach; ?>
     </table>

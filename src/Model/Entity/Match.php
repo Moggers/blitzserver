@@ -64,23 +64,52 @@ class Match extends Entity
 	}
 
 
-	public static function races( $value = null )
+	public static function nations( $value = null )
 	{
 		$options = [
-			self::RACE_EARLY_CTIS => __('EA C\'tis, Lizard Kings')];
+			self::NATION_EARLY_ARCO => __('Arcoscephale, Golden Era'),
+			self::NATION_EARLY_ERMO => __('Ermor, New Faith'),
+			self::NATION_EARLY_ULM => __('Ulm, Enigma of Steel'),
+			self::NATION_EARLY_MARV => __('Marverni, Time of Druids'),
+			self::NATION_EARLY_SAUR => __('Sauromatia, Amazon Queens'),
+			self::NATION_EARLY_TIEN => __('T\'ien Chi, Spring and Autumn'),
+			self::NATION_EARLY_MACH => __('Machaka, Lion Kings'),
+			self::NATION_EARLY_MICT => __('Mictlan, Reign of Blood'),
+			self::NATION_EARLY_ABYS => __('Abysia, Children of Flame'),
+			self::NATION_EARLY_CAEL => __('Caelum, Eagle Kings'),
+			self::NATION_EARLY_CTIS => __('C\'tis, Lizard Kings'),
+			self::NATION_EARLY_PANG => __('Pangaea, Age of Revelry'),
+			self::NATION_EARLY_AGAR => __('Agartha, Pale Ones'),
+			self::NATION_EARLY_TIRN => __('Tir na n\Og, Land of ELVES'),
+			self::NATION_EARLY_FOMO => __('Fomoria, The Cursed Ones'),
+			self::NATION_EARLY_VANH => __('Vanheim, Age of ELVES'),
+			self::NATION_EARLY_HELH => __('Helheim, Dusk and ELVES'),
+			self::NATION_EARLY_NIEF => __('Niefelheim, Sons of Winter'),
+			self::NATION_EARLY_KAIL => __('Kailasa, Rise of the Ape Kings'),
+			self::NATION_EARLY_LANK => __('Lanka, Land of Demons'),
+			self::NATION_EARLY_YOMI => __('Yomi, Oni Kings'),
+			self::NATION_EARLY_HINN => __('Hinnom, Sons of the Fallen'),
+			self::NATION_EARLY_UR => __('Ur, The First City'),
+			self::NATION_EARLY_BERY => __('Berytos, The Phoenix Empire'),
+			self::NATION_EARLY_XIBA => __('Xibalba, Vigil of the Sun'),
+			self::NATION_EARLY_ATLA => __('Atlantis, Emergence of the Deep Ones'),
+			self::NATION_EARLY_RLYE => __('R\'lyeh, Time of Aboleths'),
+			self::NATION_EARLY_PELA => __('Pelagia, Pearl Kings'),
+			self::NATION_EARLY_OCEA => __('Oceania, Coming of the Capricorns'),
+			self::NATION_EARLY_THER => __('Therodos, Telkhine Spectre')];
 		return Match::enum( $value, $options );
 	}
-	public static function getRaces( $value = null )
+	public static function getNations( $value = null )
 	{
 		$ii = 0;
-		$raceset = array();
+		$nationset = array();
 		for( $ii = 0; $ii < 32; $ii++ ) {
 			if( ($value >> $ii ) & 1 == 1 )
 			{
-				array_push( $raceset, match::races( $ii) );
+				array_push( $nationset, match::nations( $ii) );
 			}
 		}
-		return $raceset;
+		return $nationset;
 	}
 
 	const STATUS_DELETED = -1;
@@ -97,5 +126,34 @@ class Match extends Entity
 	const AGE_MIDDLE = 2;
 	const AGE_LATE = 3;
 
-	const RACE_EARLY_CTIS = 15;
+	const NATION_EARLY_ARCO = 5;
+	const NATION_EARLY_ERMO = 6;
+	const NATION_EARLY_ULM = 7;
+	const NATION_EARLY_MARV = 8;
+	const NATION_EARLY_SAUR = 9;
+	const NATION_EARLY_TIEN = 10;
+	const NATION_EARLY_MACH = 11;
+	const NATION_EARLY_MICT = 12;
+	const NATION_EARLY_ABYS = 13;
+	const NATION_EARLY_CAEL = 14;
+	const NATION_EARLY_CTIS = 15;
+	const NATION_EARLY_PANG = 16;
+	const NATION_EARLY_AGAR = 17;
+	const NATION_EARLY_TIRN = 18;
+	const NATION_EARLY_FOMO = 19;
+	const NATION_EARLY_VANH = 20;
+	const NATION_EARLY_HELH = 21;
+	const NATION_EARLY_NIEF = 22;
+	const NATION_EARLY_KAIL = 23;
+	const NATION_EARLY_LANK = 24;
+	const NATION_EARLY_YOMI = 25;
+	const NATION_EARLY_HINN = 26;
+	const NATION_EARLY_UR = 27;
+	const NATION_EARLY_BERY = 28;
+	const NATION_EARLY_XIBA = 29;
+	const NATION_EARLY_ATLA = 30;
+	const NATION_EARLY_RLYE = 31;
+	const NATION_EARLY_PELA = 32;
+	const NATION_EARLY_OCEA = 33;
+	const NATION_EARLY_THER = 34;
 }

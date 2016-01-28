@@ -35,6 +35,11 @@ class MatchesTable extends Table
         ]);
     }
 
+	public function beforeSave( array $options = array()  )
+	{
+		$this->data['Match']['name'] = str_replace( ' ', '_', $this->data['Match']['name'] );
+	}
+
     /**
      * Default validation rules.
      *
