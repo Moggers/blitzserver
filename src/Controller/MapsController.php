@@ -52,7 +52,16 @@ class MapsController extends AppController
         $map = $this->Maps->newEntity();
         if ($this->request->is('post')) {
             $map = $this->Maps->patchEntity($map, $this->request->data);
+			$imagetmp = $this->request->data('Definition')['tmp_name'];
+			$fd = fopen( $imagetmp, 'r' );
+			$hash = crc32( fread( $fd, 99999999 ) );
+			$map->crc32 = $hash;
 			$map->hide = 0;
+			$clash = $this->Maps->find( 'all' )->where(['crc32'=> $hash])->first();
+			if( $clash ) {
+				$this->Flash->error(__('That map has already been uploaded. It\'s over here'));
+				$this->redirect(['action' => 'view', $clash->id]);
+			}
             if ($this->Maps->save($map)) {
 				$thumbdir = WWW_ROOT . 'img/maps/' . $map->id . '/';
 				if( !file_exists( $thumbdir ) )

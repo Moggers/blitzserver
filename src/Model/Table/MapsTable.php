@@ -46,6 +46,7 @@ class MapsTable extends Table
 			 if( $fd ) {
 				$terraincount = 0;
 				$watercount = 0;
+				rewind( $fd );
 				 while( ( $line = fgets( $fd ) ) !== false ) {
 					 $arr = explode( ' ', $line );
 					 if( $arr[0] == '--' ) {
