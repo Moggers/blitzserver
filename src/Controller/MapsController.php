@@ -61,20 +61,22 @@ class MapsController extends AppController
 			if( $clash ) {
 				$this->Flash->error(__('That map has already been uploaded. It\'s over here'));
 				$this->redirect(['action' => 'view', $clash->id]);
+			} else
+			{
+				if ($this->Maps->save($map)) {
+					$thumbdir = WWW_ROOT . 'img/maps/' . $map->id . '/';
+					if( !file_exists( $thumbdir ) )
+						mkdir( $thumbdir, 0777, true );
+					$thumbname = $thumbdir . "thumb64.jpeg";
+					$rgbname =  DOM4_MAPS . '/' . $map->id . '/' . $map->imagepath;
+					system( "convert \"" . $rgbname . "\" -scale 64x-1 \"" . $thumbname . "\"" );
+					$thumbname = $thumbdir . "thumb512.jpeg";
+					system( "convert \"" . $rgbname . "\" -scale 512x-1 \"" . $thumbname . "\"" );
+					return $this->redirect(['action' => 'index']);
+				} else {
+					$this->Flash->error(__('The map could not be saved. Please, try again.'));
+				}
 			}
-            if ($this->Maps->save($map)) {
-				$thumbdir = WWW_ROOT . 'img/maps/' . $map->id . '/';
-				if( !file_exists( $thumbdir ) )
-					mkdir( $thumbdir, 0777, true );
-				$thumbname = $thumbdir . "thumb64.jpeg";
-				$rgbname =  DOM4_MAPS . '/' . $map->id . '/' . $map->imagepath;
-				system( "convert \"" . $rgbname . "\" -scale 64x-1 \"" . $thumbname . "\"" );
-				$thumbname = $thumbdir . "thumb512.jpeg";
-				system( "convert \"" . $rgbname . "\" -scale 512x-1 \"" . $thumbname . "\"" );
-                return $this->redirect(['action' => 'index']);
-            } else {
-                $this->Flash->error(__('The map could not be saved. Please, try again.'));
-            }
         }
         $this->set(compact('map'));
         $this->set('_serialize', ['map']);
