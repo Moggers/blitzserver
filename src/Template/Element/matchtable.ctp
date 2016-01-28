@@ -1,6 +1,6 @@
 <?php foreach ($matches as $match): ?>
 <tr>
-	<td><?= $match->name ?></td>
+	<td><?= $match->false_name ?></td>
 	<td><?= $match->has('map') ? $this->Html->link(
 		$this->Html->image( 'maps/' . $match->map->id . '/thumb64.jpeg', ['alt' => 'CakePHP' ]), 
 		['controller' => 'Maps', 'action' => 'view', $match->map->id], 

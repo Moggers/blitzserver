@@ -55,6 +55,7 @@ class MatchesController extends AppController
         $match = $this->Matches->newEntity();
         if ($this->request->is('post')) {
             $match = $this->Matches->patchEntity($match, $this->request->data);
+			$match->name = str_replace( ' ', '_', $match->name );
 			$match->status = 0;
 			$match->port = 0;
             if ($this->Matches->save($match)) {

@@ -35,9 +35,23 @@ class MatchesTable extends Table
         ]);
     }
 
-	public function beforeSave( array $options = array()  )
+	public function afterFind( $results, $primary = false )
 	{
-		$this->data['Match']['name'] = str_replace( ' ', '_', $this->data['Match']['name'] );
+		die( "Just fuck my shit up fam" );
+		foreach( $results as $key => $val ) {
+			if( isset( $val['Match']['name'] ) ) {
+				$results[$key]['Match']['name'] = str_replace( '_', ' ', $results[$key]['Match']['name'] );
+			}
+		}
+		return $results;
+	}
+
+	public function beforeSave( $options = array() )
+	{
+		if( !empty($entity->match['name']) ) {
+			$entity->match['name'] = str_replace( ' ', '_', $entity->match['name'] );
+		}
+		return true;
 	}
 
     /**
@@ -56,10 +70,6 @@ class MatchesTable extends Table
             ->add('age', 'valid', ['rule' => 'numeric'])
             ->allowEmpty('age');
 		
-		$validator->add('name', 'valid', [
-		'rule' =>array('custom', '/^[a-z0-9]{3,}$/i'),
-		'message' => 'No whitespaces allowed!' ] );
-			
 
         return $validator;
     }

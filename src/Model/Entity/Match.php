@@ -38,6 +38,10 @@ class Match extends Entity
 		return $options;
 	}
 
+	protected function _getFalseName() {
+		return str_replace( '_', ' ', $this->name );
+	}
+
 	public static function statuses( $value = null )
 	{
 		$options = [
