@@ -57,7 +57,7 @@ class MapsController extends AppController
 			$hash = crc32( fread( $fd, 99999999 ) );
 			$map->crc32 = $hash;
 			$map->hide = 0;
-			$clash = $this->Maps->find( 'all' )->where(['crc32'=> $hash])->first();
+			$clash = $this->Maps->find( 'all' )->where(['crc32'=> $hash, 'hide' => 0])->first();
 			if( $clash ) {
 				$this->Flash->error(__('That map has already been uploaded. It\'s over here'));
 				$this->redirect(['action' => 'view', $clash->id]);
