@@ -70,6 +70,8 @@ class MapsController extends AppController
 					$thumbname = $thumbdir . "thumb64.jpeg";
 					$rgbname =  DOM4_MAPS . '/' . $map->id . '/' . $map->imagepath;
 					system( "convert \"" . $rgbname . "\" -scale 64x-1 \"" . $thumbname . "\"" );
+					$thumbname = $thumbdir . "thumb256.jpeg";
+					system( "convert \"" . $rgbname . "\" -scale 256x-1 \"" . $thumbname . "\"" );
 					$thumbname = $thumbdir . "thumb512.jpeg";
 					system( "convert \"" . $rgbname . "\" -scale 512x-1 \"" . $thumbname . "\"" );
 					return $this->redirect(['action' => 'index']);
