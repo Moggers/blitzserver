@@ -19,13 +19,12 @@
 				['controller' => 'Maps', 'action' => 'view', $match->map->id], 
 				['escape' => false]) : '' ?> </td>
         </tr>
-        <tr>
-            <th><?= __('Id') ?></th>
-            <td><?= $this->Number->format($match->id) ?></td>
-        </tr>
+		<tr>
+			<th><?= __('Status') ?></th>
+			<td><?= $match::statuses( $match->status ) ?></td>
         <tr>
             <th><?= __('Age') ?></th>
-            <td><?= $this->Number->format($match->age) ?></td>
+			<td><?= $match::ages( $match->age ) ?></td>
         </tr>
 			<th><?= __('Nations') ?></th>
 			<td>
