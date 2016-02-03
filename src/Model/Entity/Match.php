@@ -42,6 +42,10 @@ class Match extends Entity
 		return str_replace( '_', ' ', $this->name );
 	}
 
+	protected function _getThrones() {
+		return '' . $this->tone . '/' . $this->ttwo . '/' . $this->tthree . '(' . $this->points . ')';
+	}
+
 	public static function statuses( $value = null )
 	{
 		$options = [
