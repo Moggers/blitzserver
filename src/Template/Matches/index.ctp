@@ -33,7 +33,7 @@
 </nav>
 <div class="matches index large-9 medium-8 columns content">
     <h3><?= __('Matches') ?></h3>
-	<?= $this->Form->Button( "Refresh", array( 'onclick' => 'refresh(); waitExtend = 5;', 'id' => 'refresh' ) ); ?>
+	<?= $this->Form->Button( "Refresh", array( 'onclick' => 'refresh(); waitExtend = 5;', 'id' => 'refresh', 'style' => 'padding: 0.5rem 0.5rem 0.5rem 0.5rem' ) ); ?>
     <table cellpadding="0" cellspacing="0">
         <thead>
             <tr>
