@@ -1,3 +1,9 @@
+<script type='text/javascript' >
+	function swapImage(id, mid, size)
+	{
+		document.getElementById( id + 'mapimage' ).src = 'img/maps/' + mid + '/thumb'+size+'.jpeg';
+	}
+</script>
 <nav class="large-3 medium-4 columns" id="actions-sidebar">
     <ul class="side-nav">
         <li class="heading"><?= __('Actions') ?></li>
@@ -18,7 +24,11 @@
         <tbody>
             <?php foreach ($maps as $map): ?>
             <tr>
-				<td><?= $this->Html->image( 'maps/' . $map->id . '/thumb64.jpeg', ['alt' => 'CakePHP' ]); ?>
+					<td><?= $this->Html->image( 'maps/' . $map->id . '/thumb64.jpeg', [ 
+						'id' => $map->id . 'mapimage', 
+						'onmouseover' => 'swapImage('.$map->id.','.$map->id.',256'.')', 
+						'onmouseout' =>  'swapImage('.$map->id.','.$map->id.',64'.')',
+						'alt' => 'CakePHP' ]) ?> </td>
                 <?= h($map->name) ?></td>
                 <td><?= h($map->description) ?></td>
                 <td><?= h($map->prov . '(' . $map->seaprov) . ')' ?></td>
