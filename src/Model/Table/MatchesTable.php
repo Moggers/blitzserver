@@ -69,7 +69,6 @@ class MatchesTable extends Table
         $validator
             ->add('age', 'valid', ['rule' => 'numeric'])
             ->allowEmpty('age');
-		
 
         return $validator;
     }

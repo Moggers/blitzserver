@@ -59,7 +59,7 @@ class MatchesController extends AppController
 			$match->status = 0;
 			$match->port = 0;
             if ($this->Matches->save($match)) {
-                $this->Flash->success(__('The match has been saved.'));
+                $this->Flash->success(__('The match has been requested.'));
                 return $this->redirect(['action' => 'index']);
             } else {
                 $this->Flash->error(__('The match could not be saved. Please, try again.'));
