@@ -42,6 +42,7 @@
                 <th><?= $this->Paginator->sort('age') ?></th>
 				<th><?= $this->Paginator->sort('port') ?></th>
 				<th><?= $this->Paginator->sort('status') ?></th>
+				<th><?= $this->Paginator->sort('thrones') ?></th>
 				<th><?= $this->Paginator->sort('action') ?></th>
             </tr>
         </thead>

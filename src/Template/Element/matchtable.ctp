@@ -16,21 +16,17 @@
 		['controller' => 'Maps', 'action' => 'view', $match->map->id], 
 		['escape' => false]) : '' ?> </td>
 	<td><?= $match::ages( $match->age ) ?></td>
-	<?php if ($match->status < 1 ): ?>
-		<td><?= 'N/A' ?></td>
-	<?php else: ?>
-		<td><?= $this->Number->format($match->port) ?></td>
-	<?php endif;?>
-	<td><?= $match::statuses( $match->status ) ?></td>
-	<td>
-	<?php if ($match->status !== -1): ?>
-		<?php if ($match->status < 2 ): ?>
-			<?= $this->Html->link(__('Start Game'), ['action' => 'start', $match->id]) ?> <br />
-		<?php endif; ?>
-		<?= $this->Html->link(__('KILL THE GAME'), ['action' => 'destroy', $match->id]) ?> <br />
-		<?= $this->Html->link(__('Details'), ['action' => 'view', $match->id]) ?> </td>
-	<?php endif; ?>
+	<td><?= $match->safe_port ?></td>
+	<td><?= $match->status_string ?></td>
+	<td><?= $match->thrones ?></td>
 	<td class="actions">
+		<?php if ($match->status !== -1): ?>
+			<?php if ($match->status < 2 ): ?>
+				<?= $this->Html->link(__('Start Game'), ['action' => 'start', $match->id]) ?> <br />
+			<?php endif; ?>
+			<?= $this->Html->link(__('KILL THE GAME'), ['action' => 'destroy', $match->id]) ?> <br />
+			<?= $this->Html->link(__('Details'), ['action' => 'view', $match->id]) ?>
+		<?php endif; ?>
 	</td>
 </tr>
 <?php endforeach; ?>

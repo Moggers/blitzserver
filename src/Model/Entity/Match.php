@@ -46,6 +46,22 @@ class Match extends Entity
 		return '' . $this->tone . '/' . $this->ttwo . '/' . $this->tthree . '(' . $this->points . ')';
 	}
 
+	protected function _getStatusString() {
+		$str = match::statuses( $this->status );
+		if( $str == '' ) {
+			return 'N/A';
+		}
+		return $str;
+	}
+
+	protected function _getSafePort() {
+		if( $this->status == 0 || $this->status == 2 ) {
+			return 'N/A';
+		} else {
+			return $this->port;
+		}
+	}
+
 	public static function statuses( $value = null )
 	{
 		$options = [
