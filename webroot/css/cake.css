@@ -520,7 +520,7 @@ div.message.hidden {
 .matches.view .mappreview {
   float: left;
   width: 40%;
-  max-width: 512px;
+  max-height: 512px;
 }
 
 .maps.view .wrapper {
@@ -541,7 +541,7 @@ div.message.hidden {
 .maps.view .mappreview {
 	float: left;
 	width: 40%;
-	max-width: 512px;
+	max-height: 512px;
 }
 
 
