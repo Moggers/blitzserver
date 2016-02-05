@@ -124,7 +124,12 @@ class MatchesController extends AppController
             'contain' => []
         ]);
         if ($this->request->is(['patch', 'get', 'put'])) {
+			// Get us out of here
+			$this->Flash->error(__('Starting matches through this interface is currently broken. Please enable Client Start, and begin the match from inside the game'));
+			return $this->redirect(['action' => 'index']);
             $match = $this->Matches->patchEntity($match, $this->request->data);
+
+			// Once I fix this bullshit
 			if( $match->playerstring == 0 ) {
 				$this->Flash->error( "Can't start a game without players" );
 				return $this->redirect(['action' => 'view', $match->id]);
