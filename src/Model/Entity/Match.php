@@ -54,11 +54,15 @@ class Match extends Entity
 		return $str;
 	}
 
-	protected function _getSafePort() {
+	protected function _getPlayerCount() {
+		return count($this->getNations());
+	}
+
+	protected function _getAddress() {
 		if( $this->status == 0 || $this->status == 2 ) {
 			return 'N/A';
 		} else {
-			return $this->port;
+			return SERVER_IP.":".$this->port;
 		}
 	}
 
@@ -123,14 +127,15 @@ class Match extends Entity
 			self::NATION_EARLY_THER => __('Therodos, Telkhine Spectre')];
 		return Match::enum( $value, $options );
 	}
-	public static function getNations( $value = null )
+
+	public function getNations()
 	{
 		$ii = 0;
 		$nationset = array();
 		for( $ii = 0; $ii < 32; $ii++ ) {
-			if( ($value >> $ii ) & 1 == 1 )
+			if( ($this->playerstring >> $ii ) & 1 == 1 )
 			{
-				array_push( $nationset, match::nations( $ii) );
+				array_push( $nationset, [ 'id' => (1<<$ii), 'name' => match::nations( $ii)] );
 			}
 		}
 		return $nationset;

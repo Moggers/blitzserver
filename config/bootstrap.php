@@ -203,3 +203,4 @@ Type::build('date')->useLocaleParser();
 Type::build('datetime')->useLocaleParser();
 
 define( "DOM4_MAPS", "/home/matthew/dominions4/maps" );
+define( "SERVER_IP", "localhost" );

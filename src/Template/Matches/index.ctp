@@ -30,22 +30,7 @@
 <div class="matches index large-9 medium-8 columns content">
     <h3><?= __('Matches') ?></h3>
 	<?= $this->Form->Button( "Refresh", array( 'onclick' => 'refresh(); waitExtend = 5;', 'id' => 'refresh', 'style' => 'padding: 0.5rem 0.5rem 0.5rem 0.5rem' ) ); ?>
-    <table cellpadding="0" cellspacing="0">
-        <thead>
-            <tr>
-                <th><?= $this->Paginator->sort('name') ?></th>
-                <th><?= $this->Paginator->sort('map_id') ?></th>
-                <th><?= $this->Paginator->sort('age') ?></th>
-				<th><?= $this->Paginator->sort('port') ?></th>
-				<th><?= $this->Paginator->sort('status') ?></th>
-				<th><?= $this->Paginator->sort('thrones') ?></th>
-				<th><?= $this->Paginator->sort('action') ?></th>
-            </tr>
-        </thead>
-        <tbody>
-			<?= $this->element( 'matchtable', array( 'matches' => $matches ) ); ?>
-        </tbody>
-    </table>
+	<?= $this->element( 'matchtable', array( 'matches' => $matches ) ); ?>
     <div class="paginator">
         <ul class="pagination">
             <?= $this->Paginator->prev('< ' . __('previous')) ?>

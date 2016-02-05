@@ -48,6 +48,7 @@ $cakeDescription = 'Blitzserver';
 				<li><?= $this->Html->link(__('Upload Map'), ['controller' => 'Maps', 'action' => 'add']) ?></li>
             </ul>
         </section>
+		</section>
     </nav>
     <?= $this->Flash->render() ?>
     <section class="container clearfix">

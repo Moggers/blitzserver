@@ -18,11 +18,18 @@
 					<td><?= $match::ages( $match->age ) ?></td>
 				</tr>
 				<tr>
+					<th><?= __('Address') ?></th>
+					<td><?= $match->address ?></td>
+				<tr>
 					<th><?= __('Nations') ?></th>
 					<td>
-						<?php foreach ($match::getNations( $match->playerstring) as $race): ?>
-							<?= $race ?> <br />
-						<?php endforeach; ?>
+						<?php foreach ($match->getNations() as $nation): ?>
+							<?= $nation['name'] ?>
+						<?php if( ($nation['id'] & $match->deleteplayerstring) == 0 ) { ?>
+							<?= $this->Html->link(__('Remove'), ['controller' => 'Matches', 'action' => 'removePlayer', $match->id, $nation['id'] ]) ?> <br />
+						<?php } else { ?>
+							<?= "<b>(Removing..)</b>" ?> <br />
+						 <?php } endforeach; ?>
 					</td>
 				</tr>
 			</table>

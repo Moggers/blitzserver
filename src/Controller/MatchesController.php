@@ -60,6 +60,7 @@ class MatchesController extends AppController
 			$match->status = 0;
 			$match->port = 0;
 			$match->playerstring = 0;
+			$match->deleteplayerstring = 0;
             if ($this->Matches->save($match)) {
                 $this->Flash->success(__('The match has been requested.'));
                 return $this->redirect(['action' => 'index']);
@@ -158,5 +159,21 @@ class MatchesController extends AppController
         $maps = $this->Matches->Maps->find('list', ['limit' => 200]);
         $this->set(compact('match', 'maps'));
         $this->set('_serialize', ['match']);
+	}
+
+	public function removePlayer( $id = null, $nation = null )
+	{
+		if( $this->request->is(['patch', 'get', 'put']) ) {
+			$match = $this->Matches->get($id, [
+				'contain' => []
+			]);
+			$match->deleteplayerstring = $nation | $match->deleteplayerstring;
+			if( $this->Matches->save($match) ) {
+				$this->Flash->success(__('NOTE: Due to limitations in Dom4\'s server CLI, removing a player requires the server to be restarted, and thus, all players will have to reconnect.'));
+			} else {
+				$this->Flash->error(__('Hamlet: O fuck') );
+			}
+		}
+		return $this->redirect(['action' => 'view', $match->id]);
 	}
 }
