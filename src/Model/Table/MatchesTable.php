@@ -70,6 +70,9 @@ class MatchesTable extends Table
             ->add('age', 'valid', ['rule' => 'numeric'])
             ->allowEmpty('age');
 
+		$validator
+			->add('name', 'valid', ['rule' => 'notBlank']);
+
         return $validator;
     }
 

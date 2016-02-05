@@ -55,9 +55,11 @@ class MatchesController extends AppController
         $match = $this->Matches->newEntity();
         if ($this->request->is('post')) {
             $match = $this->Matches->patchEntity($match, $this->request->data);
-			$match->name = str_replace( ' ', '_', $match->name );
+			if( $match->name != '' ) 
+				$match->name = str_replace( ' ', '_', $match->name );
 			$match->status = 0;
 			$match->port = 0;
+			$match->playerstring = 0;
             if ($this->Matches->save($match)) {
                 $this->Flash->success(__('The match has been requested.'));
                 return $this->redirect(['action' => 'index']);
@@ -122,13 +124,17 @@ class MatchesController extends AppController
         ]);
         if ($this->request->is(['patch', 'get', 'put'])) {
             $match = $this->Matches->patchEntity($match, $this->request->data);
+			if( $match->playerstring == 0 ) {
+				$this->Flash->error( "Can't start a game without players" );
+				return $this->redirect(['action' => 'view', $match->id]);
+			}
 			$match->status = 2;
-            if ($this->Matches->save($match)) {
-                $this->Flash->success(__('The match has been started.'));
-                return $this->redirect(['action' => 'index']);
-            } else {
-                $this->Flash->error(__('Oh fuck'));
-            }
+			if ($this->Matches->save($match)) {
+				$this->Flash->success(__('The match has been started.'));
+				return $this->redirect(['action' => 'index']);
+			} else {
+				$this->Flash->error(__('Oh fuck'));
+			}
         }
         $maps = $this->Matches->Maps->find('list', ['limit' => 200]);
         $this->set(compact('match', 'maps'));
