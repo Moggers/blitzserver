@@ -7,7 +7,6 @@
 	<div class="wrapper">
 		<div class="maptable">
 			<table class="vertical-table" style="background:#fafafa">
-				<td style="vertical-align: top">
 				<table class="vertical-table" style="background:#fafafa">
 					<tr>
 						<th><?= __('Description') ?></th>
@@ -17,10 +16,7 @@
 						<th><?= __('Provinces(Sea Provinces)')?> </th>
 						<td><?= h($map->prov.'('.$map->seaprov) .')' ?> </td>
 					</tr>
-					<tr>
-					</tr>
 				</table>
-				</td>
 			</table>
 		</div>
 		<div class="mappreview">
