@@ -502,48 +502,25 @@ div.message.hidden {
   height: 0;
 }
 
-.matches.view .wrapper {
+.view .wrapper {
 	background:#fafafa;
 }
 
-.matches.view .matchtable {
+.view .maptable {
   float: left;
-  width: 60%;
+  width: 65%;
   background:#fafafa;
 }
-.matches.view .wrapper:after {
+.view .wrapper:after {
 	content: '';
 	display: block;
 	clear: both;
 }
 
-.matches.view .mappreview {
+.view .mappreview {
   float: left;
-  width: 40%;
-  max-height: 512px;
+  width: 35%;
 }
-
-.maps.view .wrapper {
-	background: #fafafa;
-}
-
-.maps.view .maptable {
-	float: left;
-	width: 60%;
-	background:#fafafa;
-}
-.maps.view .wrapper:after {
-	content: '';
-	display: block;
-	clear: both;
-}
-
-.maps.view .mappreview {
-	float: left;
-	width: 40%;
-	max-height: 512px;
-}
-
 
 .vertical-table th {
   padding: 0.5625rem 0.625rem;

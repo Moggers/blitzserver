@@ -5,7 +5,7 @@
 <div class="matches view large-9 medium-8 columns content">
     <h3><?= h($match->name) ?></h3>
 	<div class="wrapper">
-		<div class="matchtable">
+		<div class="maptable">
 			<table class="vertical-table" style="background:#fafafa" > <tr>
 					<th><?= __('Thrones(Points To Win)') ?></th>
 					<td><?= $match->thrones ?>
