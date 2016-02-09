@@ -172,11 +172,18 @@ class MatchesController extends AppController
 			$matchnation = $this->Matches->Nations->Matchnations->get($id, [
 				'contain' => []
 			]);
-			$matchnation->markdelete = 1;
-			if( $this->Matches->Nations->Matchnations->save($matchnation) ) {
-				$this->Flash->success(__('NOTE: Due to limitations in Dom4\'s server CLI, removing a player requires the server to be restarted, and thus, all players will have to reconnect.'));
+			$match = $this->Matches->get( $matchnation->match_id, [
+				'contain' => []
+			]);
+			if( $match->status !== 3 ) {
+				$matchnation->markdelete = 1;
+				if( $this->Matches->Nations->Matchnations->save($matchnation) ) {
+					$this->Flash->success(__('NOTE: Due to limitations in Dom4\'s server CLI, removing a player requires the server to be restarted, and thus, all players will have to reconnect.'));
+				} else {
+					$this->Flash->error(__('Hamlet: O fuck') );
+				}
 			} else {
-				$this->Flash->error(__('Hamlet: O fuck') );
+				$this->Flash->error(__('Can\'t remove players from an active game' ) );
 			}
 		}
 		return $this->redirect(['action' => 'view', $matchnation->match_id]);

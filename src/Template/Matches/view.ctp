@@ -25,11 +25,13 @@
 					<td>
 						<?php foreach ($match->nations as $nation): ?>
 							<?= $nation['name']. ', ' .$nation['subtitle'] ?>
-						<?php if( $nation->_joinData->markdelete == 0 ) { ?>
-							<?= $this->Html->link(__('Remove'), ['controller' => 'Matches', 'action' => 'removePlayer', $nation->_joinData->id ]) ?> <br />
-						<?php } else { ?>
-							<?= "<b>(Removing..)</b>" ?> <br />
-						 <?php } endforeach; ?>
+							<?php if( $match->status !== 3 ) { ?>
+								<?php if( $nation->_joinData->markdelete == 0 ) { ?>
+									<?= $this->Html->link(__('Remove'), ['controller' => 'Matches', 'action' => 'removePlayer', $nation->_joinData->id ]) ?>
+								<?php } else { ?>
+									<?= "<b>(Removing..)</b>" ?>
+							<?php } ?>
+						<?php } ?> <br /> <?php endforeach; ?>
 					</td>
 				</tr>
 			</table>
