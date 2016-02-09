@@ -24,7 +24,7 @@
 					<th><?= __('Nations') ?></th>
 					<td>
 						<?php foreach ($match->nations as $nation): ?>
-							<?= $nation['name']. ' ' .$nation['subtitle'] ?>
+							<?= $nation['name']. ', ' .$nation['subtitle'] ?>
 						<?php if( $nation->_joinData->markdelete == 0 ) { ?>
 							<?= $this->Html->link(__('Remove'), ['controller' => 'Matches', 'action' => 'removePlayer', $nation->_joinData->id ]) ?> <br />
 						<?php } else { ?>
