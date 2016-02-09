@@ -19,7 +19,7 @@ class MatchesController extends AppController
     public function index()
     {
         $this->paginate = [
-            'contain' => ['Maps']
+            'contain' => ['Maps', 'Nations']
         ];
 
 		if( $this->request->query('layout') == 'false' ) {
@@ -39,7 +39,7 @@ class MatchesController extends AppController
     public function view($id = null)
     {
         $match = $this->Matches->get($id, [
-            'contain' => ['Maps']
+            'contain' => ['Maps', 'Nations']
         ]);
         $this->set('match', $match);
         $this->set('_serialize', ['match']);
@@ -166,19 +166,19 @@ class MatchesController extends AppController
         $this->set('_serialize', ['match']);
 	}
 
-	public function removePlayer( $id = null, $nation = null )
+	public function removePlayer( $id = null )
 	{
 		if( $this->request->is(['patch', 'get', 'put']) ) {
-			$match = $this->Matches->get($id, [
+			$matchnation = $this->Matches->Nations->Matchnations->get($id, [
 				'contain' => []
 			]);
-			$match->deleteplayerstring = $nation | $match->deleteplayerstring;
-			if( $this->Matches->save($match) ) {
+			$matchnation->markdelete = 1;
+			if( $this->Matches->Nations->Matchnations->save($matchnation) ) {
 				$this->Flash->success(__('NOTE: Due to limitations in Dom4\'s server CLI, removing a player requires the server to be restarted, and thus, all players will have to reconnect.'));
 			} else {
 				$this->Flash->error(__('Hamlet: O fuck') );
 			}
 		}
-		return $this->redirect(['action' => 'view', $match->id]);
+		return $this->redirect(['action' => 'view', $matchnation->match_id]);
 	}
 }

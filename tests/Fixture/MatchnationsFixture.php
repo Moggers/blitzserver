@@ -17,16 +17,17 @@ class MatchnationsFixture extends TestFixture
      */
     // @codingStandardsIgnoreStart
     public $fields = [
-        'matchid' => ['type' => 'integer', 'length' => 11, 'unsigned' => false, 'null' => false, 'default' => null, 'comment' => '', 'precision' => null, 'autoIncrement' => null],
-        'nationid' => ['type' => 'integer', 'length' => 11, 'unsigned' => false, 'null' => false, 'default' => null, 'comment' => '', 'precision' => null, 'autoIncrement' => null],
-        'markdelete' => ['type' => 'integer', 'length' => 11, 'unsigned' => false, 'null' => true, 'default' => null, 'comment' => '', 'precision' => null, 'autoIncrement' => null],
+        'id' => ['type' => 'integer', 'length' => 11, 'unsigned' => false, 'null' => false, 'default' => null, 'comment' => '', 'autoIncrement' => true, 'precision' => null],
+        'nation_id' => ['type' => 'integer', 'length' => 11, 'unsigned' => false, 'null' => false, 'default' => null, 'comment' => '', 'precision' => null, 'autoIncrement' => null],
+        'match_id' => ['type' => 'integer', 'length' => 11, 'unsigned' => false, 'null' => false, 'default' => null, 'comment' => '', 'precision' => null, 'autoIncrement' => null],
         '_indexes' => [
-            'nationid' => ['type' => 'index', 'columns' => ['nationid'], 'length' => []],
+            'nation_id' => ['type' => 'index', 'columns' => ['nation_id'], 'length' => []],
+            'match_id' => ['type' => 'index', 'columns' => ['match_id'], 'length' => []],
         ],
         '_constraints' => [
-            'primary' => ['type' => 'primary', 'columns' => ['matchid', 'nationid'], 'length' => []],
-            'matchnations_ibfk_1' => ['type' => 'foreign', 'columns' => ['matchid'], 'references' => ['matches', 'id'], 'update' => 'restrict', 'delete' => 'restrict', 'length' => []],
-            'matchnations_ibfk_2' => ['type' => 'foreign', 'columns' => ['nationid'], 'references' => ['nations', 'id'], 'update' => 'restrict', 'delete' => 'restrict', 'length' => []],
+            'primary' => ['type' => 'primary', 'columns' => ['id'], 'length' => []],
+            'matchnations_ibfk_1' => ['type' => 'foreign', 'columns' => ['nation_id'], 'references' => ['nations', 'id'], 'update' => 'restrict', 'delete' => 'restrict', 'length' => []],
+            'matchnations_ibfk_2' => ['type' => 'foreign', 'columns' => ['match_id'], 'references' => ['matches', 'id'], 'update' => 'restrict', 'delete' => 'restrict', 'length' => []],
         ],
         '_options' => [
             'engine' => 'InnoDB',
@@ -42,9 +43,9 @@ class MatchnationsFixture extends TestFixture
      */
     public $records = [
         [
-            'matchid' => 1,
-            'nationid' => 1,
-            'markdelete' => 1
+            'id' => 1,
+            'nation_id' => 1,
+            'match_id' => 1
         ],
     ];
 }

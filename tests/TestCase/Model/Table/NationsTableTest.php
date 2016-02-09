@@ -17,7 +17,10 @@ class NationsTableTest extends TestCase
      * @var array
      */
     public $fixtures = [
-        'app.nations'
+        'app.nations',
+        'app.matchnations',
+        'app.matches',
+        'app.maps'
     ];
 
     /**

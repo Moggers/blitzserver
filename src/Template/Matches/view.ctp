@@ -23,10 +23,10 @@
 				<tr>
 					<th><?= __('Nations') ?></th>
 					<td>
-						<?php foreach ($match->getNations() as $nation): ?>
-							<?= $nation['name'] ?>
-						<?php if( ($nation['id'] & $match->deleteplayerstring) == 0 ) { ?>
-							<?= $this->Html->link(__('Remove'), ['controller' => 'Matches', 'action' => 'removePlayer', $match->id, $nation['id'] ]) ?> <br />
+						<?php foreach ($match->nations as $nation): ?>
+							<?= $nation['name']. ' ' .$nation['subtitle'] ?>
+						<?php if( $nation->_joinData->markdelete == 0 ) { ?>
+							<?= $this->Html->link(__('Remove'), ['controller' => 'Matches', 'action' => 'removePlayer', $nation->_joinData->id ]) ?> <br />
 						<?php } else { ?>
 							<?= "<b>(Removing..)</b>" ?> <br />
 						 <?php } endforeach; ?>

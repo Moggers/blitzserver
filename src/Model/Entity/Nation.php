@@ -10,6 +10,7 @@ use Cake\ORM\Entity;
  * @property string $name
  * @property string $turn_name
  * @property string $subtitle
+ * @property \App\Model\Entity\Matchnation[] $matchnations
  */
 class Nation extends Entity
 {

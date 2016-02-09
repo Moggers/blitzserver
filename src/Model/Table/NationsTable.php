@@ -10,6 +10,10 @@ use Cake\Validation\Validator;
 /**
  * Nations Model
  *
+<<<<<<< HEAD
+=======
+ * @property \Cake\ORM\Association\HasMany $Matchnations
+>>>>>>> Transitioned from bitstring based nation handling to a discrete table with a belongsToMany relationship
  */
 class NationsTable extends Table
 {
@@ -28,6 +32,9 @@ class NationsTable extends Table
         $this->displayField('name');
         $this->primaryKey('id');
 
+        $this->hasMany('Matchnations', [
+            'foreignKey' => 'nation_id'
+        ]);
     }
 
     /**
@@ -46,10 +53,10 @@ class NationsTable extends Table
             ->allowEmpty('name');
 
         $validator
-            ->allowEmpty('turn_name');
+            ->allowEmpty('subtitle');
 
         $validator
-            ->allowEmpty('subtitle');
+            ->allowEmpty('turn_name');
 
         return $validator;
     }

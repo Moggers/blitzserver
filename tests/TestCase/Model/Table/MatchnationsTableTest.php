@@ -17,7 +17,10 @@ class MatchnationsTableTest extends TestCase
      * @var array
      */
     public $fixtures = [
-        'app.matchnations'
+        'app.matchnations',
+        'app.nations',
+        'app.matches',
+        'app.maps'
     ];
 
     /**
@@ -60,6 +63,16 @@ class MatchnationsTableTest extends TestCase
      * @return void
      */
     public function testValidationDefault()
+    {
+        $this->markTestIncomplete('Not implemented yet.');
+    }
+
+    /**
+     * Test buildRules method
+     *
+     * @return void
+     */
+    public function testBuildRules()
     {
         $this->markTestIncomplete('Not implemented yet.');
     }

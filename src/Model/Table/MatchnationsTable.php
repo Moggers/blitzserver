@@ -10,6 +10,8 @@ use Cake\Validation\Validator;
 /**
  * Matchnations Model
  *
+ * @property \Cake\ORM\Association\BelongsTo $Nations
+ * @property \Cake\ORM\Association\BelongsTo $Matches
  */
 class MatchnationsTable extends Table
 {
@@ -25,9 +27,17 @@ class MatchnationsTable extends Table
         parent::initialize($config);
 
         $this->table('matchnations');
-        $this->displayField('matchid');
-        $this->primaryKey(['matchid', 'nationid']);
+        $this->displayField('id');
+        $this->primaryKey('id');
 
+        $this->belongsTo('Nations', [
+            'foreignKey' => 'nation_id',
+            'joinType' => 'INNER'
+        ]);
+        $this->belongsTo('Matches', [
+            'foreignKey' => 'match_id',
+            'joinType' => 'INNER'
+        ]);
     }
 
     /**
@@ -39,17 +49,23 @@ class MatchnationsTable extends Table
     public function validationDefault(Validator $validator)
     {
         $validator
-            ->add('matchid', 'valid', ['rule' => 'numeric'])
-            ->allowEmpty('matchid', 'create');
-
-        $validator
-            ->add('nationid', 'valid', ['rule' => 'numeric'])
-            ->allowEmpty('nationid', 'create');
-
-        $validator
-            ->add('markdelete', 'valid', ['rule' => 'numeric'])
-            ->allowEmpty('markdelete');
+            ->add('id', 'valid', ['rule' => 'numeric'])
+            ->allowEmpty('id', 'create');
 
         return $validator;
+    }
+
+    /**
+     * Returns a rules checker object that will be used for validating
+     * application integrity.
+     *
+     * @param \Cake\ORM\RulesChecker $rules The rules object to be modified.
+     * @return \Cake\ORM\RulesChecker
+     */
+    public function buildRules(RulesChecker $rules)
+    {
+        $rules->add($rules->existsIn(['nation_id'], 'Nations'));
+        $rules->add($rules->existsIn(['match_id'], 'Matches'));
+        return $rules;
     }
 }

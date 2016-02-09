@@ -11,6 +11,7 @@ use Cake\Validation\Validator;
  * Matches Model
  *
  * @property \Cake\ORM\Association\BelongsTo $Maps
+ * @Property \Cake\ORM\Association\BelongsToMany $Nations
  */
 class MatchesTable extends Table
 {
@@ -33,6 +34,11 @@ class MatchesTable extends Table
             'foreignKey' => 'map_id',
             'joinType' => 'INNER'
         ]);
+		$this->belongsToMany( 'Nations', [
+			'targetForeignKey' => 'nation_id',
+			'joinTable' => 'matchnations',
+			'joinType' => 'INNER'
+		]);
     }
 
 	public function afterFind( $results, $primary = false )

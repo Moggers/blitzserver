@@ -6,9 +6,17 @@ use Cake\ORM\Entity;
 /**
  * Matchnation Entity.
  *
+<<<<<<< HEAD
  * @property int $matchid
  * @property int $nationid
  * @property int $markdelete
+=======
+ * @property int $id
+ * @property int $nation_id
+ * @property \App\Model\Entity\Nation $nation
+ * @property int $match_id
+ * @property \App\Model\Entity\Match $match
+>>>>>>> Transitioned from bitstring based nation handling to a discrete table with a belongsToMany relationship
  */
 class Matchnation extends Entity
 {
@@ -24,7 +32,8 @@ class Matchnation extends Entity
      */
     protected $_accessible = [
         '*' => true,
-        'matchid' => false,
-        'nationid' => false,
+        'match_id' => false,
+        'nation_id' => false,
+        'id' => false,
     ];
 }
