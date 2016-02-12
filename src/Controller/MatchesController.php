@@ -59,8 +59,6 @@ class MatchesController extends AppController
 				$match->name = str_replace( ' ', '_', $match->name );
 			$match->status = 0;
 			$match->port = 0;
-			$match->playerstring = 0;
-			$match->deleteplayerstring = 0;
             if ($this->Matches->save($match)) {
                 $this->Flash->success(__('The match has been requested.'));
                 return $this->redirect(['action' => 'index']);
