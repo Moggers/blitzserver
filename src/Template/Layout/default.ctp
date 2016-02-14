@@ -83,11 +83,11 @@ $cakeDescription = 'Blitzserver';
     </footer>
 	<div class="remodal" data-remodal-id="modal">
 		<button data-remodal-action="close" class="remodal-close"></button>
-		<h1>Remodal</h1>
+		<h1>Gotta put in a password ya git</h1>
 		<?= $this->Form->input('remodal-password', ['label' => false, 'placeholder' => 'Password']); ?>
 		<br />
-		<button data-remodal-action="cancel" class="remodal-cancel">Cancel</button>
-		<button data-remodal-action="confirm" class="remodal-confirm">OK</button>
+		<button data-remodal-action="cancel" class="remodal-cancel">Nah think oi'll come back later, eh?</button>
+		<button data-remodal-action="confirm" class="remodal-confirm">Aight m8, giv 'er a go</button>
 	</div>
 </body>
 </html>
