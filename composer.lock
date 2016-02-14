@@ -4,8 +4,8 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "f57819a06365792d45c1919395dab3ee",
-    "content-hash": "e24505f567358bad7014c21d1289ebd0",
+    "hash": "ebbecb3220de19287f422ddc4d191a9e",
+    "content-hash": "1c51e6df6636cab23ca1cdc11f1d3675",
     "packages": [
         {
             "name": "aura/installer-default",
@@ -125,46 +125,6 @@
                 "localization"
             ],
             "time": "2014-08-24 00:00:00"
-        },
-        {
-            "name": "cakemanager/cakephp-utils",
-            "version": "dev-master",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/cakemanager/cakephp-utils.git",
-                "reference": "161824d639382f9417bd856c0befac259b0e8243"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/cakemanager/cakephp-utils/zipball/161824d639382f9417bd856c0befac259b0e8243",
-                "reference": "161824d639382f9417bd856c0befac259b0e8243",
-                "shasum": ""
-            },
-            "require": {
-                "cakephp/cakephp": "~3.0",
-                "php": ">=5.4"
-            },
-            "require-dev": {
-                "phpunit/phpunit": "*"
-            },
-            "type": "cakephp-plugin",
-            "autoload": {
-                "psr-4": {
-                    "Utils\\": "src"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Bob Mulder",
-                    "email": "bobmulder@outlook.com"
-                }
-            ],
-            "description": "Plugin for CakePHP 3.x with useful components and behaviors",
-            "time": "2015-09-29 18:21:03"
         },
         {
             "name": "cakephp/cakephp",
@@ -325,6 +285,46 @@
             ],
             "description": "A composer installer for CakePHP 3.0+ plugins.",
             "time": "2015-06-10 10:35:13"
+        },
+        {
+            "name": "holt59/cakephp3-bootstrap-helpers",
+            "version": "dev-master",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Holt59/cakephp3-bootstrap-helpers.git",
+                "reference": "950221c851dc22da89a8d85820194c89296f6670"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Holt59/cakephp3-bootstrap-helpers/zipball/950221c851dc22da89a8d85820194c89296f6670",
+                "reference": "950221c851dc22da89a8d85820194c89296f6670",
+                "shasum": ""
+            },
+            "require": {
+                "cakephp/cakephp": "~3.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "*"
+            },
+            "type": "cakephp-plugin",
+            "extra": {
+                "installer-name": "Bootstrap"
+            },
+            "autoload": {
+                "psr-4": {
+                    "Bootstrap\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache"
+            ],
+            "description": "Bootstrap Helpers for CakePHP 3.0",
+            "keywords": [
+                "bootstrap",
+                "cakephp"
+            ],
+            "time": "2016-02-04 11:36:52"
         },
         {
             "name": "ircmaxell/password-compat",
@@ -844,7 +844,7 @@
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/cakemanager/cakeadmin-lightstrap/zipball/435814fe12fd1c0a0fe8ceeed325518aae73f15c",
+                "url": "https://api.github.com/repos/cakemanager/cakeadmin-lightstrap/zipball/35adef7e65840e0e5232c77ac76791a1726353a7",
                 "reference": "435814fe12fd1c0a0fe8ceeed325518aae73f15c",
                 "shasum": ""
             },
@@ -911,7 +911,7 @@
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/cakemanager/cakephp-notifier/zipball/ca45281950e4ba5cf79edcdd5c355ae7530ce3ab",
+                "url": "https://api.github.com/repos/cakemanager/cakephp-notifier/zipball/80bb26c63d81f3b7caa80f04680feade8b344688",
                 "reference": "ca45281950e4ba5cf79edcdd5c355ae7530ce3ab",
                 "shasum": ""
             },
@@ -943,7 +943,7 @@
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/cakemanager/cakephp-settings/zipball/831ce1773c73f5a1c7d60c6af32645c33c83b971",
+                "url": "https://api.github.com/repos/cakemanager/cakephp-settings/zipball/4be834cdf4ee3502f43b85cad98e1b1eb4b24ced",
                 "reference": "831ce1773c73f5a1c7d60c6af32645c33c83b971",
                 "shasum": ""
             },
@@ -968,6 +968,46 @@
             "notification-url": "https://packagist.org/downloads/",
             "description": "Settings plugin for CakePHP",
             "time": "2015-11-23 11:03:49"
+        },
+        {
+            "name": "cakemanager/cakephp-utils",
+            "version": "dev-master",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/cakemanager/cakephp-utils.git",
+                "reference": "161824d639382f9417bd856c0befac259b0e8243"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/cakemanager/cakephp-utils/zipball/e9ca228ccfe3bb1fe756a99d408838500e1c8002",
+                "reference": "161824d639382f9417bd856c0befac259b0e8243",
+                "shasum": ""
+            },
+            "require": {
+                "cakephp/cakephp": "~3.0",
+                "php": ">=5.4"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "*"
+            },
+            "type": "cakephp-plugin",
+            "autoload": {
+                "psr-4": {
+                    "Utils\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Bob Mulder",
+                    "email": "bobmulder@outlook.com"
+                }
+            ],
+            "description": "Plugin for CakePHP 3.x with useful components and behaviors",
+            "time": "2015-09-29 18:21:03"
         },
         {
             "name": "cakephp/bake",
@@ -1103,43 +1143,6 @@
             ],
             "description": "implementation of xdg base directory specification for php",
             "time": "2014-10-24 07:27:01"
-        },
-        {
-            "name": "holt59/cakephp3-bootstrap-helpers",
-            "version": "dev-master",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/Holt59/cakephp3-bootstrap-helpers.git",
-                "reference": "c1efda00bdd750cdc5b30db0a527d9b71bc7bdbc"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/Holt59/cakephp3-bootstrap-helpers/zipball/c1efda00bdd750cdc5b30db0a527d9b71bc7bdbc",
-                "reference": "c1efda00bdd750cdc5b30db0a527d9b71bc7bdbc",
-                "shasum": ""
-            },
-            "require": {
-                "cakephp/cakephp": "~3.0"
-            },
-            "type": "cakephp-plugin",
-            "extra": {
-                "installer-name": "Bootstrap"
-            },
-            "autoload": {
-                "psr-4": {
-                    "Bootstrap\\": "src"
-                }
-            },
-            "notification-url": "http://packagist.org/downloads/",
-            "license": [
-                "Apache"
-            ],
-            "description": "Bootstrap Helpers for CakePHP 3.0",
-            "keywords": [
-                "bootstrap",
-                "cakephp"
-            ],
-            "time": "2015-11-11 20:19:16"
         },
         {
             "name": "jakub-onderka/php-console-color",
@@ -1468,7 +1471,7 @@
     "aliases": [],
     "minimum-stability": "dev",
     "stability-flags": {
-        "cakemanager/cakephp-utils": 20,
+        "holt59/cakephp3-bootstrap-helpers": 20,
         "psy/psysh": 0
     },
     "prefer-stable": true,

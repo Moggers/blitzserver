@@ -32,6 +32,28 @@ $cakeDescription = 'Blitzserver';
     <?= $this->fetch('meta') ?>
     <?= $this->fetch('css') ?>
     <?= $this->fetch('script') ?>
+
+	<?= $this->Html->script('https://code.jquery.com/jquery-2.2.0.min.js'); ?>
+
+	<?= $this->Html->script('remodal.js'); ?>
+	<?= $this->Html->css('remodal.css'); ?>
+	<?= $this->Html->css('remodal-default-theme.css'); ?>
+	<?= $this->Html->script('jquery.form.js'); ?>
+	<?= $this->Html->script('js.cookie.js'); ?>
+	
+	<script type='text/javascript'>
+		$(document).ready( function() {
+			$('#password').val( Cookies.get('password') );
+			$(document).on('confirmation', '.remodal', function() {
+				$('#password').val($('#remodal-password').val());
+				Cookies.set('password', $('#password').val());
+			});
+			$('#password').on('change', function(event) {
+				Cookies.set('password', $('#password').val());
+			});
+		});
+
+	</script>
 </head>
 <body>
     <nav class="top-bar expanded" data-topbar role="navigation">
@@ -47,6 +69,9 @@ $cakeDescription = 'Blitzserver';
 				<li><?= $this->Html->link(__('Show Maps'), ['controller' => 'Maps', 'action' => 'index']) ?></li>
 				<li><?= $this->Html->link(__('Upload Map'), ['controller' => 'Maps', 'action' => 'add']) ?></li>
             </ul>
+			<ul class="right">
+				<li> <?= $this->Form->input('password', ['label' => false, 'id' => 'password', 'placeholder' => 'Password']); ?> </li>
+			</ul>
         </section>
 		</section>
     </nav>
@@ -56,5 +81,13 @@ $cakeDescription = 'Blitzserver';
     </section>
     <footer>
     </footer>
+	<div class="remodal" data-remodal-id="modal">
+		<button data-remodal-action="close" class="remodal-close"></button>
+		<h1>Remodal</h1>
+		<?= $this->Form->input('remodal-password', ['label' => false, 'placeholder' => 'Password']); ?>
+		<br />
+		<button data-remodal-action="cancel" class="remodal-cancel">Cancel</button>
+		<button data-remodal-action="confirm" class="remodal-confirm">OK</button>
+	</div>
 </body>
 </html>

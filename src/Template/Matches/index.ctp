@@ -1,4 +1,3 @@
-<?= $this->Html->script('https://code.jquery.com/jquery-2.2.0.min.js'); ?>
 <script type='text/javascript' >
 	var waitExtend = 5;
 	var refreshmeme = 5;
@@ -15,7 +14,6 @@
 			refreshbutton.innerHTML = 'Refresh (' + refreshmeme + ')'
 			refreshmeme = refreshmeme - 1;
 			if( refreshmeme == 0 ) {
-				console.log( 'hey fag' );
 				waitExtend = waitExtend * 2;
 				refresh();
 				return;

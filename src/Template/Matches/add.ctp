@@ -1,9 +1,22 @@
+<script type="text/javascript">
+	$(document).ready( function() {
+		$('#matchcreate').ajaxForm( function(res) {
+			var data = JSON.parse( res );
+			if( data.status == 1 ) {
+				window.location = '/matches/view/'+data.id;
+			} else {
+				window.location.hash = "modal";
+			}
+		});
+	});
+</script>
+
 <nav class="large-3 medium-4 columns" id="actions-sidebar">
     <ul class="side-nav">
     </ul>
 </nav>
 <div class="matches form large-9 medium-8 columns content">
-    <?= $this->Form->create($match) ?>
+    <?= $this->Form->create($match, ['id' => 'matchcreate']) ?>
     <fieldset>
         <legend><?= __('Add Match') ?></legend>
         <?php

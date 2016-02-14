@@ -2,6 +2,7 @@
 namespace App\Controller;
 
 use App\Controller\AppController;
+use Cake\Controller\Component\CookieComponent;
 
 /**
  * Matches Controller
@@ -55,16 +56,23 @@ class MatchesController extends AppController
         $match = $this->Matches->newEntity();
         if ($this->request->is('post')) {
             $match = $this->Matches->patchEntity($match, $this->request->data);
-			if( $match->name != '' ) 
-				$match->name = str_replace( ' ', '_', $match->name );
-			$match->status = 0;
-			$match->port = 0;
-            if ($this->Matches->save($match)) {
-                $this->Flash->success(__('The match has been requested.'));
-                return $this->redirect(['action' => 'index']);
-            } else {
-                $this->Flash->error(__('The match could not be saved. Please, try again.'));
-            }
+			if( $_COOKIE['password'] != '' ){
+				if( $match->name != '' ) 
+					$match->name = str_replace( ' ', '_', $match->name );
+				$match->status = 0;
+				$match->password = $_COOKIE['password'];
+				$match->port = 0;
+				if ($this->Matches->save($match)) {
+					$this->Flash->success(__('The match has been requested.'));
+					die( json_encode( [ 'status' => 1, 'id' => $match->id ] ) );
+				} else {
+					$this->Flash->error(__('The match could not be saved. Please, try again.'));
+				}
+			} else {
+				if ($this->request->is('ajax')) {
+					die( json_encode( [ 'status' => 0, 'id' => $match->id ] ) );
+				}
+			}
         }
         $maps = $this->Matches->Maps->find('list', ['limit' => 200]);
         $this->set(compact('match', 'maps'));
@@ -150,18 +158,24 @@ class MatchesController extends AppController
             'contain' => []
         ]);
         if ($this->request->is(['patch', 'get', 'put'])) {
-            $match = $this->Matches->patchEntity($match, $this->request->data);
-			$match->status = -1;
-            if ($this->Matches->save($match)) {
-                $this->Flash->success(__('The match has been marked for death and should disappear shortly'));
-                return $this->redirect(['action' => 'index']);
-            } else {
-                $this->Flash->error(__('Oh fuck'));
-            }
+			if( $match->checkPassword( $_COOKIE['password'] )){
+				$match = $this->Matches->patchEntity($match, $this->request->data);
+				$match->status = -1;
+				if ($this->Matches->save($match)) {
+					$this->Flash->success(__('The match has been marked for death and should disappear shortly'));
+					return $this->redirect(['action' => 'index']);
+				} else {
+					$this->Flash->error(__('Oh fuck'));
+				}
+			} else {
+				$this->Flash->error(__('Incorrect password'));
+				return $this->redirect(['action' => 'index']);
+			}
         }
         $maps = $this->Matches->Maps->find('list', ['limit' => 200]);
         $this->set(compact('match', 'maps'));
         $this->set('_serialize', ['match']);
+		return $this->redirect(['action' => 'index']);
 	}
 
 	public function removePlayer( $id = null )
@@ -173,15 +187,19 @@ class MatchesController extends AppController
 			$match = $this->Matches->get( $matchnation->match_id, [
 				'contain' => []
 			]);
-			if( $match->status !== 3 ) {
-				$matchnation->markdelete = 1;
-				if( $this->Matches->Nations->Matchnations->save($matchnation) ) {
-					$this->Flash->success(__('NOTE: Due to limitations in Dom4\'s server CLI, removing a player requires the server to be restarted, and thus, all players will have to reconnect.'));
+			if( $match->checkPassword( $_COOKIE['password'])){
+				if( $match->status !== 3 ) {
+					$matchnation->markdelete = 1;
+					if( $this->Matches->Nations->Matchnations->save($matchnation) ) {
+						$this->Flash->success(__('NOTE: Due to limitations in Dom4\'s server CLI, removing a player requires the server to be restarted, and thus, all players will have to reconnect.'));
+					} else {
+						$this->Flash->error(__('Hamlet: O fuck') );
+					}
 				} else {
-					$this->Flash->error(__('Hamlet: O fuck') );
+					$this->Flash->error(__('Can\'t remove players from an active game' ) );
 				}
 			} else {
-				$this->Flash->error(__('Can\'t remove players from an active game' ) );
+				$this->Flash->error(__('Incorrect password' ) );
 			}
 		}
 		return $this->redirect(['action' => 'view', $matchnation->match_id]);
