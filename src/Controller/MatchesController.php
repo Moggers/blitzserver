@@ -158,7 +158,7 @@ class MatchesController extends AppController
             'contain' => []
         ]);
         if ($this->request->is(['patch', 'get', 'put'])) {
-			if( isset( $_COOKIE['password'] && $match->checkPassword( $_COOKIE['password'] )){
+			if( isset( $_COOKIE['password']) && $match->checkPassword( $_COOKIE['password'] ){
 				$match = $this->Matches->patchEntity($match, $this->request->data);
 				$match->status = -1;
 				if ($this->Matches->save($match)) {
