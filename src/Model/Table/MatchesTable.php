@@ -12,6 +12,7 @@ use Cake\Validation\Validator;
  *
  * @property \Cake\ORM\Association\BelongsTo $Maps
  * @Property \Cake\ORM\Association\BelongsToMany $Nations
+ * @Property \Cake\ORM\Association\BelongsToMany $Mods
  */
 class MatchesTable extends Table
 {
@@ -37,6 +38,12 @@ class MatchesTable extends Table
 		$this->belongsToMany( 'Nations', [
 			'targetForeignKey' => 'nation_id',
 			'joinTable' => 'matchnations',
+			'joinType' => 'INNER'
+		]);
+
+		$this->belongsToMany( 'Mods', [
+			'targetForeignKey' => 'mod_id',
+			'joinTable' => 'matchmods',
 			'joinType' => 'INNER'
 		]);
     }

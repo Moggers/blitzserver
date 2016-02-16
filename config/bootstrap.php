@@ -202,5 +202,7 @@ DispatcherFactory::add('ControllerFactory');
 Type::build('date')->useLocaleParser();
 Type::build('datetime')->useLocaleParser();
 
-define( "DOM4_MAPS", "/home/matthew/dominions4/maps" );
+define( "DOM4_DATA", "/home/matthew/dominions4/" );
+define( "DOM4_MAPS", DOM4_DATA . "maps/" );
+define( "DOM4_MODS", DOM4_DATA . "mods/" );
 define( "SERVER_IP", "localhost" );

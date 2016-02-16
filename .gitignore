@@ -6,3 +6,5 @@
 *.swp
 /webroot/img/maps/*
 /Dominions4/*
+/webroot/img/mods/*
+/webroot/tmp/*

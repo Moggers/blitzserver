@@ -53,7 +53,11 @@
 			echo $this->Form->input( 'clientstart', array(
 				'label' => 'Clients Can Start Game',
 				'type' => 'checkbox'  ));
+			
         ?>
+		<div class="remodal" data-remodal-id="modselect">
+			<?= $this->element( 'modtable', array( 'mods' => $mods ) ); ?>
+		</div>
     </fieldset>
     <?= $this->Form->button(__('Submit')) ?>
     <?= $this->Form->end() ?>

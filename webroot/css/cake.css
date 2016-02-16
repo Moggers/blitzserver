@@ -583,3 +583,12 @@ div.message.hidden {
   margin-bottom: 10px;
   border-bottom: 0px;
 }
+
+tr .poop {
+	width: 100%;
+	height: 64px;
+	display: -webkit-box;
+	-webkit-line-clamp: 3;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
