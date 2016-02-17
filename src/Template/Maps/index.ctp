@@ -30,7 +30,6 @@
                 <?= h($map->name) ?></td>
 				<td><?= h($map->description) ?></td>
                 <td><?= h($map->prov . '(' . $map->seaprov) . ')' ?></td>
-				<td><?= $this->Form->postLink(__('Delete'), ['action' => 'delete', $map->id]) ?> <br/>
 				<?= $this->html->link(__('View'), ['action' => 'view', $map->id]) ?> </td>
             </tr>
             <?php endforeach; ?>
