@@ -55,7 +55,7 @@ class MatchesController extends AppController
     {
         $match = $this->Matches->newEntity();
         if ($this->request->is('post')) {
-            $match = $this->Matches->patchEntity($match, $this->request->data);
+            $match = $this->Matches->patchEntity($match, $this->request->data, ['associated' => ['Mods']]);
 			if( isset($_COOKIE['password']) && $_COOKIE['password'] != '' ){
 				if( $match->name != '' ) 
 					$match->name = str_replace( ' ', '_', $match->name );

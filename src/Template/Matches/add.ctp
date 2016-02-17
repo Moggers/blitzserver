@@ -10,27 +10,38 @@
 		});
 		$('#modtable tr').on('mouseover', function(e) {
 			if( e.delegateTarget.id.substring(0,3) == 'mod' ) {
-				if( $('#mod-'+e.delegateTarget.id.substring(4,6)).prop( 'checked' ) == false ) {
-					e.delegateTarget.style.background = '#f0f0ff';
-				}
+				$('#hiddenmods > option').each( function() {
+					if( this.value == e.delegateTarget.id.substring(4,6) ) {
+						if( !this.selected ) {
+							e.delegateTarget.style.background = '#f0f0ff';
+						}
+					}
+				});
 			}
 		});
 		$('#modtable tr').on('mouseout', function(e) {
 			if( e.delegateTarget.id.substring(0,3) == 'mod' ) {
-				if( $('#mod-'+e.delegateTarget.id.substring(4,6)).prop( 'checked' ) == false ) {
-					e.delegateTarget.style.background = '#ffffff';
-				}
+				$('#hiddenmods > option').each( function() {
+					if( this.value == e.delegateTarget.id.substring(4,6) ) {
+						if( !this.selected ) {
+							e.delegateTarget.style.background = '#ffffff';
+						}
+					}
+				});
 			}
 		});
 		$('#modtable tr').on('click', function(e) {
 			if( e.delegateTarget.id.substring(0,3) == 'mod' ) {
-				if( $('#mod-'+e.delegateTarget.id.substring(4,6)).prop( 'checked' ) == true ) {
-					$('#mod-'+e.delegateTarget.id.substring(4,6)).prop( 'checked', false );
-					e.delegateTarget.style.background = '#f0f0ff';
-				} else { 
-					$('#mod-'+e.delegateTarget.id.substring(4,6)).prop( 'checked', true );
-					e.delegateTarget.style.background = '#babaff';
-				}
+				$('#hiddenmods > option').each( function() {
+					if( this.value == e.delegateTarget.id.substring(4,6) ) {
+						console.log( this );
+						this.selected = !this.selected;
+						if( !this.selected )
+							e.delegateTarget.style.background = '#f0f0ff';
+						else 
+							e.delegateTarget.style.background = '#babaff';
+					}
+				});
 			}
 		});
 	});
@@ -80,7 +91,9 @@
 				'type' => 'checkbox'  ));
 			?>
 			<h5>Mods</h5>
-			<?= $this->Form->input( 'Mod', ['multiple' => 'checkbox', 'id' => 'hiddenmods' ] ); ?>
+			<div style="display:none">
+				<?= $this->Form->input( 'mods._ids', ['type' => 'select', 'multiple' => 'true', 'options' => $mods, 'id' => 'hiddenmods' ] ); ?>
+			</div>
 			<?= $this->Html->link( 'Select Mods', '#modselect' ); ?>
 		<div class="remodal" data-remodal-id="modselect">
 			<?= $this->element( 'modtable', array( 'mods' => $modsfull )); ?>
