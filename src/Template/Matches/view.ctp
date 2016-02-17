@@ -35,6 +35,7 @@
 					</td>
 				</tr>
 			</table>
+			<?= $this->element( 'modtable', array( 'mods' => $match->mods )); ?>
 		</div>
 		<div class="mappreview">
 			<?= $match->has('map') ? $this->Html->link(

@@ -12,6 +12,10 @@ use Cake\Controller\Component\CookieComponent;
 class MatchesController extends AppController
 {
 
+	/**
+	 * Paginator
+	 */
+
     /**
      * Index method
      *
@@ -40,7 +44,7 @@ class MatchesController extends AppController
     public function view($id = null)
     {
         $match = $this->Matches->get($id, [
-            'contain' => ['Maps', 'Nations']
+            'contain' => ['Maps', 'Nations', 'Mods']
         ]);
         $this->set('match', $match);
         $this->set('_serialize', ['match']);
