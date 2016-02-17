@@ -1,4 +1,4 @@
-    <table cellpadding="0" cellspacing="0">
+    <table cellpadding="0" cellspacing="0" id='modtable'>
         <thead>
             <tr>
                 <th style="width:200px"><?= $this->Paginator->sort('name') ?></th>
@@ -9,7 +9,7 @@
         </thead>
         <tbody>
             <?php foreach ($mods as $mod): ?>
-            <tr>
+            <tr id=<?='mod_'.$mod->id ?>>
                 <td><?= h($mod->name) ?></td>
 				<td><?= $this->Html->link( $this->Html->image( 'mods/' . $mod->id . '/thumb64.jpeg'), ['controller' => 'Mods', 'action' => 'view', $mod->id], ['escape' => false]) ?></td>
                 <td><?= $mod->version ?></td>

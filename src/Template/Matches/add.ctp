@@ -8,6 +8,31 @@
 				window.location.hash = "modal";
 			}
 		});
+		$('#modtable tr').on('mouseover', function(e) {
+			if( e.delegateTarget.id.substring(0,3) == 'mod' ) {
+				if( $('#mod-'+e.delegateTarget.id.substring(4,6)).prop( 'checked' ) == false ) {
+					e.delegateTarget.style.background = '#f0f0ff';
+				}
+			}
+		});
+		$('#modtable tr').on('mouseout', function(e) {
+			if( e.delegateTarget.id.substring(0,3) == 'mod' ) {
+				if( $('#mod-'+e.delegateTarget.id.substring(4,6)).prop( 'checked' ) == false ) {
+					e.delegateTarget.style.background = '#ffffff';
+				}
+			}
+		});
+		$('#modtable tr').on('click', function(e) {
+			if( e.delegateTarget.id.substring(0,3) == 'mod' ) {
+				if( $('#mod-'+e.delegateTarget.id.substring(4,6)).prop( 'checked' ) == true ) {
+					$('#mod-'+e.delegateTarget.id.substring(4,6)).prop( 'checked', false );
+					e.delegateTarget.style.background = '#f0f0ff';
+				} else { 
+					$('#mod-'+e.delegateTarget.id.substring(4,6)).prop( 'checked', true );
+					e.delegateTarget.style.background = '#babaff';
+				}
+			}
+		});
 	});
 </script>
 
@@ -53,10 +78,12 @@
 			echo $this->Form->input( 'clientstart', array(
 				'label' => 'Clients Can Start Game',
 				'type' => 'checkbox'  ));
-			
-        ?>
+			?>
+			<h5>Mods</h5>
+			<?= $this->Form->input( 'Mod', ['multiple' => 'checkbox', 'id' => 'hiddenmods' ] ); ?>
+			<?= $this->Html->link( 'Select Mods', '#modselect' ); ?>
 		<div class="remodal" data-remodal-id="modselect">
-			<?= $this->element( 'modtable', array( 'mods' => $mods ) ); ?>
+			<?= $this->element( 'modtable', array( 'mods' => $modsfull )); ?>
 		</div>
     </fieldset>
     <?= $this->Form->button(__('Submit')) ?>
