@@ -66,6 +66,7 @@ class ModsTable extends Table
 				$filepath = pathinfo( $entry->getName() );
 				if( isset( $filepath['extension'] ) && $filepath['extension'] == 'dm' && $filepath['dirname'] == '.' ) {
 					$fd = fopen( WWW_ROOT . 'mods/tmp/' . $entry->getName(), 'r' );
+					$entity->set('dmname', $entry->getName());
 					if( $fd ) {
 						rewind( $fd );
 						while( ( $line = fgets( $fd ) ) !== false ) {
