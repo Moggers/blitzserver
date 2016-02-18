@@ -60,39 +60,78 @@ class ModsTable extends Table
 	public function beforeSave( $event, $entity, $options )
 	{
 		if( $entity->get('Archive')['tmp_name'] != '' ) {
-			$rar_file = rar_open( $entity->get('Archive')['tmp_name'] );
-			$entries = rar_list($rar_file);
-			foreach( $entries as $entry ) {
-				$filepath = pathinfo( $entry->getName() );
-				if( isset( $filepath['extension'] ) && $filepath['extension'] == 'dm' && $filepath['dirname'] == '.' ) {
-					$fd = fopen( WWW_ROOT . 'mods/tmp/' . $entry->getName(), 'r' );
-					$entity->set('dmname', $entry->getName());
-					if( $fd ) {
-						rewind( $fd );
-						while( ( $line = fgets( $fd ) ) !== false ) {
-							$arr = explode( ' ', $line );
-							switch( $arr[0] ) {
-								case '--':
-									break;
-								case '#version':
-									$entity->set( 'version', trim( substr( $line, strlen('#version ' ) ) ) );
-									break;
-								case '#description':
-									$entity->set( 'description', trim( str_replace( '"', '', substr( $line, strlen( '#description ' ) ) ) ) );
-									break;
-								case '#modname':
-									$entity->set( 'name', trim( str_replace( '"', '', substr( $line, strlen( '#modname ' ) ) ) ) );
-									break;
-								case '#icon':
-									$entity->set( 'icon', trim( str_Replace( '"', '', substr( $line, strlen( '#icon ' ) ) ) ) );
-									break;
+		switch( $entity->get('Archive')['type']) {
+			case "application/x-rar":
+				$rar_file = rar_open( $entity->get('Archive')['tmp_name'] );
+				$entries = rar_list($rar_file);
+				foreach( $entries as $entry ) {
+					$filepath = pathinfo( $entry->getName() );
+					if( isset( $filepath['extension'] ) && $filepath['extension'] == 'dm' && $filepath['dirname'] == '.' ) {
+						$fd = fopen( WWW_ROOT . 'mods/tmp/' . $entry->getName(), 'r' );
+						$entity->set('dmname', $entry->getName());
+						if( $fd ) {
+							rewind( $fd );
+							while( ( $line = fgets( $fd ) ) !== false ) {
+								$arr = explode( ' ', $line );
+								switch( $arr[0] ) {
+									case '--':
+										break;
+									case '#version':
+										$entity->set( 'version', trim( substr( $line, strlen('#version ' ) ) ) );
+										break;
+									case '#description':
+										$entity->set( 'description', trim( str_replace( '"', '', substr( $line, strlen( '#description ' ) ) ) ) );
+										break;
+									case '#modname':
+										$entity->set( 'name', trim( str_replace( '"', '', substr( $line, strlen( '#modname ' ) ) ) ) );
+										break;
+									case '#icon':
+										$entity->set( 'icon', trim( str_Replace( '"', '', substr( $line, strlen( '#icon ' ) ) ) ) );
+										break;
+								}
 							}
+							fclose( $fd );
 						}
-						fclose( $fd );
+						$rar_file->close():
+						return true;
 					}
-					return true;
 				}
-			}
+				break;
+			case "application/zip":
+				$zip_file = zip_open( $entity->get('Archive')['tmp_name'] );
+				foreach( $entry = zip_read( $zip_file ) ) {
+					$filepath = zip_entry_name( $entry );
+					if( isset( $filepath['extension'] ) && $filepath['extension'] == 'dm' && $filepath['dirname'] == '.' ) {
+						$fd = fopen( WWW_ROOT . 'mods/tmp/' . $entry->getName(), 'r' );
+						$entity->set('dmname', $entry->getName());
+						if( $fd ) {
+							rewind( $fd );
+							while( ( $line = fgets( $fd ) ) !== false ) {
+								$arr = explode( ' ', $line );
+								switch( $arr[0] ) {
+									case '--':
+										break;
+									case '#version':
+										$entity->set( 'version', trim( substr( $line, strlen('#version ' ) ) ) );
+										break;
+									case '#description':
+										$entity->set( 'description', trim( str_replace( '"', '', substr( $line, strlen( '#description ' ) ) ) ) );
+										break;
+									case '#modname':
+										$entity->set( 'name', trim( str_replace( '"', '', substr( $line, strlen( '#modname ' ) ) ) ) );
+										break;
+									case '#icon':
+										$entity->set( 'icon', trim( str_Replace( '"', '', substr( $line, strlen( '#icon ' ) ) ) ) );
+										break;
+								}
+							}
+							fclose( $fd );
+						}
+						$zip_file->close();
+						return true;
+					}
+				}
+				break;
 		}
 		return true;
 	}
@@ -105,11 +144,20 @@ class ModsTable extends Table
 				mkdir( $moddir, 0777, true );
 
 			$filetmp = $entity->get('Archive')['tmp_name'];
-			$rar = rar_open( $entity->get('Archive')['tmp_name'] );
-			foreach( rar_list($rar) as $entry ) {
-				$entry->extract( $moddir );
+			switch( $entry->get('Archive')['type'] ) {
+				case 'application/x-rar':
+					$rar = rar_open( $entity->get('Archive')['tmp_name'] );
+					foreach( rar_list($rar) as $entry ) {
+						$entry->extract( $moddir );
+					}
+					$rar->close();
+					break;
+				case 'application/zip':
+					$zip = zip_open( $entity->get('Archive')['tmp_name'] );
+					$zip->extractTo( $moddir );
+					$zip->close();
+					break;
 			}
-			$rar->close();
 			move_uploaded_file( $entity->get('Archive')['tmp_name'], $moddir . $entity->get('Archive')['name'] );
 
 			$thumbdir = WWW_ROOT . 'img/mods/' . $entity->id . '/';
