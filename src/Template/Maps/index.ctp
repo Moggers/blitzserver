@@ -22,15 +22,15 @@
         <tbody>
             <?php foreach ($maps as $map): ?>
             <tr>
-					<td><?= $this->Html->image( 'maps/' . $map->id . '/thumb64.jpeg', [ 
-						'id' => $map->id . 'mapimage', 
-						'onmouseover' => 'swapImage('.$map->id.','.$map->id.',256'.')', 
-						'onmouseout' =>  'swapImage('.$map->id.','.$map->id.',64'.')',
-						'alt' => 'CakePHP' ]) ?> </td>
+				<td><?= $this->Html->image( 'maps/' . $map->id . '/thumb64.jpeg', [ 
+					'id' => $map->id . 'mapimage', 
+					'onmouseover' => 'swapImage('.$map->id.','.$map->id.',256'.')', 
+					'onmouseout' =>  'swapImage('.$map->id.','.$map->id.',64'.')',
+					'alt' => 'CakePHP' ]) ?>
                 <?= h($map->name) ?></td>
 				<td><?= h($map->description) ?></td>
                 <td><?= h($map->prov . '(' . $map->seaprov) . ')' ?></td>
-				<?= $this->html->link(__('View'), ['action' => 'view', $map->id]) ?> </td>
+				<td><?= $this->html->link(__('View'), ['action' => 'view', $map->id]) ?> </td>
             </tr>
             <?php endforeach; ?>
         </tbody>
