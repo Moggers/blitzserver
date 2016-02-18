@@ -72,15 +72,16 @@ class ModsController extends AppController
 					}
 					break;
 				case "application/zip":
-					$zip_file = zip_open( $this->request->data('Archive')['tmp_name'] );
-					while( $entry = zip_read($zip_file)) {
-						$filepath = pathinfo( zip_entry_name( $entry) );
+					$zip = new \ZipArchive();
+					$zip->open( $this->request->data('Archive')['tmp_name'] );
+					for( $i = 0; $i < $zip->numFiles; $i++ ) {
+						$filepath = pathinfo( $zip->getNameIndex($i) );
 						if( isset( $filepath['extension'] ) && $filepath['extension'] == 'dm' && $filepath['dirname'] == '.' ) {
 							if( !file_exists( 'mods/tmp/' ) )
 								mkdir( 'mods/tmp/', 0777, true );
-							$zip_file->extractTo( WWW_ROOT . 'mods/tmp/', $entry );
-							$fd = fopen( WWW_ROOT . 'mods/tmp/' . zip_entry_name( $entry ), 'r' );
-							$zip_file->close();
+							$zip->extractTo( WWW_ROOT . 'mods/tmp/', $zip->getNameIndex($i) );
+							$fd = fopen( WWW_ROOT . 'mods/tmp/' . $zip->getNameIndex($i), 'r' );
+							$zip->close();
 							$hash = crc32( fread($fd, 99999999 ) );
 							$mod->crc32 = $hash;
 							$clash = $this->Mods->find( 'all')->where(['crc32' => $hash ])->first();
