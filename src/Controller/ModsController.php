@@ -64,7 +64,7 @@ class ModsController extends AppController
 							$mod->crc32 = $hash;
 							$clash = $this->Mods->find( 'all')->where(['crc32' => $hash ])->first();
 							if( $clash ) {
-								$this->Flash->error(__('That map has already been uploaded. It\'s over here'));
+								$this->Flash->error(__('That mod has already been uploaded. It\'s over here'));
 								return $this->redirect(['action' => 'view', $clash->id]);
 							}
 							fclose( $fd );
