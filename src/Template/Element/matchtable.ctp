@@ -36,9 +36,6 @@
 			<td><?= $match->player_count ?></td>
 			<td class="actions">
 				<?php if ($match->status !== -1): ?>
-					<?php if ($match->status < 2 && $match->playerstring !== 0 ): ?>
-						<?= $this->Html->link(__('Start Game'), ['action' => 'start', $match->id]) ?> <br />
-					<?php endif; ?>
 					<?= $this->Html->link(__('KILL THE GAME'), ['action' => 'destroy', $match->id]) ?> <br />
 					<?= $this->Html->link(__('Details'), ['action' => 'view', $match->id]) ?>
 				<?php endif; ?>
