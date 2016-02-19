@@ -33,13 +33,18 @@ $cakeDescription = 'Blitzserver';
     <?= $this->fetch('css') ?>
     <?= $this->fetch('script') ?>
 
-	<?= $this->Html->script('https://code.jquery.com/jquery-2.2.0.min.js'); ?>
 
-	<?= $this->Html->script('remodal.js'); ?>
 	<?= $this->Html->css('remodal.css'); ?>
 	<?= $this->Html->css('remodal-default-theme.css'); ?>
+	<?= $this->Html->css('weekline.css'); ?>
+	<?= $this->Html->css('weekline-white.css'); ?>
+	<?= $this->Html->css('shared.css'); ?>
+
+	<?= $this->Html->script('https://code.jquery.com/jquery-2.2.0.min.js'); ?>
+	<?= $this->Html->script('remodal.js'); ?>
 	<?= $this->Html->script('jquery.form.js'); ?>
 	<?= $this->Html->script('js.cookie.js'); ?>
+	<?= $this->Html->script('weekline.js'); ?>
 	
 	<script type='text/javascript'>
 		$(document).ready( function() {

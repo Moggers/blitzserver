@@ -1,4 +1,4 @@
-<div class="maps view large-12 medium-8 columns content">
+<div class="maps view large-12 medium-12 columns content">
     <h3><?= h($map->name) ?></h3>
 	<div class="wrapper">
 		<div class="maptable">
@@ -16,7 +16,7 @@
 			</table>
 		</div>
 		<div class="mappreview">
-			<td><?=$this->Html->image( 'maps/' . $map->id . '/thumb512.jpeg', ['alt' => 'CakePHP' ]) ?></td>
+			<td><?=$this->Html->image( 'maps/' . $map->id . '/thumb1024.jpeg', ['alt' => 'CakePHP' ]) ?></td>
 		</div>
 	</div>
 	</table>

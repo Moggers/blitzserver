@@ -34,6 +34,38 @@ class MatchesController extends AppController
         $this->set('_serialize', ['matches']);
     }
 
+	/**
+	 * SCHEDULE MEMES
+	 */
+	 public function weekschedule( $id = null )
+	 {
+		 $match = $this->Matches->get($id );
+		 if( $this->request->is('post') || $this->request->is('put')) {
+			$match->day = $this->request->data['day'];
+			$match->hour = $this->request->data['hour'];
+			if( $this->Matches->save($match)) {
+				$this->Flash->success(__('Schedule updated'));
+			} else {
+				$this->Flash->error('Failed to update schedule');
+			}
+		 } else { die( pr($this) ); }
+		return $this->redirect(['action' => 'view', $match->id]);
+	 }
+
+	 public function hostinterval( $id = null )
+	 {
+		 $match = $this->Matches->get($id );
+		 if( $this->request->is('post') || $this->request->is('put')) {
+			$match->hostinterval = $this->request->data['hour'] * 60 + $this->request->data['minute'];
+			if( $this->Matches->save($match)) {
+				$this->Flash->success(__('Schedule updated'));
+			} else {
+				$this->Flash->error('Failed to update schedule');
+			}
+		 } else { die( pr($this) ); }
+		return $this->redirect(['action' => 'view', $match->id]);
+	 }
+
     /**
      * View method
      *
