@@ -84,7 +84,7 @@ class Match extends Entity
 	protected function _getStatusString() {
 		$str = match::statuses( $this->status );
 		if( $str == '' ) {
-			return 'N/A';
+			return 'Unknown Status: '.$this->status;
 		}
 		return $str;
 	}

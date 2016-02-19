@@ -34,7 +34,6 @@
 			if( e.delegateTarget.id.substring(0,3) == 'mod' ) {
 				$('#hiddenmods > option').each( function() {
 					if( this.value == e.delegateTarget.id.substring(4,6) ) {
-						console.log( this );
 						this.selected = !this.selected;
 						if( !this.selected )
 							e.delegateTarget.style.background = '#f0f0ff';

@@ -10,6 +10,23 @@
 			$('#hiddenintminute').val($('#modalintminute').val() );
 			$('#intervalform').submit();
 		});
+		$('#intervalform').ajaxForm( function(res) {
+			var data = JSON.parse( res );
+			if( data.status == 1 ) {
+				window.location = '/matches/view/'+data.id;
+			} else {
+				window.location.hash = "modal";
+			}
+		});
+		$('#weekform').ajaxForm( function(res) {
+			console.log( 'wake me up' );
+			var data = JSON.parse( res );
+			if( data.status == 1 ) {
+				window.location = '/matches/view/'+data.id;
+			} else {
+				window.location.hash = "modal";
+			}
+		});
 	});
 </script>
 

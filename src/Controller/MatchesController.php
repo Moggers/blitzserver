@@ -16,82 +16,90 @@ class MatchesController extends AppController
 	 * Paginator
 	 */
 
-    /**
-     * Index method
-     *
-     * @return void
-     */
-    public function index()
-    {
-        $this->paginate = [
-            'contain' => ['Maps', 'Nations']
-        ];
+	/**
+	 * Index method
+	 *
+	 * @return void
+	 */
+	public function index()
+	{
+		$this->paginate = [
+			'contain' => ['Maps', 'Nations']
+		];
 
 		if( $this->request->query('layout') == 'false' ) {
 			$this->viewBuilder()->layout( false );
 		}
-        $this->set('matches', $this->paginate($this->Matches));
-        $this->set('_serialize', ['matches']);
-    }
+		$this->set('matches', $this->paginate($this->Matches));
+		$this->set('_serialize', ['matches']);
+	}
 
 	/**
 	 * SCHEDULE MEMES
 	 */
-	 public function weekschedule( $id = null )
-	 {
-		 $match = $this->Matches->get($id );
-		 if( $this->request->is('post') || $this->request->is('put')) {
-			$match->day = $this->request->data['day'];
-			$match->hour = $this->request->data['hour'];
-			if( $this->Matches->save($match)) {
-				$this->Flash->success(__('Schedule updated'));
-			} else {
-				$this->Flash->error('Failed to update schedule');
-			}
-		 } else { die( pr($this) ); }
-		return $this->redirect(['action' => 'view', $match->id]);
-	 }
+	public function weekschedule( $id = null )
+	{
+		$match = $this->Matches->get($id );
+		if( isset( $_COOKIE['password']) && $match->checkPassword( $_COOKIE['password'] )){
+			if( $this->request->is('post') || $this->request->is('put')) {
+				$match->day = $this->request->data['day'];
+				$match->hour = $this->request->data['hour'];
+				if( $this->Matches->save($match)) {
+					$this->Flash->success(__('Schedule updated'));
+				} else {
+					$this->Flash->error('Failed to update schedule');
+				}
+			} else { die( pr($this) ); }
+			die( json_encode( [ 'status' => 1, 'id' => $match->id ] ) );
+		} else {
+			die( json_encode( [ 'status' => 0, 'id' => $match->id ] ) );
+		}
+	}
 
-	 public function hostinterval( $id = null )
-	 {
-		 $match = $this->Matches->get($id );
-		 if( $this->request->is('post') || $this->request->is('put')) {
-			$match->hostinterval = $this->request->data['hour'] * 60 + $this->request->data['minute'];
-			if( $this->Matches->save($match)) {
-				$this->Flash->success(__('Schedule updated'));
-			} else {
-				$this->Flash->error('Failed to update schedule');
-			}
-		 } else { die( pr($this) ); }
-		return $this->redirect(['action' => 'view', $match->id]);
-	 }
+	public function hostinterval( $id = null )
+	{
+		$match = $this->Matches->get($id );
+		if( isset( $_COOKIE['password']) && $match->checkPassword( $_COOKIE['password'] )){
+			if( $this->request->is('post') || $this->request->is('put')) {
+				$match->hostinterval = $this->request->data['hour'] * 60 + $this->request->data['minute'];
+				if( $this->Matches->save($match)) {
+					$this->Flash->success(__('Schedule updated'));
+				} else {
+					$this->Flash->error('Failed to update schedule');
+				}
+			} else { die( pr($this) ); }
+			die( json_encode( [ 'status' => 1, 'id' => $match->id ] ) );
+		} else {
+			die( json_encode( [ 'status' => 0, 'id' => $match->id ] ) );
+		}
+	}
 
-    /**
-     * View method
-     *
-     * @param string|null $id Match id.
-     * @return void
-     * @throws \Cake\Network\Exception\NotFoundException When record not found.
-     */
-    public function view($id = null)
-    {
-        $match = $this->Matches->get($id, [
-            'contain' => ['Maps', 'Nations', 'Mods']
-        ]);
-        $this->set('match', $match);
-        $this->set('_serialize', ['match']);
-    }
+	/**
+	 * View method
+	 *
+	 * @param string|null $id Match id.
+	 * @return void
+	 * @throws \Cake\Network\Exception\NotFoundException When record not found.
+	 */
+	public function view($id = null)
+	{
+		$match = $this->Matches->get($id, [
+				'contain' => ['Maps', 'Nations', 'Mods']
+		]);
+		$this->set('match', $match);
+		$this->set('_serialize', ['match']);
+	}
 
-    /**
-     * Add method
-     *
-     * @return void Redirects on successful add, renders view otherwise.
-     */
-    public function add()
-    {
-        $match = $this->Matches->newEntity();
-        if ($this->request->is('post')) {
-            $match = $this->Matches->patchEntity($match, $this->request->data, ['associated' => ['Mods']]);
+	/**
+	 * Add method
+	 *
+	 * @return void Redirects on successful add, renders view otherwise.
+	 */
+	public function add()
+	{
+		$match = $this->Matches->newEntity();
+		if ($this->request->is('post')) {
+			$match = $this->Matches->patchEntity($match, $this->request->data, ['associated' => ['Mods']]);
 			if( isset($_COOKIE['password']) && $_COOKIE['password'] != '' ){
 				if( $match->name != '' ) 
 					$match->name = str_replace( ' ', '_', $match->name );
@@ -109,69 +117,69 @@ class MatchesController extends AppController
 					die( json_encode( [ 'status' => 0, 'id' => $match->id ] ) );
 				}
 			}
-        }
-        $maps = $this->Matches->Maps->find('list', ['limit' => 200]);
-        $this->set(compact('match', 'maps'));
-        $this->set('modsfull', $this->paginate($this->Matches->Mods->find()));
+		}
+		$maps = $this->Matches->Maps->find('list', ['limit' => 200]);
+		$this->set(compact('match', 'maps'));
+		$this->set('modsfull', $this->paginate($this->Matches->Mods->find()));
 		$this->set('mods', $this->Matches->Mods->find('list') );
-        $this->set('_serialize', ['match']);
-    }
+		$this->set('_serialize', ['match']);
+	}
 
-    /**
-     * Edit method
-     *
-     * @param string|null $id Match id.
-     * @return void Redirects on successful edit, renders view otherwise.
-     * @throws \Cake\Network\Exception\NotFoundException When record not found.
-     */
-    public function edit($id = null)
-    {
-        $match = $this->Matches->get($id, [
-            'contain' => []
-        ]);
-        if ($this->request->is(['patch', 'post', 'put'])) {
-            $match = $this->Matches->patchEntity($match, $this->request->data);
-            if ($this->Matches->save($match)) {
-                $this->Flash->success(__('The match has been saved.'));
-                return $this->redirect(['action' => 'index']);
-            } else {
-                $this->Flash->error(__('The match could not be saved. Please, try again.'));
-            }
-        }
-        $maps = $this->Matches->Maps->find('list', ['limit' => 200]);
-        $this->set(compact('match', 'maps'));
-        $this->set('_serialize', ['match']);
-    }
+	/**
+	 * Edit method
+	 *
+	 * @param string|null $id Match id.
+	 * @return void Redirects on successful edit, renders view otherwise.
+	 * @throws \Cake\Network\Exception\NotFoundException When record not found.
+	 */
+	public function edit($id = null)
+	{
+		$match = $this->Matches->get($id, [
+				'contain' => []
+		]);
+		if ($this->request->is(['patch', 'post', 'put'])) {
+			$match = $this->Matches->patchEntity($match, $this->request->data);
+			if ($this->Matches->save($match)) {
+				$this->Flash->success(__('The match has been saved.'));
+				return $this->redirect(['action' => 'index']);
+			} else {
+				$this->Flash->error(__('The match could not be saved. Please, try again.'));
+			}
+		}
+		$maps = $this->Matches->Maps->find('list', ['limit' => 200]);
+		$this->set(compact('match', 'maps'));
+		$this->set('_serialize', ['match']);
+	}
 
-    /**
-     * Delete method
-     *
-     * @param string|null $id Match id.
-     * @return \Cake\Network\Response|null Redirects to index.
-     * @throws \Cake\Network\Exception\NotFoundException When record not found.
-     */
-    public function delete($id = null)
-    {
-        $this->request->allowMethod(['post', 'delete']);
-        $match = $this->Matches->get($id);
-        if ($this->Matches->delete($match)) {
-            $this->Flash->success(__('The match has been deleted.'));
-        } else {
-            $this->Flash->error(__('The match could not be deleted. Please, try again.'));
-        }
-        return $this->redirect(['action' => 'index']);
-    }
+	/**
+	 * Delete method
+	 *
+	 * @param string|null $id Match id.
+	 * @return \Cake\Network\Response|null Redirects to index.
+	 * @throws \Cake\Network\Exception\NotFoundException When record not found.
+	 */
+	public function delete($id = null)
+	{
+		$this->request->allowMethod(['post', 'delete']);
+		$match = $this->Matches->get($id);
+		if ($this->Matches->delete($match)) {
+			$this->Flash->success(__('The match has been deleted.'));
+		} else {
+			$this->Flash->error(__('The match could not be deleted. Please, try again.'));
+		}
+		return $this->redirect(['action' => 'index']);
+	}
 
 	public function start($id = null)
 	{
-        $match = $this->Matches->get($id, [
-            'contain' => []
-        ]);
-        if ($this->request->is(['patch', 'get', 'put'])) {
+		$match = $this->Matches->get($id, [
+				'contain' => []
+		]);
+		if ($this->request->is(['patch', 'get', 'put'])) {
 			// Get us out of here
 			$this->Flash->error(__('Starting matches through this interface is currently broken. Please enable Client Start, and begin the match from inside the game'));
 			return $this->redirect(['action' => 'index']);
-            $match = $this->Matches->patchEntity($match, $this->request->data);
+			$match = $this->Matches->patchEntity($match, $this->request->data);
 
 			// Once I fix this bullshit
 			if( $match->playerstring == 0 ) {
@@ -185,18 +193,18 @@ class MatchesController extends AppController
 			} else {
 				$this->Flash->error(__('Oh fuck'));
 			}
-        }
-        $maps = $this->Matches->Maps->find('list', ['limit' => 200]);
-        $this->set(compact('match', 'maps'));
-        $this->set('_serialize', ['match']);
+		}
+		$maps = $this->Matches->Maps->find('list', ['limit' => 200]);
+		$this->set(compact('match', 'maps'));
+		$this->set('_serialize', ['match']);
 	}
 	public function destroy($id = null)
 	{
-        $match = $this->Matches->get($id, [
-            'contain' => []
-        ]);
-        if ($this->request->is(['patch', 'get', 'put'])) {
-		if( isset( $_COOKIE['password']) && $match->checkPassword( $_COOKIE['password'] )){
+		$match = $this->Matches->get($id, [
+				'contain' => []
+		]);
+		if ($this->request->is(['patch', 'get', 'put'])) {
+			if( isset( $_COOKIE['password']) && $match->checkPassword( $_COOKIE['password'] )){
 				$match = $this->Matches->patchEntity($match, $this->request->data);
 				$match->status = -1;
 				if ($this->Matches->save($match)) {
@@ -209,10 +217,10 @@ class MatchesController extends AppController
 				$this->Flash->error(__('Incorrect password'));
 				return $this->redirect(['action' => 'index']);
 			}
-        }
-        $maps = $this->Matches->Maps->find('list', ['limit' => 200]);
-        $this->set(compact('match', 'maps'));
-        $this->set('_serialize', ['match']);
+		}
+		$maps = $this->Matches->Maps->find('list', ['limit' => 200]);
+		$this->set(compact('match', 'maps'));
+		$this->set('_serialize', ['match']);
 		return $this->redirect(['action' => 'index']);
 	}
 
@@ -220,10 +228,10 @@ class MatchesController extends AppController
 	{
 		if( $this->request->is(['patch', 'get', 'put']) ) {
 			$matchnation = $this->Matches->Nations->Matchnations->get($id, [
-				'contain' => []
+					'contain' => []
 			]);
 			$match = $this->Matches->get( $matchnation->match_id, [
-				'contain' => []
+					'contain' => []
 			]);
 			if( isset( $_COOKIE['password'] )&& $match->checkPassword( $_COOKIE['password'])){
 				if( $match->status !== 3 ) {

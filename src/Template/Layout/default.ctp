@@ -36,20 +36,18 @@ $cakeDescription = 'Blitzserver';
 
 	<?= $this->Html->css('remodal.css'); ?>
 	<?= $this->Html->css('remodal-default-theme.css'); ?>
-	<?= $this->Html->css('weekline.css'); ?>
-	<?= $this->Html->css('weekline-white.css'); ?>
 	<?= $this->Html->css('shared.css'); ?>
 
 	<?= $this->Html->script('https://code.jquery.com/jquery-2.2.0.min.js'); ?>
 	<?= $this->Html->script('remodal.js'); ?>
 	<?= $this->Html->script('jquery.form.js'); ?>
 	<?= $this->Html->script('js.cookie.js'); ?>
-	<?= $this->Html->script('weekline.js'); ?>
 	
 	<script type='text/javascript'>
 		$(document).ready( function() {
 			$('#password').val( Cookies.get('password') );
-			$(document).on('confirmation', '.remodal', function() {
+			$(document).on('confirmation', '#passwordmodal', function() {
+				console.log( 'wewlad' );
 				$('#password').val($('#remodal-password').val());
 				Cookies.set('password', $('#password').val());
 			});
@@ -89,9 +87,9 @@ $cakeDescription = 'Blitzserver';
     </section>
     <footer>
     </footer>
-	<div class="remodal" data-remodal-id="modal">
+	<div class="remodal" id='passwordmodal' data-remodal-id="modal">
 		<button data-remodal-action="close" class="remodal-close"></button>
-		<h1>Gotta put in a password ya git</h1>
+		<h1>Please Enter Password</h1>
 		<?= $this->Form->input('remodal-password', ['label' => false, 'placeholder' => 'Password']); ?>
 		<br />
 		<button data-remodal-action="cancel" class="remodal-cancel">Nah think oi'll come back later, eh?</button>
