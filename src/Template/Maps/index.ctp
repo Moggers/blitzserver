@@ -4,11 +4,7 @@
 		document.getElementById( id + 'mapimage' ).src = 'img/maps/' + mid + '/thumb'+size+'.jpeg';
 	}
 </script>
-<nav class="large-3 medium-4 columns" id="actions-sidebar">
-    <ul class="side-nav">
-    </ul>
-</nav>
-<div class="maps index large-9 medium-8 columns content">
+<div class="maps index large-12 medium-8 columns content">
     <h3><?= __('Maps') ?></h3>
     <table>
         <thead>

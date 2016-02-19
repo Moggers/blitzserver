@@ -21,11 +21,7 @@
 		}, 1000 );
 	} );
 </script>
-<nav class="large-3 medium-4 columns" id="actions-sidebar">
-    <ul class="side-nav">
-    </ul>
-</nav>
-<div class="matches index large-9 medium-8 columns content">
+<div class="matches index large-12 medium-8 columns content">
     <h3><?= __('Matches') ?></h3>
 	<?= $this->Form->Button( "Refresh", array( 'onclick' => 'refresh(); waitExtend = 5;', 'id' => 'refresh', 'style' => 'padding: 0.5rem 0.5rem 0.5rem 0.5rem' ) ); ?>
 	<?= $this->element( 'matchtable', array( 'matches' => $matches ) ); ?>

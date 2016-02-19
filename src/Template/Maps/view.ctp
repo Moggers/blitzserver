@@ -1,8 +1,4 @@
-<nav class="large-3 medium-4 columns" id="actions-sidebar">
-    <ul class="side-nav">
-    </ul>
-</nav>
-<div class="maps view large-9 medium-8 columns content">
+<div class="maps view large-12 medium-8 columns content">
     <h3><?= h($map->name) ?></h3>
 	<div class="wrapper">
 		<div class="maptable">

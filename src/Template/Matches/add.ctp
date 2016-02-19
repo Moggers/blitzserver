@@ -47,11 +47,7 @@
 	});
 </script>
 
-<nav class="large-3 medium-4 columns" id="actions-sidebar">
-    <ul class="side-nav">
-    </ul>
-</nav>
-<div class="matches form large-9 medium-8 columns content">
+<div class="matches form large-12 medium-8 columns content">
     <?= $this->Form->create($match, ['id' => 'matchcreate']) ?>
     <fieldset>
         <legend><?= __('Add Match') ?></legend>
