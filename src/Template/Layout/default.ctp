@@ -42,6 +42,8 @@ $cakeDescription = 'Blitzserver';
 	<?= $this->Html->script('remodal.js'); ?>
 	<?= $this->Html->script('jquery.form.js'); ?>
 	<?= $this->Html->script('js.cookie.js'); ?>
+	<?= $this->Html->script('moment.js'); ?>
+	<?= $this->Html->script('moment-timezone-with-data-2010-2020.min.js'); ?>
 	
 	<script type='text/javascript'>
 		$(document).ready( function() {
@@ -73,7 +75,7 @@ $cakeDescription = 'Blitzserver';
 				<li><?= $this->Html->link(__('Upload Map'), ['controller' => 'Maps', 'action' => 'add']) ?></li>
 				<li><?= $this->Html->link(__('Show Mods'), ['controller' => 'Mods', 'action' => 'index']) ?></li>
 				<li><?= $this->Html->link(__('Upload Mod'), ['controller' => 'Mods', 'action' => 'add']) ?></li>
-				<li><?= $this->Html->link(__('Something\'s Broken!!!'), 'https://github.com/moggers/blitzserver/issues') ?></li>
+				<li><?= $this->Html->link(__('Bug Report/Feature Request'), 'https://github.com/moggers/blitzserver/issues') ?></li>
             </ul>
 			<ul class="right">
 				<li> <?= $this->Form->input('password', ['label' => false, 'id' => 'password', 'placeholder' => 'Password']); ?> </li>

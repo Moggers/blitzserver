@@ -3,6 +3,7 @@ namespace App\Model\Entity;
 
 use Cake\ORM\Entity;
 use Cake\Auth\DefaultPasswordHasher;
+use Cake\I18n\Time;
 
 /**
  * Match Entity.
@@ -37,6 +38,18 @@ class Match extends Entity
 		return $default;
 		}
 		return $options;
+	}
+
+	protected function _getNextTurn()
+	{
+		if( $this->hostinterval != 0 ) {
+			Time::setToStringFormat('yyyy-MM-dd HH:mm:ss');	
+			$clone = clone $this->lastturn;
+			return $clone->addMinutes( $this->hostinterval );
+		} else if( $this->hour != 0 ) {
+			return false;
+		}
+		return false;
 	}
 
 	protected function _setPassword( $password )

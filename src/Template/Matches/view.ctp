@@ -27,6 +27,7 @@
 				window.location.hash = "modal";
 			}
 		});
+		$('#localtime')[0].innerHTML = moment.tz($('#localtime')[0].innerHTML, 'YYYY-MM-DD HH:nm:ss', 'Europe/Dublin').tz( moment.tz.guess()).fromNow();
 	});
 </script>
 
@@ -39,10 +40,6 @@
 					<th><?= __('Thrones(Points To Win)') ?></th>
 					<td><?= $match->thrones ?>
 				<tr>
-					<th><?= __('Status') ?></th>
-					<td><?= $match::statuses( $match->status ) ?></td>
-				</tr>
-				<tr>
 					<th><?= __('Age') ?></th>
 					<td><?= $match::ages( $match->age ) ?></td>
 				</tr>
@@ -50,9 +47,15 @@
 					<th><?= __('Address') ?></th>
 					<td><?= $match->address ?></td>
 				</tr>
+					<th><?= __('Status') ?> </th>
+					<td><?= $match->status_string ?></td>
 				<tr>
-					<th><?= __('Next Turn') ?> </th>
-					<td>Placeholder</td>
+					<?php if( $match->status == 3 ) { ?>
+						<?php if( $match->next_turn !== false ) { ?>
+							<th><?= __('Next Turn') ?> </th>
+							<td id='localtime'><?= $match->next_turn->i18nFormat() ?></th>
+						<?php } ?>
+					<?php } ?>
 				</tr>
 			</table>
 			<div class="large-6 medium-12 small-12 columns content">

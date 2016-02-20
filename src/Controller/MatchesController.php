@@ -24,7 +24,7 @@ class MatchesController extends AppController
 	public function index()
 	{
 		$this->paginate = [
-			'contain' => ['Maps', 'Nations']
+			'contain' => ['Maps', 'Nations', 'Turns' ]
 		];
 
 		if( $this->request->query('layout') == 'false' ) {
@@ -84,7 +84,7 @@ class MatchesController extends AppController
 	public function view($id = null)
 	{
 		$match = $this->Matches->get($id, [
-				'contain' => ['Maps', 'Nations', 'Mods']
+				'contain' => ['Maps', 'Nations', 'Mods', 'Turns']
 		]);
 		$this->set('match', $match);
 		$this->set('_serialize', ['match']);

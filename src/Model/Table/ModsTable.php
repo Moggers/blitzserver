@@ -67,7 +67,7 @@ class ModsTable extends Table
 					foreach( $entries as $entry ) {
 						$filepath = pathinfo( $entry->getName() );
 						if( isset( $filepath['extension'] ) && $filepath['extension'] == 'dm' && $filepath['dirname'] == '.' ) {
-							$fd = fopen( WWW_ROOT . 'mods/tmp/' . $entry->getName(), 'r' );
+							$fd = fopen( WWW_ROOT . 'tmp/mods/' . $entry->getName(), 'r' );
 							$entity->set('dmname', $entry->getName());
 							if( $fd ) {
 								rewind( $fd );
@@ -103,7 +103,7 @@ class ModsTable extends Table
 					for( $i = 0; $i < $zip->numFiles; $i++ ) {
 						$filepath = pathinfo($zip->getNameIndex($i));
 						if( isset( $filepath['extension'] ) && $filepath['extension'] == 'dm' && $filepath['dirname'] == '.' ) {
-							$fd = fopen( WWW_ROOT . 'mods/tmp/' . $zip->getNameIndex($i), 'r' );
+							$fd = fopen( WWW_ROOT . 'tmp/mods/' . $zip->getNameIndex($i), 'r' );
 							$entity->set('dmname', $zip->getNameIndex($i));
 							if( $fd ) {
 								rewind( $fd );

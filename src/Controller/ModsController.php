@@ -55,10 +55,10 @@ class ModsController extends AppController
 					foreach( $entries as $entry ) {
 						$filepath = pathinfo( $entry->getName() );
 						if( isset( $filepath['extension'] ) && $filepath['extension'] == 'dm' && $filepath['dirname'] == '.' ) {
-							if( !file_exists( 'mods/tmp/' ) )
-								mkdir( 'mods/tmp/', 0777, true );
-							$entry->extract( WWW_ROOT . 'mods/tmp/' );
-							$fd = fopen( WWW_ROOT . 'mods/tmp/' . $entry->getName(), 'r' );
+							if( !file_exists( 'tmp/mods/' ) )
+								mkdir( 'tmp/mods/', 0777, true );
+							$entry->extract( WWW_ROOT . 'tmp/mods/' );
+							$fd = fopen( WWW_ROOT . 'tmp/mods/' . $entry->getName(), 'r' );
 							$rar_file->close();
 							$hash = crc32( fread($fd, 99999999 ) );
 							$mod->crc32 = $hash;
@@ -77,10 +77,10 @@ class ModsController extends AppController
 					for( $i = 0; $i < $zip->numFiles; $i++ ) {
 						$filepath = pathinfo( $zip->getNameIndex($i) );
 						if( isset( $filepath['extension'] ) && $filepath['extension'] == 'dm' && $filepath['dirname'] == '.' ) {
-							if( !file_exists( 'mods/tmp/' ) )
-								mkdir( 'mods/tmp/', 0777, true );
-							$zip->extractTo( WWW_ROOT . 'mods/tmp/', $zip->getNameIndex($i) );
-							$fd = fopen( WWW_ROOT . 'mods/tmp/' . $zip->getNameIndex($i), 'r' );
+							if( !file_exists( 'tmp/mods/' ) )
+								mkdir( 'tmp/mods/', 0777, true );
+							$zip->extractTo( WWW_ROOT . 'tmp/mods/', $zip->getNameIndex($i) );
+							$fd = fopen( WWW_ROOT . 'tmp/mods/' . $zip->getNameIndex($i), 'r' );
 							$zip->close();
 							$hash = crc32( fread($fd, 99999999 ) );
 							$mod->crc32 = $hash;

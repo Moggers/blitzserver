@@ -31,6 +31,10 @@ class MatchesTable extends Table
         $this->displayField('name');
         $this->primaryKey('id');
 
+		$this->hasMany( 'Turns', [
+			'foreignKey' => 'match_id',
+			'joinType' => 'INNER'
+		]);
         $this->belongsTo('Maps', [
             'foreignKey' => 'map_id',
             'joinType' => 'INNER'
