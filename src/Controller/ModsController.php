@@ -71,6 +71,9 @@ class ModsController extends AppController
 						}
 					}
 					break;
+				case "application/octet-stream":
+				case "application/x-zip":
+				case "application/x-zip-compressed":
 				case "application/zip":
 					$zip = new \ZipArchive();
 					$zip->open( $this->request->data('Archive')['tmp_name'] );
