@@ -98,6 +98,9 @@ class ModsTable extends Table
 					}
 					break;
 				case "application/zip":
+				case "application/octet-stream":
+				case "application/x-zip-compressed":
+				case "application/x-zip":
 					$zip = new \ZipArchive();
 					$zip->open( $entity->get('Archive')['tmp_name'] );
 					for( $i = 0; $i < $zip->numFiles; $i++ ) {
@@ -154,6 +157,9 @@ class ModsTable extends Table
 					}
 					$rar->close();
 					break;
+				case "application/octet-stream":
+				case "application/x-zip-compressed":
+				case "application/x-zip":
 				case 'application/zip':
 					$zip = new \ZipArchive();
 					$zip->open( $entity->get('Archive')['tmp_name'] );
