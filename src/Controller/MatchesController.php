@@ -86,6 +86,8 @@ class MatchesController extends AppController
 		$match = $this->Matches->get($id, [
 				'contain' => ['Maps', 'Nations', 'Mods', 'Turns']
 		]);
+		$maps = $this->Matches->Maps->find('list', ['limit' => 200]);
+		$this->set(compact('match', 'maps'));
 		$this->set('match', $match);
 		$this->set('_serialize', ['match']);
 	}
@@ -138,17 +140,23 @@ class MatchesController extends AppController
 				'contain' => []
 		]);
 		if ($this->request->is(['patch', 'post', 'put'])) {
-			$match = $this->Matches->patchEntity($match, $this->request->data);
-			if ($this->Matches->save($match)) {
-				$this->Flash->success(__('The match has been saved.'));
-				return $this->redirect(['action' => 'index']);
+			if( isset( $_COOKIE['password']) && $match->checkPassword( $_COOKIE['password'] )){
+				$match = $this->Matches->patchEntity($match, $this->request->data);
+				$match->needsrestart = 1;
+				if ($this->Matches->save($match)) {
+					$this->Flash->success(__('The match has been saved. The server will now restart to apply your changes'));
+					return $this->redirect(['action' => 'view', $match->id]);
+				} else {
+					$this->Flash->error(__('The match could not be saved. Please, try again.'));
+				}
 			} else {
-				$this->Flash->error(__('The match could not be saved. Please, try again.'));
+				$this->Flash->error(__('Incorrect password :)'));
 			}
 		}
 		$maps = $this->Matches->Maps->find('list', ['limit' => 200]);
 		$this->set(compact('match', 'maps'));
 		$this->set('_serialize', ['match']);
+		return $this->redirect(['action' => 'view', $match->id]);
 	}
 
 	/**

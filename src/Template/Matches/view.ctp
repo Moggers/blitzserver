@@ -35,30 +35,30 @@
     <h3><?= h($match->name) ?></h3>
 	<div class="wrapper">
 		<div class="maptable">
-			<table class="vertical-table" style="background:#fafafa" >
-				<tr>
-					<th><?= __('Thrones(Points To Win)') ?></th>
-					<td><?= $match->thrones ?>
-				<tr>
-					<th><?= __('Age') ?></th>
-					<td><?= $match::ages( $match->age ) ?></td>
-				</tr>
-				<tr>
-					<th><?= __('Address') ?></th>
-					<td><?= $match->address ?></td>
-				</tr>
-					<th><?= __('Status') ?> </th>
-					<td><?= $match->status_string ?></td>
-				<tr>
-					<?php if( $match->status == 3 ) { ?>
-						<?php if( $match->next_turn !== false ) { ?>
-							<th><?= __('Next Turn') ?> </th>
-							<td id='localtime'><?= $match->next_turn->i18nFormat() ?></th>
-						<?php } ?>
-					<?php } ?>
-				</tr>
-			</table>
 			<div class="large-6 medium-12 small-12 columns content">
+				<table class="vertical-table" style="background:#fafafa" >
+					<tr>
+						<th><?= __('Thrones(Points To Win)') ?></th>
+						<td><?= $match->thrones ?>
+					<tr>
+						<th><?= __('Age') ?></th>
+						<td><?= $match::ages( $match->age ) ?></td>
+					</tr>
+					<tr>
+						<th><?= __('Address') ?></th>
+						<td><?= $match->address ?></td>
+					</tr>
+						<th><?= __('Status') ?> </th>
+						<td><?= $match->status_string ?></td>
+					<tr>
+						<?php if( $match->status == 3 ) { ?>
+							<?php if( $match->next_turn !== false ) { ?>
+								<th><?= __('Next Turn') ?> </th>
+								<td id='localtime'><?= $match->next_turn->i18nFormat() ?></th>
+							<?php } ?>
+						<?php } ?>
+					</tr>
+				</table>
 				<table class="vertical-table" style="background:#fafafa">
 				<th>Players</th><th>Actions</th>
 				<?php foreach ($match->nations as $nation): ?>
@@ -93,6 +93,34 @@
 						<?= $this->Form->hidden('minute', ['id' => 'hiddenintminute']); ?>
 					<?= $this->Form->end(); ?>
 				</div>
+				<?= $this->Form->create($match, ['id' => 'settingschangeform', 'url' => ['action' => 'edit']]) ?>
+				<div class="large-12 medium-12 small-12 columns content">
+					<div class="large-4 medium-4 small-12 columns content">
+						<?= $this->Form->input('tone',
+							['label' => 'T1 Thrones', 'default' => $match->tone ]); ?>
+						<?= $this->Form->input('ttwo',
+							array('label' => 'T2 Thrones', 'default' => $match->ttwo )); ?>
+						<?= $this->Form->input('tthree',
+							array('label' => 'T3 Thrones', 'default' => $match->tthree )); ?>
+						<?= $this->Form->input('points',
+							array('label' => 'Points To Win', 'default' => $match->requiredap )); ?>
+					</div>
+					<div class="large-8 medium-8 small-12 columns content">
+						<?= $this->Form->input('map_id', [ 'default' => $match->map_id, 'options' => $maps->where(['hide' => 0])]); ?>
+						<?= $this->Form->input( 'research_diff', [
+							'options' => [-1 => "Very Easy", 0 => "Easy", 1 => "Normal", 2 => "Hard", 3 => "Very Hard"],
+							'value' => $match->research_diff,
+							'label' => 'Research Difficulty']); ?>
+						<?= $this->Form->input( 'renaming', array(
+							'label' => 'Commander Renaming',
+							'type' => 'checkbox'  )); ?>
+						<?= $this->Form->input( 'clientstart', array(
+							'label' => 'Clients Can Start Game',
+							'type' => 'checkbox'  )); ?>
+						<?= $this->Form->button(__('Submit')) ?>
+					</div>
+				</div>
+				<?= $this->Form->end() ?>
 			</div>
 		</div>
 		<div class="mappreview">
