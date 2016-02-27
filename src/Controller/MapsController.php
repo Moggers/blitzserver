@@ -76,6 +76,8 @@ class MapsController extends AppController
 					system( "convert \"" . $rgbname . "\" -scale 512x-1 \"" . $thumbname . "\"" );
 					$thumbname = $thumbdir . "thumb1024.jpeg";
 					system( "convert \"" . $rgbname . "\" -scale 1024x-1 \"" . $thumbname . "\"" );
+					$thumbname = $thumbdir . "map.png";
+					system( "convert \"" . $rgbname . "\" \"" . $thumbname . "\"" );
 					return $this->redirect(['action' => 'index']);
 				} else {
 					$this->Flash->error(__('The map could not be saved. Please, try again.'));

@@ -44,6 +44,7 @@ $cakeDescription = 'Blitzserver';
 	<?= $this->Html->script('js.cookie.js'); ?>
 	<?= $this->Html->script('moment.js'); ?>
 	<?= $this->Html->script('moment-timezone-with-data-2010-2020.min.js'); ?>
+	<?= $this->Html->script('pixi.min.js'); ?>
 	
 	<script type='text/javascript'>
 		$(document).ready( function() {

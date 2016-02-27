@@ -86,6 +86,17 @@ class Match extends Entity
 		return false;
 	}
 
+	public function _getTurn( $password )
+	{
+		$turn = new Turn;
+		foreach( $this->turns as $ct ) {
+			if( $ct->time > $turn->time ) {
+				$turn = $ct;
+			}
+		}
+		return $turn;
+	}
+
 	protected function _getFalseName() {
 		return str_replace( '_', ' ', $this->name );
 	}

@@ -258,4 +258,17 @@ class MatchesController extends AppController
 		}
 		return $this->redirect(['action' => 'view', $matchnation->match_id]);
 	}
+
+	public function mapview( $id = null, $turnid=null )
+	{
+		$match = $this->Matches->get($id, [
+				'contain' => ['Maps', 'Nations', 'Mods', 'Turns']
+		]);
+		if( $turnid == null ) {
+			$turnid = $match->turn->tn-1;
+		}
+		$this->set('match', $match);
+		$this->set('_serialize', ['match']);
+		$this->set('turnid', $turnid);
+	}
 }
