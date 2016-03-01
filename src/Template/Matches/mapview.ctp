@@ -36,37 +36,40 @@
 			requestAnimationFrame(initialize);
 		});
 
+		//////
+		// Province structure
+		// 0 X
+		// 1 Y
+		// 2 Owner
+		// 3 Lower gradient
+		// 4 Upper gradient
+		//////
+
 		function initialize() {
-			// Find those pixels
+			// Grab canvas and its context
 			var canvas = $('#mapview canvas');
 			var ctx = canvas[0].getContext('2d');
-			var dat = ctx.getImageData( 0, 0, renderer.height, renderer.width );
-			var borders = ctx.getImageData( 0, 0, renderer.height, renderer.width );
+			// Color array for nation
 			var cols = [];
-			Uint16Array.prototype.pih = 0;
-			Uint16Array.prototype.pit = 0;
-			Uint16Array.prototype.push = function(n) {
-				this[this.pih] = n;
-				this.pih++;
-				this.pih %= this.length;
-			}
-			Uint16Array.prototype.shift = function() {
-				if( this.pit == this.pih ) return;
-				var ret = this[this.pit];
-				this.pit++;
-				this.pit %= this.length;
-				return ret;
-			}
-			var pixiterator = new Uint16Array(256000000);
+
+			// Find provinces
+			var dat = ctx.getImageData( 0, 0, renderer.width, renderer.height );
 			for( var y = canvas[0].height; y > 0; --y ) {
 				for( var x = 0; x < canvas[0].width; ++x ) {
 					var id = (x + y*renderer.width)*4;
 					if( (dat.data[id+0] & dat.data[id+1] & dat.data[id+2] & 255) == 255 ) {
-						provinces.push( [x, y, 1] );
+						provinces.push( {'x':x, 'y':y, 'o':1} );
+						var text = new PIXI.Text(""+provinces.length);
+						text.position.x = x;
+						text.position.y = y;
+						text.scale.x = 0.4;
+						text.scale.y = 0.4;
+						stage.addChild(text);
 					}
 				}
 			}
 
+			// Read json and retrieve province owners
 			for( var tt = 0; tt <= <?=$turnid?>; tt++ ) {
 				$.ajax({
 					url: "/json/"+<?=$match->id?>+"/"+tt+".json",
@@ -75,60 +78,35 @@
 					success: function( data ) {
 						for( var ii = 0; ii < provinces.length; ii++ ) {
 							if( data.provinces[ii+1] ) {
-								provinces[ii][2] = data.provinces[ii+1];
-								if( cols[provinces[ii][2]] == null ) { 
-									cols[provinces[ii][2]] = [Math.random()*255, Math.random()*255, Math.random()*255];
+								provinces[ii].o = data.provinces[ii+1];
+								if( cols[provinces[ii].o] == null ) { 
+									cols[provinces[ii].o] = Math.random() * 16777215;
 								}
 							}
 						}
 					}
 				});
 			}
-			for( var tt = 0; tt < provinces.length; tt++ ) {
-				pixiterator.push( provinces[tt][0] );
-				pixiterator.push( provinces[tt][1] );
-				pixiterator.push( provinces[tt][2] );
-			}
-			renderer.render(stage);
-			stage.addChild(topstage);
-			requestAnimationFrame(animate);
-			var tt = [];
-			var ii = 0;
-			while( (tt[0] = pixiterator.shift())!=null) {
-				tt[1] = pixiterator.shift();
-				tt[2] = pixiterator.shift();
-				var ix = (tt[0]+tt[1]*borders.width)*4;
-				if( borders.data[ix+3] == 255 ) {
-					if( tt[2] == 1 ) {
-						borders.data[ix+3] = 0;
-					} else {
-						borders.data[ix] = cols[tt[2]][0];
-						borders.data[ix+1] = cols[tt[2]][1];
-						borders.data[ix+2] = cols[tt[2]][2];
-						borders.data[ix+3] = 100;
-					}
-					pixiterator.push( tt[0] );
-					pixiterator.push( tt[1]-1 );
-					pixiterator.push( tt[2] );
-					pixiterator.push( tt[0] );
-					pixiterator.push( tt[1]+1 );
-					pixiterator.push( tt[2] );
-					pixiterator.push( tt[0]-1 );
-					pixiterator.push( tt[1] );
-					pixiterator.push( tt[2] );
-					pixiterator.push( tt[0]+1 );
-					pixiterator.push( tt[1] );
-					pixiterator.push( tt[2] );
+			cols[1] = 0xffffff;
+			var voronoi = new Voronoi();
+			var diagram = voronoi.compute( provinces, {xl:0,xr:renderer.width,yt:0,yb:renderer.height});
+			console.log( diagram );
+			for( var ii = 0; ii < diagram.cells.length; ii++ ) {
+				var ccell = diagram.cells[ii];
+				topstage.beginFill( cols[ccell.site.o], 0.3 );
+				topstage.lineStyle( 1, 0xff0000, 0 );
+				topstage.moveTo( ccell.halfedges[0].getStartpoint());
+				topstage.lineTo( ccell.halfedges[0].getEndpoint());
+				for( var kk = 0; kk < ccell.halfedges.length; kk++ ) {
+					var end = ccell.halfedges[kk].getEndpoint();
+					topstage.lineTo( end.x, end.y );
 				}
+				topstage.lineTo( ccell.halfedges[0].getStartpoint());
+				topstage.endFill();
 			}
-			console.log( 'done' );
-			var tempcanvas = document.createElement('canvas');
-			tempcanvas.height = renderer.height;
-			tempcanvas.width = renderer.width;
-			tempcanvas.getContext('2d').putImageData( borders, 0, 0 );
-			var canvastext = PIXI.Texture.fromCanvas( tempcanvas );
-			var spr = new PIXI.Sprite( canvastext );
-			stage.addChild( spr );
+			stage.addChild(topstage);
+			//requestAnimationFrame(animate);
+			renderer.render(stage);
 		}
 
 		function animate() {
@@ -140,10 +118,10 @@
 			for( var ii = 0; ii < provinces.length; ii++ ) {
 				var pos = provinces[ii];
 				topstage.lineStyle( 1, 0xffffff, 255 );
-				if( pos.owner ) {
+				if( pos[2] != 1 ) {
 					topstage.lineStyle( 1, 0xff0000, 255 );
 				}
-				topstage.drawCircle( pos.x, pos.y, 10 );
+				topstage.drawCircle( pos[0], pos[1], 10 );
 			}
 
 			// this is the main render call that makes pixi draw your container and its children.
