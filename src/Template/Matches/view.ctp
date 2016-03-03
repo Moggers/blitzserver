@@ -19,12 +19,20 @@
 			}
 		});
 		$('#weekform').ajaxForm( function(res) {
-			console.log( 'wake me up' );
 			var data = JSON.parse( res );
 			if( data.status == 1 ) {
 				window.location = '/matches/view/'+data.id;
 			} else {
 				window.location.hash = "modal";
+			}
+		});
+		$('#emailform').ajaxForm( function(res) {
+			console.log( "wew" );
+			var data = JSON.parse(res);
+			if( data.status == 0 ) {
+				alert( "Roger!");
+			} else {
+				alert( "OH NOOO");
 			}
 		});
 		$('#localtime')[0].innerHTML = moment.tz($('#localtime')[0].innerHTML, 'YYYY-MM-DD HH:nm:ss', 'Europe/Dublin').tz( moment.tz.guess()).fromNow();
@@ -77,6 +85,16 @@
 						</tr>
 					<?php } ?> <br /> <?php endforeach; ?>
 				</table>
+				<?= $this->Form->create( $match, ['id' => 'emailform', 'url' => ['action' => 'requestnotify']] ); ?>
+					<h5>New Turn Notification</h5>
+					<div class='large-8 medium-8 small-12 columns content nopad'>
+						<?= $this->Form->input('email', ['label' => false, 'placeholder' => 'Email Address'] ); ?>
+					</div>
+					<div class='large-4 medium-4 small-12 columns content nopad'>
+						<?= $this->Form->input('hours', ['label' => false, 'placeholder' => 'Ignore This'] ); ?>
+					</div>
+					<?= $this->Form->button(__('Submit')); ?>
+				<?= $this->Form->end(); ?>
 			</div>
 			<div class="large-6 medium-12 small-12 columns content">
 				<div class="large-6 medium-6 small-6 columns content">

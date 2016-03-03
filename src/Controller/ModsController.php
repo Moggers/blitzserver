@@ -154,3 +154,4 @@ class ModsController extends AppController
         return $this->redirect(['action' => 'index']);
     }
 }
+

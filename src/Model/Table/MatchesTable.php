@@ -50,6 +50,11 @@ class MatchesTable extends Table
 			'joinTable' => 'matchmods',
 			'joinType' => 'INNER'
 		]);
+		
+		$this->hasMany( 'Emailrequests', [
+			'foreignKey' => 'match_id',
+			'joinType' => 'INNER'
+		]);
     }
 
 	public function afterFind( $results, $primary = false )

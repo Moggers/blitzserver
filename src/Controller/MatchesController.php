@@ -271,4 +271,22 @@ class MatchesController extends AppController
 		$this->set('_serialize', ['match']);
 		$this->set('turnid', $turnid);
 	}
+
+	/*
+	 * Request email notification
+	 */
+	public function requestnotify($id = null)
+	{
+		if( $this->request->is(['ajax']) ) {
+			$emailrequest = $this->Matches->Emailrequests->newEntity();
+			$emailrequest = $this->Matches->Emailrequests->patchEntity($emailrequest, $this->request->data);
+			$emailrequest->hours = 0;
+			$emailrequest->match_id = $id;
+			if( $this->Matches->Emailrequests->save( $emailrequest ) ) {
+				die( json_encode( ['status' => 0, 'id' => $id ] ) );
+			} else {
+				die( json_encode( ['status' => 1, 'id' => $id ] ) );
+			}
+		}
+	}
 }
