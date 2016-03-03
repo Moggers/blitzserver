@@ -86,7 +86,7 @@ class Match extends Entity
 		return false;
 	}
 
-	public function _getTurn( $password )
+	public function _getTurn()
 	{
 		$turn = new Turn;
 		foreach( $this->turns as $ct ) {

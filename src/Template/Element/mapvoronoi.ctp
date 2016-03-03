@@ -58,43 +58,57 @@
 				for( var x = 0; x < canvas[0].width; ++x ) {
 					var id = (x + y*renderer.width)*4;
 					if( (dat.data[id+0] & dat.data[id+1] & dat.data[id+2] & 255) == 255 ) {
-						provinces.push( {'x':x, 'y':y, 'o':1} );
-						var text = new PIXI.Text(""+provinces.length);
-						text.position.x = x;
-						text.position.y = y;
-						text.scale.x = 0.4;
-						text.scale.y = 0.4;
-						stage.addChild(text);
+						provinces.push( {'x':x/renderer.width, 'y':y/renderer.height, 'o':1} );
 					}
 				}
 			}
 
+			dom4.scale.x = 1/renderer.width;
+			dom4.scale.y = 1/renderer.width;
 			// Read json and retrieve province owners
-			for( var tt = 0; tt <= <?=$match->turn->id?>; tt++ ) {
-				$.ajax({
-					url: "/json/"+<?=$match->id?>+"/"+tt+".json",
-					dataType:'json',
-					async: false,
-					success: function( data ) {
-						for( var ii = 0; ii < provinces.length; ii++ ) {
-							if( data.provinces[ii+1] ) {
-								provinces[ii].o = data.provinces[ii+1];
-								if( cols[provinces[ii].o] == null ) { 
-									cols[provinces[ii].o] = Math.random() * 16777215;
-								}
+			$.ajax({
+				url: "/json/"+<?=$match->id?>+"/"+<?=$match->turn->tn-1?>+".json",
+				dataType:'json',
+				async: false,
+				success: function( data ) {
+					for( var ii = 0; ii < provinces.length; ii++ ) {
+						if( data.provinces[ii+1] ) {
+							provinces[ii].o = data.provinces[ii+1];
+							if( cols[provinces[ii].o] == null ) { 
+								cols[provinces[ii].o] = Math.random() * 16777215;
 							}
 						}
 					}
-				});
-			}
+				}
+			});
 			cols[1] = 0xffffff;
+			$(ctx.canvas).css("width", "100%");
+			renderer.resize( parseInt($(ctx.canvas).css("width"),10), parseInt($(ctx.canvas).css("width"),10) );
+			dom4.scale.x = dom4.scale.x * renderer.width;
+			dom4.scale.y = dom4.scale.y * renderer.height;
+			for( var ii = 0; ii < provinces.length; ii++ ) {
+				provinces[ii].x = provinces[ii].x * renderer.width;
+				provinces[ii].y = provinces[ii].y * renderer.height;
+				var text = new PIXI.Text(ii+1);
+				text.position.x = provinces[ii].x;
+				text.position.y = provinces[ii].y;
+				text.scale.x = 0.4;
+				text.scale.y = 0.4; 
+				stage.addChild(text);
+			}
 			var voronoi = new Voronoi();
 			var diagram = voronoi.compute( provinces, {xl:0,xr:renderer.width,yt:0,yb:renderer.height});
 			console.log( diagram );
 			for( var ii = 0; ii < diagram.cells.length; ii++ ) {
 				var ccell = diagram.cells[ii];
-				topstage.beginFill( cols[ccell.site.o], 0.3 );
-				topstage.lineStyle( 1, 0xff0000, 0 );
+				if( ccell.site.o == 1  ) {
+					topstage.beginFill( 0xffffff, 0.1 );
+				} else {
+					console.log( ccell.site );
+					topstage.beginFill( cols[ccell.site.o], 0.7 );
+				}
+
+				topstage.lineStyle( 0, 0xff0000, 0 );
 				topstage.moveTo( ccell.halfedges[0].getStartpoint());
 				topstage.lineTo( ccell.halfedges[0].getEndpoint());
 				for( var kk = 0; kk < ccell.halfedges.length; kk++ ) {
@@ -107,6 +121,7 @@
 			stage.addChild(topstage);
 			//requestAnimationFrame(animate);
 			renderer.render(stage);
+			$(ctx.canvas).css("width", "100%");
 		}
 
 		function animate() {
@@ -130,6 +145,4 @@
 		}
 	});
 </script>
-	<div id="mapview" class="large-12 columns content">
-</div>
 

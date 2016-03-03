@@ -35,7 +35,9 @@
 				alert( "OH NOOO");
 			}
 		});
-		$('#localtime')[0].innerHTML = moment.tz($('#localtime')[0].innerHTML, 'YYYY-MM-DD HH:nm:ss', 'Europe/Dublin').tz( moment.tz.guess()).fromNow();
+		if( $('#localtime').length ) {
+			$('#localtime')[0].innerHTML = moment.tz($('#localtime')[0].innerHTML, 'YYYY-MM-DD HH:nm:ss', 'Europe/Dublin').tz( moment.tz.guess()).fromNow();
+		}
 	});
 </script>
 
@@ -141,11 +143,8 @@
 				<?= $this->Form->end() ?>
 			</div>
 		</div>
-		<div class="mappreview">
-			<?= $match->has('map') ? $this->Html->link(
-				$this->Html->image( 'maps/' . $match->map->id . '/thumb1024.jpeg', ['alt' => 'CakePHP' ]), 
-				['controller' => 'Maps', 'action' => 'view', $match->map->id], 
-				['escape' => false]) : '' ?>
+		<div id="mapview" class="mappreview">
+			<?= $this->element('mapvoronoi', array('match' => $match )); ?>
 		</div>
 		<div class="mods index large-12 medium-12 columns content">
 			<?= $this->element( 'modtable', array( 'mods' => $match->mods )); ?>
