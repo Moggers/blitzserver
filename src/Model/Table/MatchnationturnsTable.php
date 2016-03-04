@@ -1,18 +1,19 @@
 <?php
 namespace App\Model\Table;
 
-use App\Model\Entity\Turn;
+use App\Model\Entity\Matchnationturn;
 use Cake\ORM\Query;
 use Cake\ORM\RulesChecker;
 use Cake\ORM\Table;
 use Cake\Validation\Validator;
 
 /**
- * Turns Model
+ * Matchnationturns Model
  *
- * @property \Cake\ORM\Association\BelongsTo $Matches
+ * @property \Cake\ORM\Association\BelongsTo $Matchnations
+ * @property \Cake\ORM\Association\BelongsTo $Turns
  */
-class TurnsTable extends Table
+class MatchnationturnsTable extends Table
 {
 
     /**
@@ -25,15 +26,18 @@ class TurnsTable extends Table
     {
         parent::initialize($config);
 
-        $this->table('turns');
+        $this->table('matchnationturns');
         $this->displayField('id');
         $this->primaryKey('id');
 
-        $this->belongsTo('Matches', [
-            'foreignKey' => 'match_id',
+        $this->belongsTo('Matchnations', [
+            'foreignKey' => 'matchnation_id',
             'joinType' => 'INNER'
         ]);
-		$this->hasMany('Matchnationturns', ['foreignKey' => 'turn_id']);
+        $this->belongsTo('Turns', [
+            'foreignKey' => 'turn_id',
+            'joinType' => 'INNER'
+        ]);
     }
 
     /**
@@ -48,10 +52,6 @@ class TurnsTable extends Table
             ->integer('id')
             ->allowEmpty('id', 'create');
 
-        $validator
-            ->dateTime('time')
-            ->allowEmpty('time');
-
         return $validator;
     }
 
@@ -64,7 +64,8 @@ class TurnsTable extends Table
      */
     public function buildRules(RulesChecker $rules)
     {
-        $rules->add($rules->existsIn(['match_id'], 'Matches'));
+        $rules->add($rules->existsIn(['matchnation_id'], 'Matchnations'));
+        $rules->add($rules->existsIn(['turn_id'], 'Turns'));
         return $rules;
     }
 }

@@ -70,7 +70,12 @@
 					</tr>
 				</table>
 				<table class="vertical-table" style="background:#fafafa">
-				<th>Players</th><th>Actions</th>
+				<th>Players</th>
+				<?php if( $match->status !== 3 ) {
+					echo "<th>Actions</th>";
+				} else {
+					echo "<th>Turn Submisssions</th>";
+				} ?>
 				<?php foreach ($match->nations as $nation): ?>
 					<tr>
 						<td>
@@ -84,8 +89,25 @@
 							<?php } else { ?>
 								<?= "<b>(Removing..)</b>" ?>
 							<?php } ?>
-						</tr>
-					<?php } ?> <br /> <?php endforeach; ?>
+						<?php } else {
+							echo "<td>";
+							foreach( $match->turns as $turn ):
+								$found = 0;
+								foreach( $turn->matchnationturns as $mnt ):
+									if( $mnt->matchnation_id == $nation->_joinData->id ) {
+										$found = 1;
+									}
+								endforeach;
+								if( $found == 0 ) {
+									echo '<font color="red">N</font>';
+								} else {
+									echo '<font color="green">Y</font>';
+								}
+							endforeach;
+							echo "</td>";
+						}?>
+					</tr>
+				<?php endforeach; ?>
 				</table>
 				<?= $this->Form->create( $match, ['id' => 'emailform', 'url' => ['action' => 'requestnotify']] ); ?>
 					<h5>New Turn Notification</h5>
