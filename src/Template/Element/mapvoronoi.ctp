@@ -105,7 +105,7 @@
 							provinces[ii].o = data.provinces[ii+1];
 							if( cols[provinces[ii].o] == null ) { 
 								var rgb = HSVtoRGB( Math.random() * 360, 1, 1 );
-								cols[provinces[ii].o] = (rgb.r << 8) + (rgb.g << 16) + (rgb.b << 24);
+								cols[provinces[ii].o] = (rgb.r) + (rgb.g << 8) + (rgb.b << 16);
 								console.log(cols[provinces[ii].o] );
 							}
 						}
