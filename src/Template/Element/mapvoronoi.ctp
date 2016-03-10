@@ -1,4 +1,33 @@
 <script>
+	/* accepts parameters
+	 * h  Object = {h:x, s:y, v:z}
+	 * OR 
+	 * h, s, v
+	*/
+	function HSVtoRGB(h, s, v) {
+	    var r, g, b, i, f, p, q, t;
+	    if (arguments.length === 1) {
+		s = h.s, v = h.v, h = h.h;
+	    }
+	    i = Math.floor(h * 6);
+	    f = h * 6 - i;
+	    p = v * (1 - s);
+	    q = v * (1 - f * s);
+	    t = v * (1 - (1 - f) * s);
+	    switch (i % 6) {
+		case 0: r = v, g = t, b = p; break;
+		case 1: r = q, g = v, b = p; break;
+		case 2: r = p, g = v, b = t; break;
+		case 3: r = p, g = q, b = v; break;
+		case 4: r = t, g = p, b = v; break;
+		case 5: r = v, g = p, b = q; break;
+	    }
+	    return {
+		r: Math.round(r * 255),
+		g: Math.round(g * 255),
+		b: Math.round(b * 255)
+	    };
+	}
 	$(document).on( 'ready', function() {
 
 		// The renderer will create a canvas element for you that you can then insert into the DOM.
@@ -75,7 +104,9 @@
 						if( data.provinces[ii+1] ) {
 							provinces[ii].o = data.provinces[ii+1];
 							if( cols[provinces[ii].o] == null ) { 
-								cols[provinces[ii].o] = Math.random() * 16777215;
+								var rgb = HSVtoRGB( Math.random() * 360, 1, 1 );
+								cols[provinces[ii].o] = (rgb.r << 8) + (rgb.g << 16) + (rgb.b << 24);
+								console.log(cols[provinces[ii].o] );
 							}
 						}
 					}
@@ -98,13 +129,11 @@
 			}
 			var voronoi = new Voronoi();
 			var diagram = voronoi.compute( provinces, {xl:0,xr:renderer.width,yt:0,yb:renderer.height});
-			console.log( diagram );
 			for( var ii = 0; ii < diagram.cells.length; ii++ ) {
 				var ccell = diagram.cells[ii];
 				if( ccell.site.o == 1  ) {
 					topstage.beginFill( 0xffffff, 0.1 );
 				} else {
-					console.log( ccell.site );
 					topstage.beginFill( cols[ccell.site.o], 0.7 );
 				}
 
