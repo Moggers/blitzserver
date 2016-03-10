@@ -6,8 +6,7 @@ use Cake\Controller\Component\CookieComponent;
 
 /**
  * Matches Controller
- *
- * @property \App\Model\Table\MatchesTable $Matches
+ * * @property \App\Model\Table\MatchesTable $Matches
  */
 class MatchesController extends AppController
 {
@@ -88,6 +87,8 @@ class MatchesController extends AppController
 		]);
 		$maps = $this->Matches->Maps->find('list', ['limit' => 200]);
 		$this->set(compact('match', 'maps'));
+		$nations = $this->Matches->Matchnations->find('list', ['keyField' => 'id', 'valueField' => 'nation.name'])->where(['match_id' => $id])->contain(['Nations']);
+		$this->set(compact('match', 'nations'));
 		$this->set('match', $match);
 		$this->set('_serialize', ['match']);
 	}
@@ -280,7 +281,6 @@ class MatchesController extends AppController
 		if( $this->request->is(['ajax']) ) {
 			$emailrequest = $this->Matches->Emailrequests->newEntity();
 			$emailrequest = $this->Matches->Emailrequests->patchEntity($emailrequest, $this->request->data);
-			$emailrequest->hours = 0;
 			$emailrequest->match_id = $id;
 			if( $this->Matches->Emailrequests->save( $emailrequest ) ) {
 				die( json_encode( ['status' => 0, 'id' => $id ] ) );
