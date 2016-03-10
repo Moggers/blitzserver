@@ -105,7 +105,7 @@ class ModsTable extends Table
 					$zip->open( $entity->get('Archive')['tmp_name'] );
 					for( $i = 0; $i < $zip->numFiles; $i++ ) {
 						$filepath = pathinfo($zip->getNameIndex($i));
-						if( isset( $filepath['extension'] ) && $filepath['extension'] == 'dm' && $filepath['dirname'] == '.' ) {
+						if( $filepath['filename'] == $entity->get('name')){
 							$fd = fopen( WWW_ROOT . 'tmp/mods/' . $zip->getNameIndex($i), 'r' );
 							$entity->set('dmname', $zip->getNameIndex($i));
 							if( $fd ) {
@@ -167,7 +167,7 @@ class ModsTable extends Table
 					$zip->close();
 					break;
 			}
-			move_uploaded_file( $entity->get('Archive')['tmp_name'], $moddir . $entity->get('Archive')['name'] );
+			copy( $entity->get('Archive')['tmp_name'], $moddir . $entity->get('Archive')['name'] );
 
 			$thumbdir = WWW_ROOT . 'img/mods/' . $entity->id . '/';
 			$thumbname = $thumbdir . "thumb64.jpeg";

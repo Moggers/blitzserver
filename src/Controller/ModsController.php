@@ -45,31 +45,11 @@ class ModsController extends AppController
      */
     public function add()
     {
-        $mod = $this->Mods->newEntity();
         if ($this->request->is('post')) {
-            $mod = $this->Mods->patchEntity($mod, $this->request->data);
+			$mc = 0;
+			$mc1 = 0;
 			switch( $this->request->data('Archive')['type']) {
 				case "application/x-rar":
-					$rar_file = rar_open( $this->request->data('Archive')['tmp_name'] );
-					$entries = rar_list($rar_file);
-					foreach( $entries as $entry ) {
-						$filepath = pathinfo( $entry->getName() );
-						if( isset( $filepath['extension'] ) && $filepath['extension'] == 'dm' && $filepath['dirname'] == '.' ) {
-							if( !file_exists( 'tmp/mods/' ) )
-								mkdir( 'tmp/mods/', 0777, true );
-							$entry->extract( WWW_ROOT . 'tmp/mods/' );
-							$fd = fopen( WWW_ROOT . 'tmp/mods/' . $entry->getName(), 'r' );
-							$rar_file->close();
-							$hash = crc32( fread($fd, 99999999 ) );
-							$mod->crc32 = $hash;
-							$clash = $this->Mods->find( 'all')->where(['crc32' => $hash ])->first();
-							if( $clash ) {
-								$this->Flash->error(__('That mod has already been uploaded. It\'s over here'));
-								return $this->redirect(['action' => 'view', $clash->id]);
-							}
-							fclose( $fd );
-						}
-					}
 					break;
 				case "application/octet-stream":
 				case "application/x-zip":
@@ -80,32 +60,36 @@ class ModsController extends AppController
 					for( $i = 0; $i < $zip->numFiles; $i++ ) {
 						$filepath = pathinfo( $zip->getNameIndex($i) );
 						if( isset( $filepath['extension'] ) && $filepath['extension'] == 'dm' && $filepath['dirname'] == '.' ) {
+							$mod = $this->Mods->newEntity();
+							$mod = $this->Mods->patchEntity($mod, $this->request->data);
+							$mod->name = $filepath['filename'];
 							if( !file_exists( 'tmp/mods/' ) )
 								mkdir( 'tmp/mods/', 0777, true );
 							$zip->extractTo( WWW_ROOT . 'tmp/mods/', $zip->getNameIndex($i) );
 							$fd = fopen( WWW_ROOT . 'tmp/mods/' . $zip->getNameIndex($i), 'r' );
-							$zip->close();
 							$hash = crc32( fread($fd, 99999999 ) );
 							$mod->crc32 = $hash;
 							$clash = $this->Mods->find( 'all')->where(['crc32' => $hash ])->first();
 							if( $clash ) {
-								$this->Flash->error(__('That map has already been uploaded. It\'s over here'));
-								return $this->redirect(['action' => 'view', $clash->id]);
+								$mc1++;
+							} else {
+								fclose( $fd );
+								if ($this->Mods->save($mod)) {
+									$mc++;
+								} else {
+								}
 							}
-							fclose( $fd );
 						}
 					}
+					$zip->close();
 					break;
 				case "7z":
 					break;
 			}
-            if ($this->Mods->save($mod)) {
-                $this->Flash->success(__('The mod has been saved.'));
-                return $this->redirect(['action' => 'index']);
-            } else {
-                $this->Flash->error(__('The mod could not be saved. Please, try again.'));
-            }
+			$this->Flash->success(__($mc.' mods found and saved.'.($mc1 == 0?"":' '.$mc1." mods had already been uploaded")));
+			return $this->redirect(['action' => 'index']);
         }
+		$mod = $this->Mods->newEntity();
         $this->set(compact('mod'));
         $this->set('_serialize', ['mod']);
     }
