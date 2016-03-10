@@ -14,6 +14,7 @@
 			<th><?= $this->Paginator->sort('status') ?></th>
 			<th><?= $this->Paginator->sort('thrones') ?></th>
 			<th><?= $this->Paginator->sort('players') ?></th>
+			<th><?= $this->Paginator->sort('turn') ?></th>
 			<th><?= $this->Paginator->sort('action') ?></th>
 		</tr>
 	</thead>
@@ -34,6 +35,7 @@
 			<td><?= $match->status_string ?></td>
 			<td><?= $match->thrones ?></td>
 			<td><?= $match->player_count ?></td>
+			<td><?= $match->turn->tn ?></td>
 			<td class="actions">
 				<?php if ($match->status !== -1): ?>
 					<?= $this->Html->link(__('KILL THE GAME'), ['action' => 'destroy', $match->id]) ?> <br />

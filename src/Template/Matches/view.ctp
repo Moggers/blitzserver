@@ -111,11 +111,14 @@
 				</table>
 				<?= $this->Form->create( $match, ['id' => 'emailform', 'url' => ['action' => 'requestnotify']] ); ?>
 					<h5>New Turn Notification</h5>
-					<div class='large-8 medium-8 small-12 columns content nopad'>
+					<div class='large-12 medium-12 small-12 columns content nopad'>
 						<?= $this->Form->input('email', ['label' => false, 'placeholder' => 'Email Address'] ); ?>
 					</div>
-					<div class='large-4 medium-4 small-12 columns content nopad'>
-						<?= $this->Form->input('hours', ['label' => false, 'placeholder' => 'Ignore This'] ); ?>
+					<div class='large-6 medium-6 small-12 columns content nopad'>
+						<?= $this->Form->input('hours', ['label' => false, 'placeholder' => 'Hours until host'] ); ?>
+					</div>
+					<div class='large-6 medium-6 small-12 columns content nopad'>
+						<?= $this->Form->select('matchnation_id', $nations, ['label' => false, 'empty' => 'Nation' ] ); ?>
 					</div>
 					<?= $this->Form->button(__('Submit')); ?>
 				<?= $this->Form->end(); ?>
