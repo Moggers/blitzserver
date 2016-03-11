@@ -149,6 +149,7 @@
 							array('label' => 'T3 Thrones', 'default' => $match->tthree )); ?>
 						<?= $this->Form->input('points',
 							array('label' => 'Points To Win', 'default' => $match->points )); ?>
+						<?= $this->Form->input( 'maxholdups' ); ?>
 					</div>
 					<div class="large-8 medium-8 small-12 columns content">
 						<?= $this->Form->input('map_id', [ 'default' => $match->map_id, 'options' => $maps->where(['hide' => 0])]); ?>
