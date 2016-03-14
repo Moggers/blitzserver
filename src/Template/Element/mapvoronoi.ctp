@@ -40,6 +40,7 @@
 			value:<?=$match->turn->tn-1?>,
 			change: function( event, ui ) {
 				initialize(ui.value);
+			requestAnimationFrame(initialize(ui.value));
 			}
 		});
 
@@ -81,6 +82,7 @@
 		var cols = [];
 		function initialize(tn)
 		{
+			renderer.resize( dom4.width, dom4.height );
 			topstage.clear();
 			renderer.render(stage);
 			// Provinces
@@ -122,6 +124,7 @@
 			});
 			cols[1] = 0xffffff;
 			$(ctx.canvas).css("width", "100%");
+			renderer.resize( parseInt($(ctx.canvas).css("width"),10), parseInt($(ctx.canvas).css("height"),10) );
 			dom4.scale.x = dom4.scale.x * renderer.width;
 			dom4.scale.y = dom4.scale.y * renderer.height;
 			for( var ii = 0; ii < provinces.length; ii++ ) {
