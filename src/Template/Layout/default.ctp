@@ -37,11 +37,15 @@ $cakeDescription = 'Blitzserver';
 	<?= $this->Html->css('remodal.css'); ?>
 	<?= $this->Html->css('remodal-default-theme.css'); ?>
 	<?= $this->Html->css('shared.css'); ?>
+	<?= $this->Html->css('jquery-ui.min.css'); ?>
+	<?= $this->Html->css('jquery-ui.structure.min.css'); ?>
+	<?= $this->Html->css('jquery-ui.theme.min.css'); ?>
 
 	<?= $this->Html->script('https://code.jquery.com/jquery-2.2.0.min.js'); ?>
 	<?= $this->Html->script('remodal.js'); ?>
 	<?= $this->Html->script('jquery.form.js'); ?>
 	<?= $this->Html->script('js.cookie.js'); ?>
+	<?= $this->Html->script('jquery-ui.min.js'); ?>
 	<?= $this->Html->script('moment.js'); ?>
 	<?= $this->Html->script('moment-timezone-with-data-2010-2020.min.js'); ?>
 	<?= $this->Html->script('pixi.min.js'); ?>

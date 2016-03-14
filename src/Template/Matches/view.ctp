@@ -141,27 +141,34 @@
 				<?= $this->Form->create($match, ['id' => 'settingschangeform', 'url' => ['action' => 'edit']]) ?>
 				<div class="large-12 medium-12 small-12 columns content">
 					<div class="large-4 medium-4 small-12 columns content">
-						<?= $this->Form->input('tone',
-							['label' => 'T1 Thrones', 'default' => $match->tone ]); ?>
-						<?= $this->Form->input('ttwo',
-							array('label' => 'T2 Thrones', 'default' => $match->ttwo )); ?>
-						<?= $this->Form->input('tthree',
-							array('label' => 'T3 Thrones', 'default' => $match->tthree )); ?>
-						<?= $this->Form->input('points',
-							array('label' => 'Points To Win', 'default' => $match->points )); ?>
+						<?php if( $match->status != 3 ) {
+							echo $this->Form->input('tone',
+								['label' => 'T1 Thrones', 'default' => $match->tone ]);
+							echo $this->Form->input('ttwo',
+								array('label' => 'T2 Thrones', 'default' => $match->ttwo ));
+							echo $this->Form->input('tthree',
+								array('label' => 'T3 Thrones', 'default' => $match->tthree ));
+							echo $this->Form->input('points',
+								array('label' => 'Points To Win', 'default' => $match->points ));
+						} else {
+							echo $this->Form->input( 'maxholdups' );
+						} ?>
 					</div>
 					<div class="large-8 medium-8 small-12 columns content">
-						<?= $this->Form->input('map_id', [ 'default' => $match->map_id, 'options' => $maps->where(['hide' => 0])]); ?>
-						<?= $this->Form->input( 'research_diff', [
-							'options' => [-1 => "Very Easy", 0 => "Easy", 1 => "Normal", 2 => "Hard", 3 => "Very Hard"],
-							'value' => $match->research_diff,
-							'label' => 'Research Difficulty']); ?>
-						<?= $this->Form->input( 'renaming', array(
-							'label' => 'Commander Renaming',
-							'type' => 'checkbox'  )); ?>
-						<?= $this->Form->input( 'clientstart', array(
-							'label' => 'Clients Can Start Game',
-							'type' => 'checkbox'  )); ?>
+						<?php if( $match->status != 3 ) {
+							echo $this->Form->input('map_id', [ 'default' => $match->map_id, 'options' => $maps->where(['hide' => 0])]);
+							echo $this->Form->input( 'research_diff', [
+								'options' => [-1 => "Very Easy", 0 => "Easy", 1 => "Normal", 2 => "Hard", 3 => "Very Hard"],
+								'value' => $match->research_diff,
+								'label' => 'Research Difficulty']);
+							echo $this->Form->input( 'renaming', array(
+								'label' => 'Commander Renaming',
+								'type' => 'checkbox'  ));
+							echo $this->Form->input( 'clientstart', array(
+								'label' => 'Clients Can Start Game',
+								'type' => 'checkbox'  ));
+							} else{
+						} ?>
 						<?= $this->Form->button(__('Submit')) ?>
 					</div>
 				</div>
