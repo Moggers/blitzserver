@@ -36,7 +36,8 @@
 			}
 		});
 		if( $('#localtime').length ) {
-			$('#localtime')[0].innerHTML = moment.tz($('#localtime')[0].innerHTML, 'YYYY-MM-DD HH:nm:ss', 'Europe/Dublin').tz( moment.tz.guess()).fromNow();
+			var time = moment.tz($('#localtime')[0].innerHTML, 'YYYY-MM-DD HH:nm:ss', 'Europe/Dublin').tz( moment.tz.guess())
+			$('#localtime')[0].innerHTML = moment.preciseDiff( moment(), time);
 		}
 	});
 </script>
