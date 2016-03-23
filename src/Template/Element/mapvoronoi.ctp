@@ -139,6 +139,7 @@
 			}
 			var voronoi = new Voronoi();
 			var diagram = voronoi.compute( provinces, {xl:0,xr:renderer.width,yt:0,yb:renderer.height});
+			<?php if( $match->hidemap == 0 ) { ?>
 			for( var ii = 0; ii < diagram.cells.length; ii++ ) {
 				var ccell = diagram.cells[ii];
 				if( ccell.site.o == 1  ) {
@@ -157,6 +158,7 @@
 				topstage.lineTo( ccell.halfedges[0].getStartpoint());
 				topstage.endFill();
 			}
+			<?php } ?>
 			stage.addChild(topstage);
 			//requestAnimationFrame(animate);
 			renderer.render(stage);
