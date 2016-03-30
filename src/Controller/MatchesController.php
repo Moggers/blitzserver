@@ -55,6 +55,31 @@ class MatchesController extends AppController
 		}
 	}
 
+	public function markcomputer( $id = null, $nation_id = null )
+	{
+		$match = $this->Matches->get($this->request->data['id'],[
+			'contain' => ['Nations']
+			]);
+		if( isset( $_COOKIE['password']) && $match->checkPassword( $_COOKIE['password'] )){
+			$conditions = ['match_id' => $this->request->data['id'], 'nation_id' => $this->request->data['nation_id']];
+			if( $this->Matches->Matchnations->find('all')->where($conditions)->isEmpty()) {
+				$matchnation = $this->Matches->Matchnations->newEntity();
+			} else {
+				$matchnation = $this->Matches->Matchnations->find('all')->where( $conditions );
+			}
+			$matchnation->match_id = $this->request->data['id'];
+			$matchnation->nation_id = $this->request->data['nation_id'];
+			$matchnation->computer = 1;
+			if( $this->Matches->Matchnations->save($matchnation) ) {
+				die( json_encode( [ 'status' => 0, 'id' => $match->id ] ) );
+			} else {
+				die( json_encode( [ 'status' => 2, 'id' => $match->id ] ) );
+			}
+		} else {
+			die( json_encode( [ 'status' => 1, 'id' => $match->id ] ) );
+		}
+	}
+
 	public function hostinterval( $id = null )
 	{
 		$match = $this->Matches->get($id );
@@ -88,7 +113,10 @@ class MatchesController extends AppController
 		$maps = $this->Matches->Maps->find('list', ['limit' => 200]);
 		$this->set(compact('match', 'maps'));
 		$nations = $this->Matches->Matchnations->find('list', ['keyField' => 'id', 'valueField' => 'nation.name'])->where(['match_id' => $id])->contain(['Nations']);
+		$this->loadModel('Nations');
+		$allnations = $this->Nations->find('list', ['keyField' => 'id', 'valueField' => 'name'])->where(['age' => $match->age]);
 		$this->set(compact('match', 'nations'));
+		$this->set(compact('match','allnations'));
 		$this->set('match', $match);
 		$this->set('_serialize', ['match']);
 	}

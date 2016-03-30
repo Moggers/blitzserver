@@ -66,6 +66,7 @@ $cakeDescription = 'Blitzserver';
 		});
 
 	</script>
+	Email should be working again, sorry.
 </head>
 <body>
     <nav class="top-bar expanded" data-topbar role="navigation">
@@ -83,6 +84,7 @@ $cakeDescription = 'Blitzserver';
 				<li><?= $this->Html->link(__('Show Mods'), ['controller' => 'Mods', 'action' => 'index']) ?></li>
 				<li><?= $this->Html->link(__('Upload Mod'), ['controller' => 'Mods', 'action' => 'add']) ?></li>
 				<li><?= $this->Html->link(__('Bug Report/Feature Request'), 'https://gitreports.com/issue/Moggers/blitzserver') ?></li>
+				<li><?= $this->Html->link(__('I Want To Help! (Github)'), 'https://gitreports.com/issue/Moggers/blitzserver') ?></li>
             </ul>
 			<ul class="right">
 				<li> <?= $this->Form->input('password', ['label' => false, 'id' => 'password', 'placeholder' => 'Password']); ?> </li>

@@ -39,6 +39,20 @@
 			var time = moment.tz($('#localtime')[0].innerHTML, 'YYYY-MM-DD HH:nm:ss', 'Europe/Dublin').tz( moment.tz.guess())
 			$('#localtime')[0].innerHTML = moment.preciseDiff( moment(), time);
 		}
+		$('#aination').on('change', function(e)
+		{
+			console.log( 'meme it up');
+			$.post('../markcomputer', {'id': <?=$match->id?>, 'nation_id': $('#aination').val()}, function(data) {
+				if( data.status == 0 ){
+					alert('Done');
+				} if( data.status == 1 ) {
+					window.location.hash = "modal";
+				} if( data.status == 2 ){
+					alert('Unknown error');
+				}
+			});
+		});
+
 	});
 </script>
 
@@ -80,16 +94,16 @@
 				<?php foreach ($match->nations as $nation): ?>
 					<tr>
 						<td>
-						<?=$nation['name']. ', ' .$nation['subtitle']?>
+						<?=$nation['name']. ', ' .$nation['subtitle']; if( $nation->_joinData->computer == 1 ) { echo " <font color='blue'>AI</font>";}?>
 						</td>
 						<?php if( $match->status !== 3 ) { ?>
-							<?php if( $nation->_joinData->markdelete == 0 ) { ?>
 								<td>
+							<?php if( $nation->_joinData->markdelete == 0 ) { ?>
 								<?= $this->Html->link(__('Remove'), ['controller' => 'Matches', 'action' => 'removePlayer', $nation->_joinData->id ]) ?>
-								</td>
 							<?php } else { ?>
 								<?= "<b>(Removing..)</b>" ?>
 							<?php } ?>
+							</td>
 						<?php } else {
 							echo "<td>";
 							foreach( $match->turns as $turn ):
@@ -174,6 +188,7 @@
 					</div>
 				</div>
 				<?= $this->Form->end() ?>
+				<?= $this->Form->select('ainations', $allnations, ['id'=>'aination','style'=>'position:relative', 'empty' => 'Set Nation AI']); ?>
 			</div>
 		</div>
 		<div id="mapview" class="mappreview">
