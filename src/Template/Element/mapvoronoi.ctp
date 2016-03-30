@@ -29,6 +29,8 @@
 	    };
 	}
 	$(document).on( 'ready', function() {
+		// We need to build text
+		var textwritten = false;
 
 		// The renderer will create a canvas element for you that you can then insert into the DOM.
 		//document.body.appendChild(renderer.view); // You need to create a root container that will hold the scene you want to draw.
@@ -36,7 +38,7 @@
 		var topstage = new PIXI.Graphics();
 		$('#slider').slider({
 			max:<?=$match->turn->tn-1-$match->turndelay?>,
-			min:0,
+			min:-1,
 			value:<?=$match->turn->tn-1-$match->turndelay?>,
 			change: function( event, ui ) {
 				initialize(ui.value);
@@ -67,7 +69,7 @@
 			// Add the dom4 to the scene we are building.
 			stage.addChild(dom4);
 			// kick off the animation loop (defined below)
-			requestAnimationFrame(initialize(<?=$match->turn->tn-1?>));
+			requestAnimationFrame(initialize(<?=$match->turn->tn-1-$match->turndelay?>));
 		});
 
 		//////
@@ -130,13 +132,16 @@
 			for( var ii = 0; ii < provinces.length; ii++ ) {
 				provinces[ii].x = provinces[ii].x * renderer.width;
 				provinces[ii].y = provinces[ii].y * renderer.height;
-				var text = new PIXI.Text(ii+1);
-				text.position.x = provinces[ii].x;
-				text.position.y = provinces[ii].y;
-				text.scale.x = 0.4;
-				text.scale.y = 0.4; 
-				stage.addChild(text);
+				if( textwritten == false ) {
+					var text = new PIXI.Text(ii+1);
+					text.position.x = provinces[ii].x;
+					text.position.y = provinces[ii].y;
+					text.scale.x = 0.4;
+					text.scale.y = 0.4; 
+					stage.addChild(text);
+				}
 			}
+			textwritten = true;
 			var voronoi = new Voronoi();
 			var diagram = voronoi.compute( provinces, {xl:0,xr:renderer.width,yt:0,yb:renderer.height});
 			<?php if( $match->hidemap == 0 ) { ?>

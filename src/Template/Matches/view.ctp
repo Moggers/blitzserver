@@ -41,7 +41,6 @@
 		}
 		$('#aination').on('change', function(e)
 		{
-			console.log( 'meme it up');
 			$.post('../markcomputer', {'id': <?=$match->id?>, 'nation_id': $('#aination').val()}, function(data) {
 				if( data.status == 0 ){
 					alert('Done');
@@ -52,9 +51,9 @@
 				}
 			});
 		});
-		if( '#turndelay').on('change', function(e)
+		$('#turndelay').on('change', function(e)
 		{
-			$.post('../markcomputer', {'id': <?=$match->id?>, 'turndelay': $('#turndelay').val()}, function(data) {
+			$.post('../turndelay', {'id': <?=$match->id?>, 'turndelay': $('#turndelay').val()}, function(data) {
 				if( data.status == 0 ){
 					alert('Done');
 				} if( data.status == 1 ) {
@@ -205,7 +204,7 @@
 		</div>
 		<div id="mapview" class="mappreview">
 			<?= $this->element('mapvoronoi', array('match' => $match )); ?>
-			<?= $this->input('turndelay', ['lablel' => 'Turn Delay', 'id' => 'turndelay']);
+			<?= $this->Form->input('turndelay', ['default' => $match->turndelay, 'label' => 'Turn Delay', 'id' => 'turndelay']); ?>
 		</div>
 		<div class="mods index large-12 medium-12 columns content">
 			<?= $this->element( 'modtable', array( 'mods' => $match->mods )); ?>
