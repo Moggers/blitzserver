@@ -52,6 +52,18 @@
 				}
 			});
 		});
+		if( '#turndelay').on('change', function(e)
+		{
+			$.post('../markcomputer', {'id': <?=$match->id?>, 'turndelay': $('#turndelay').val()}, function(data) {
+				if( data.status == 0 ){
+					alert('Done');
+				} if( data.status == 1 ) {
+					window.location.hash = "modal";
+				} if( data.status == 2 ){
+					alert('Unknown error');
+				}
+			});
+		});
 
 	});
 </script>
@@ -193,6 +205,7 @@
 		</div>
 		<div id="mapview" class="mappreview">
 			<?= $this->element('mapvoronoi', array('match' => $match )); ?>
+			<?= $this->input('turndelay', ['lablel' => 'Turn Delay', 'id' => 'turndelay']);
 		</div>
 		<div class="mods index large-12 medium-12 columns content">
 			<?= $this->element( 'modtable', array( 'mods' => $match->mods )); ?>

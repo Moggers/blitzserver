@@ -79,6 +79,20 @@ class MatchesController extends AppController
 			die( json_encode( [ 'status' => 1, 'id' => $match->id ] ) );
 		}
 	}
+	public function markcomputer( $id = null, $turndelay)
+	{
+		$match = $this->Matches->get($this->request->data['id']);
+		if( isset( $_COOKIE['password']) && $match->checkPassword( $_COOKIE['password'] )){
+			$match->computer = $turndelay;
+			if( $this->Matches->Matchnations->save($matchnation) ) {
+				die( json_encode( [ 'status' => 0, 'id' => $match->id ] ) );
+			} else {
+				die( json_encode( [ 'status' => 2, 'id' => $match->id ] ) );
+			}
+		} else {
+			die( json_encode( [ 'status' => 1, 'id' => $match->id ] ) );
+		}
+	}
 
 	public function hostinterval( $id = null )
 	{

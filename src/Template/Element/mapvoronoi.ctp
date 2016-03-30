@@ -35,9 +35,9 @@
 		var stage = new PIXI.Graphics();
 		var topstage = new PIXI.Graphics();
 		$('#slider').slider({
-			max:<?=$match->turn->tn-1?>,
+			max:<?=$match->turn->tn-1-$match->turndelay?>,
 			min:0,
-			value:<?=$match->turn->tn-1?>,
+			value:<?=$match->turn->tn-1-$match->turndelay?>,
 			change: function( event, ui ) {
 				initialize(ui.value);
 			requestAnimationFrame(initialize(ui.value));
