@@ -84,6 +84,7 @@
 			echo $this->Form->input( 'clientstart', array(
 				'label' => 'Clients Can Start Game',
 				'type' => 'checkbox'  ));
+			echo $this->Form->input( 'siterarity', ['default' => '40', 'label' => 'Magic Sites']);
 			echo $this->Form->input( 'Master Password' );
 			?>
 			<h5>Mods</h5>
