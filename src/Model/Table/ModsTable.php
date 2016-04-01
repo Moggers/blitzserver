@@ -27,7 +27,10 @@ class ModsTable extends Table
         $this->table('mods');
         $this->displayField('name');
         $this->primaryKey('id');
-
+		
+        $this->hasMany('Nations', [
+            'foreignKey' => 'mod_id'
+        ]);
     }
 
     /**
@@ -62,40 +65,6 @@ class ModsTable extends Table
 		if( $entity->get('Archive')['tmp_name'] != '' ) {
 			switch( $entity->get('Archive')['type']) {
 				case "application/x-rar":
-					$rar_file = rar_open( $entity->get('Archive')['tmp_name'] );
-					$entries = rar_list($rar_file);
-					foreach( $entries as $entry ) {
-						$filepath = pathinfo( $entry->getName() );
-						if( isset( $filepath['extension'] ) && $filepath['extension'] == 'dm' && $filepath['dirname'] == '.' ) {
-							$fd = fopen( WWW_ROOT . 'tmp/mods/' . $entry->getName(), 'r' );
-							$entity->set('dmname', $entry->getName());
-							if( $fd ) {
-								rewind( $fd );
-								while( ( $line = fgets( $fd ) ) !== false ) {
-									$arr = explode( ' ', $line );
-									switch( $arr[0] ) {
-										case '--':
-											break;
-										case '#version':
-											$entity->set( 'version', trim( substr( $line, strlen('#version ' ) ) ) );
-											break;
-										case '#description':
-											$entity->set( 'description', trim( str_replace( '"', '', substr( $line, strlen( '#description ' ) ) ) ) );
-											break;
-										case '#modname':
-											$entity->set( 'name', trim( str_replace( '"', '', substr( $line, strlen( '#modname ' ) ) ) ) );
-											break;
-										case '#icon':
-											$entity->set( 'icon', trim( str_Replace( '"', '', substr( $line, strlen( '#icon ' ) ) ) ) );
-											break;
-									}
-								}
-								fclose( $fd );
-							}
-							$rar_file->close();
-							return true;
-						}
-					}
 					break;
 				case "application/zip":
 				case "application/octet-stream":
@@ -163,6 +132,42 @@ class ModsTable extends Table
 				case 'application/zip':
 					$zip = new \ZipArchive();
 					$zip->open( $entity->get('Archive')['tmp_name'] );
+					for( $i = 0; $i < $zip->numFiles; $i++ ) {
+						$filepath = pathinfo($zip->getNameIndex($i));
+						if( $filepath['filename'] == $entity->get('name')){
+							$fd = fopen( WWW_ROOT . 'tmp/mods/' . $zip->getNameIndex($i), 'r' );
+							if( $fd ) {
+								rewind( $fd );
+								$nation = $this->Nations->newEntity();
+								while( ( $line = fgets( $fd ) ) !== false ) {
+									$arr = explode( ' ', $line );
+									switch( $arr[0] ) {
+										case '--':
+											break;
+										case '#selectnation':
+											$nation = $this->Nations->where(['mod_id' => $entity->id, 'dom_id' => $arr[1] ]);
+											if( $nation == null )
+												$nation = $this->Nations->newEntity();
+											$nation->mod_id = $entity->id;
+											break;
+										case '#era':
+											$nation->age = $arr[1];
+											break;
+										case '#name':
+											$nation->name = $arr[2];
+											break;
+										case '#end':
+											if( $nation != null ) {
+												$this->Nations->save($nation);
+												$nation = null;
+											}
+											break;
+									}
+								}
+								fclose( $fd );
+							}
+						}
+					}
 					$zip->extractTo( $moddir );
 					$zip->close();
 					break;
