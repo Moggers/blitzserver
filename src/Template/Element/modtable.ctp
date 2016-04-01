@@ -9,16 +9,15 @@
         </thead>
         <tbody>
             <?php foreach ($mods as $mod): ?>
-            <tr id=<?='mod_'.$mod->id ?>>
-                <td><?= h($mod->name) ?></td>
+			<tr id=<?= 'mod_'.$mod->id ?>>
+				<td><?= h($mod->name) ?></td>
 				<td><?= $this->Html->link( $this->Html->image( 'mods/' . $mod->id . '/thumb64.jpeg'), ['controller' => 'Mods', 'action' => 'view', $mod->id], ['escape' => false]) ?></td>
-                <td><?= $mod->version ?></td>
-                <td class="poop"><?= h($mod->description) ?></td>
-            </tr>
-            <?php endforeach; ?>
+				<td><?= $mod->version ?></td>
+				<td class="poop"><?= h($mod->description) ?></td>
+			</tr>
+			<?php endforeach; ?>
         </tbody>
     </table>
-	<?php if( isset($this->Paginator->params['pageCount']) ) { ?>
     <div class="paginator">
         <ul class="pagination">
             <?= $this->Paginator->prev('< ' . __('previous')) ?>
@@ -26,4 +25,4 @@
             <?= $this->Paginator->next(__('next') . ' >') ?>
         </ul>
         <p><?= $this->Paginator->counter() ?></p>
-    </div> <?php } ?>
+    </div>

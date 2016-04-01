@@ -133,6 +133,15 @@ class MatchesController extends AppController
 		$this->set(compact('match','allnations'));
 		$this->set('match', $match);
 		$this->set('_serialize', ['match']);
+		$this->set('mods', $this->paginate(
+			$this->Matches->Mods
+				->find(
+				)->matching('Matches', function(\Cake\ORM\Query $q ) use ($id) {
+					return $q->where([
+					'Matches.id' => $id
+				]);
+				})->group(['Mods.id'])
+		));
 	}
 
 	/**
