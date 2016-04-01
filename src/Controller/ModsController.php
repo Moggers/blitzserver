@@ -18,7 +18,8 @@ class ModsController extends AppController
      */
     public function index()
     {
-        $this->set('mods', $this->paginate($this->Mods));
+		$query = $this->Mods->find('all')->where(['hidden' => 0]);
+        $this->set('mods', $this->paginate($query));
         $this->set('_serialize', ['mods']);
     }
 
@@ -62,7 +63,7 @@ class ModsController extends AppController
 						if( isset( $filepath['extension'] ) && $filepath['extension'] == 'dm' && $filepath['dirname'] == '.' ) {
 							$mod = $this->Mods->newEntity();
 							$mod = $this->Mods->patchEntity($mod, $this->request->data);
-							$mod->name = $filepath['filename'];
+							$mod->dmname = $filepath['filename'];
 							if( !file_exists( 'tmp/mods/' ) )
 								mkdir( 'tmp/mods/', 0777, true );
 							$zip->extractTo( WWW_ROOT . 'tmp/mods/', $zip->getNameIndex($i) );

@@ -81,6 +81,11 @@
 						<td><?= $match::ages( $match->age ) ?></td>
 					</tr>
 					<tr>
+						<th><?= __('Magic Sites') ?></th>
+						<td><?= $match->siterarity ?></td>
+					</tr>
+
+					<tr>
 						<th><?= __('Address') ?></th>
 						<td><?= $match->address ?></td>
 					</tr>

@@ -160,6 +160,8 @@ class MatchesController extends AppController
 				$match->status = 0;
 				$match->password = $_COOKIE['password'];
 				$match->port = 0;
+				// Insert vanilla mod to link all games to vanilla nations
+				array_push($match->mods, $this->Matches->Mods->find('all')->where(['id' => 1])->first());
 				if ($this->Matches->save($match)) {
 					$this->Flash->success(__('The match has been requested.'));
 					die( json_encode( [ 'status' => 1, 'id' => $match->id ] ) );

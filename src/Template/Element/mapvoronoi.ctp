@@ -31,6 +31,7 @@
 	$(document).on( 'ready', function() {
 		// We need to build text
 		var textwritten = false;
+		var tn = <?=$match->turn->tn-1-$match->turndelay?>
 
 		// The renderer will create a canvas element for you that you can then insert into the DOM.
 		//document.body.appendChild(renderer.view); // You need to create a root container that will hold the scene you want to draw.
@@ -41,8 +42,8 @@
 			min:-1,
 			value:<?=$match->turn->tn-1-$match->turndelay?>,
 			change: function( event, ui ) {
-				initialize(ui.value);
-			requestAnimationFrame(initialize(ui.value));
+				tn = ui.value;
+				requestAnimationFrame(initialize);
 			}
 		});
 
@@ -69,7 +70,7 @@
 			// Add the dom4 to the scene we are building.
 			stage.addChild(dom4);
 			// kick off the animation loop (defined below)
-			requestAnimationFrame(initialize(<?=$match->turn->tn-1-$match->turndelay?>));
+			requestAnimationFrame(initialize);
 		});
 
 		//////
@@ -82,7 +83,7 @@
 		//////
 
 		var cols = [];
-		function initialize(tn)
+		function initialize()
 		{
 			renderer.resize( dom4.width, dom4.height );
 			topstage.clear();

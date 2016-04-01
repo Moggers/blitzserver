@@ -74,12 +74,15 @@ class ModsTable extends Table
 					$zip->open( $entity->get('Archive')['tmp_name'] );
 					for( $i = 0; $i < $zip->numFiles; $i++ ) {
 						$filepath = pathinfo($zip->getNameIndex($i));
-						if( $filepath['filename'] == $entity->get('name')){
+						if( $filepath['filename'] == $entity->get('dmname')){
 							$fd = fopen( WWW_ROOT . 'tmp/mods/' . $zip->getNameIndex($i), 'r' );
 							$entity->set('dmname', $zip->getNameIndex($i));
 							if( $fd ) {
 								rewind( $fd );
 								while( ( $line = fgets( $fd ) ) !== false ) {
+									if( strpos( $line, '#disableoldnations' ) !== false ) {
+										$entity->set( 'disableoldnations', 1 );
+									}
 									$arr = explode( ' ', $line );
 									switch( $arr[0] ) {
 										case '--':
@@ -120,54 +123,51 @@ class ModsTable extends Table
 			$filetmp = $entity->get('Archive')['tmp_name'];
 			switch( $entity->get('Archive')['type'] ) {
 				case 'application/x-rar':
-					$rar = rar_open( $entity->get('Archive')['tmp_name'] );
-					foreach( rar_list($rar) as $entry ) {
-						$entry->extract( $moddir );
-					}
-					$rar->close();
 					break;
 				case "application/octet-stream":
 				case "application/x-zip-compressed":
 				case "application/x-zip":
 				case 'application/zip':
-					$zip = new \ZipArchive();
-					$zip->open( $entity->get('Archive')['tmp_name'] );
-					for( $i = 0; $i < $zip->numFiles; $i++ ) {
-						$filepath = pathinfo($zip->getNameIndex($i));
-						if( $filepath['filename'] == $entity->get('name')){
-							$fd = fopen( WWW_ROOT . 'tmp/mods/' . $zip->getNameIndex($i), 'r' );
-							if( $fd ) {
-								rewind( $fd );
-								$nation = $this->Nations->newEntity();
-								while( ( $line = fgets( $fd ) ) !== false ) {
-									$arr = explode( ' ', $line );
-									switch( $arr[0] ) {
-										case '--':
-											break;
-										case '#selectnation':
-											$nation = $this->Nations->where(['mod_id' => $entity->id, 'dom_id' => $arr[1] ]);
-											if( $nation == null )
-												$nation = $this->Nations->newEntity();
-											$nation->mod_id = $entity->id;
-											break;
-										case '#era':
-											$nation->age = $arr[1];
-											break;
-										case '#name':
-											$nation->name = $arr[2];
-											break;
-										case '#end':
-											if( $nation != null ) {
-												$this->Nations->save($nation);
-												$nation = null;
-											}
-											break;
-									}
+					$fd = fopen( WWW_ROOT . 'tmp/mods/' . $entity->get('dmname'), 'r' );
+					if( $fd ) {
+						rewind( $fd );
+						$nation = null;
+						while( ( $line = fgets( $fd ) ) != false ) {
+							if( strpos($line, '#end') !== false ) { 
+								if( $nation != null ) {
+									$this->Nations->save($nation);
+									$nation = null;
 								}
-								fclose( $fd );
+								continue;
+							}
+							$arr = explode( ' ', $line );
+							switch( $arr[0] ) {
+								case '--':
+									break;
+								case '#selectnation':
+									$nation = $this->Nations->find('all')->where(['mod_id' => $entity->id, 'dom_id' => $arr[1]])->first();
+									if( $nation == null ) { 
+										$nation = $this->Nations->newEntity();
+										$nation->mod_id = $entity->id;
+										$nation->dom_id = $arr[1];
+									}
+									break;
+								case '#era':
+									if( $nation != null ) {
+										$nation->age = $arr[1];
+									}
+									break;
+								case '#name':
+									if( $nation != null ) {
+										$nation->name = $arr[1];
+									}
+									break;
 							}
 						}
+						fclose( $fd );
 					}
+					$zip = new \ZipArchive();
+					$zip->open( $entity->get('Archive')['tmp_name'] );
 					$zip->extractTo( $moddir );
 					$zip->close();
 					break;
