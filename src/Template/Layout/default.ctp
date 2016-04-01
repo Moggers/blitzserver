@@ -66,7 +66,7 @@ $cakeDescription = 'Blitzserver';
 		});
 
 	</script>
-	Email should be working again, sorry.
+	If you notice any issues <b>please</b> file a bug report. Sum1won, I've tested oneage. I'm able to launch a game and connect.
 </head>
 <body>
     <nav class="top-bar expanded" data-topbar role="navigation">

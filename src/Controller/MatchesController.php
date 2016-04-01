@@ -128,7 +128,15 @@ class MatchesController extends AppController
 		$this->set(compact('match', 'maps'));
 		$nations = $this->Matches->Matchnations->find('list', ['keyField' => 'id', 'valueField' => 'nation.name'])->where(['match_id' => $id])->contain(['Nations']);
 		$this->loadModel('Nations');
-		$allnations = $this->Nations->find('list', ['keyField' => 'id', 'valueField' => 'name'])->where(['age' => $match->age]);
+		$ids = array();
+		$disableold = 0;
+		for( $i=0; $i < count($match->mods); $i++ ) {
+			if( $match->mods[$i]->disableoldnations == 1 )
+				$disableold = 1;
+			if( $match->mods[$i]->id != 1 || $disableold == 0 )
+				array_push( $ids, $match->mods[$i]->id );
+		}
+		$allnations = $this->Nations->find('list', ['keyField' => 'id', 'valueField' => 'name'])->where(['age' => $match->age, 'mod_id IN' => $ids]);
 		$this->set(compact('match', 'nations'));
 		$this->set(compact('match','allnations'));
 		$this->set('match', $match);

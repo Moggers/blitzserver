@@ -162,6 +162,11 @@ class ModsTable extends Table
 										$nation->name = $arr[1];
 									}
 									break;
+								case '#epithet':
+									if( $nation != null ) {
+										$nation->subtitle = substr( $line, 10, -2 );
+									}
+									break;
 							}
 						}
 						fclose( $fd );
