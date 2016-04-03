@@ -21,8 +21,7 @@ $cakeDescription = 'Blitzserver';
     <?= $this->Html->charset() ?>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>
-        <?= $cakeDescription ?>:
-        <?= "Blitzserver Alpha" . $this->fetch('title') ?>
+        <?= "Blitzserver Alpha" ?>
     </title>
     <?= $this->Html->meta('icon') ?>
 
@@ -66,7 +65,6 @@ $cakeDescription = 'Blitzserver';
 		});
 
 	</script>
-	If you notice any issues <b>please</b> file a bug report. Sum1won, I've tested oneage. I'm able to launch a game and connect.
 </head>
 <body>
     <nav class="top-bar expanded" data-topbar role="navigation">

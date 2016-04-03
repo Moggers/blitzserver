@@ -11,6 +11,8 @@ use App\Controller\AppController;
 class MapsController extends AppController
 {
 
+	public $paginate = [
+		'limit' => 100 ];
     /**
      * Index method
      *
@@ -18,11 +20,8 @@ class MapsController extends AppController
      */
     public function index()
     {
-        $this->set('maps', $this->paginate($this->Maps->find('all', [ 
-			'conditions' => [
-				'Maps.hide =' => 0
-			]
-		])));
+		$query = $this->Maps->find('all')->where(['hide' => 'true']);
+        $this->set('maps', $this->paginate($query ));
         $this->set('_serialize', ['maps']);
     }
 
