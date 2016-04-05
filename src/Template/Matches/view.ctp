@@ -127,12 +127,16 @@
 								foreach( $turn->matchnationturns as $mnt ):
 									if( $mnt->matchnation_id == $nation->_joinData->id ) {
 										$found = 1;
+									} else if( $nation->_joinData->markcomputer == 1 ) {
+										$found = 2;
 									}
 								endforeach;
 								if( $found == 0 ) {
-									echo '<font color="red">N</font>';
-								} else {
-									echo '<font color="green">Y</font>';
+									echo '<font color="red">|</font>';
+								} else if( $found == 1 ){
+									echo '<font color="green">|</font>';
+								} else if( $found == 2 ){
+									echo '<font color="blue">|</font>';
 								}
 							endforeach;
 							echo "</td>";
@@ -210,6 +214,7 @@
 		<div id="mapview" class="mappreview">
 			<?= $this->element('mapvoronoi', array('match' => $match )); ?>
 			<?= $this->Form->input('turndelay', ['default' => $match->turndelay, 'label' => 'Turn Delay', 'id' => 'turndelay']); ?>
+			<?= $this->element('postview', [ 'posts' => $match->posts, 'newpost' => $newpost] ); ?>
 		</div>
 		<div class="mods index large-12 medium-12 columns content">
 			<?= $this->element( 'modtable', array( 'mods' => $match->mods )); ?>

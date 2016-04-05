@@ -122,7 +122,7 @@ class MatchesController extends AppController
 	public function view($id = null)
 	{
 		$match = $this->Matches->get($id, [
-				'contain' => ['Maps', 'Nations', 'Mods', 'Turns', 'Turns.Matchnationturns']
+				'contain' => ['Maps', 'Nations', 'Mods', 'Turns', 'Turns.Matchnationturns', 'Posts']
 		]);
 		$maps = $this->Matches->Maps->find('list', ['limit' => 200]);
 		$this->set(compact('match', 'maps'));
@@ -140,6 +140,9 @@ class MatchesController extends AppController
 		$this->set(compact('match', 'nations'));
 		$this->set(compact('match','allnations'));
 		$this->set('match', $match);
+		$newpost = $this->Matches->Posts->newEntity();
+		$newpost->match_id = $match->id;
+		$this->set('newpost', $newpost );
 		$this->set('_serialize', ['match']);
 		$this->set('mods', $this->paginate(
 			$this->Matches->Mods

@@ -65,6 +65,7 @@ $cakeDescription = 'Blitzserver';
 		});
 
 	</script>
+	Server is back up. Late me know if you see anything odd.
 </head>
 <body>
     <nav class="top-bar expanded" data-topbar role="navigation">

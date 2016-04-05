@@ -55,6 +55,11 @@ class MatchesTable extends Table
 			'foreignKey' => 'match_id',
 			'joinType' => 'INNER'
 		]);
+
+		$this->hasMany( 'Posts', [
+			'foreignKey' => 'match_id',
+			'joinType' => 'INNER'
+		]);
     }
 
 	public function afterFind( $results, $primary = false )
