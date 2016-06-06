@@ -39,12 +39,14 @@ $cakeDescription = 'Blitzserver';
 	<?= $this->Html->css('jquery-ui.min.css'); ?>
 	<?= $this->Html->css('jquery-ui.structure.min.css'); ?>
 	<?= $this->Html->css('jquery-ui.theme.min.css'); ?>
+	<?= $this->Html->css('jquery-ui-slider-pips.css'); ?>
 
 	<?= $this->Html->script('https://code.jquery.com/jquery-2.2.0.min.js'); ?>
 	<?= $this->Html->script('remodal.js'); ?>
 	<?= $this->Html->script('jquery.form.js'); ?>
 	<?= $this->Html->script('js.cookie.js'); ?>
-	<?= $this->Html->script('jquery-ui.min.js'); ?>
+	<?= $this->Html->script('jquery-ui.js'); ?>
+	<?= $this->Html->script('jquery-ui-slider-pips.js'); ?>
 	<?= $this->Html->script('moment.js'); ?>
 	<?= $this->Html->script('moment-timezone-with-data-2010-2020.min.js'); ?>
 	<?= $this->Html->script('pixi.min.js'); ?>
@@ -65,7 +67,7 @@ $cakeDescription = 'Blitzserver';
 		});
 
 	</script>
-	Server is back up. Late me know if you see anything odd.
+	If you dont get any email please resubmit the email request form on the game page. All emails were dropped after I messed up some live changes
 </head>
 <body>
     <nav class="top-bar expanded" data-topbar role="navigation">
@@ -102,8 +104,8 @@ $cakeDescription = 'Blitzserver';
 		<h1>Please Enter Password</h1>
 		<?= $this->Form->input('remodal-password', ['label' => false, 'placeholder' => 'Password']); ?>
 		<br />
-		<button data-remodal-action="cancel" class="remodal-cancel">Nah think oi'll come back later, eh?</button>
-		<button data-remodal-action="confirm" class="remodal-confirm">Aight m8, giv 'er a go</button>
+		<button data-remodal-action="cancel" class="remodal-cancel">Cancel</button>
+		<button data-remodal-action="confirm" class="remodal-confirm">Confirm</button>
 	</div>
 </body>
 </html>

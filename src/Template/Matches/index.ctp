@@ -4,7 +4,7 @@
 	function refresh()
 	{
 		$.get( window.location.pathname + '?layout=false', function( data, res ) {  
-			$(".matches table" ).html($("table", data));
+			$(".matches tabs" ).html($("table", data));
 			refreshmeme = waitExtend;
 		});
 	}
@@ -24,7 +24,7 @@
 <div class="matches index large-12 medium-12 columns content">
     <h3><?= __('Matches') ?></h3>
 	<?= $this->Form->Button( "Refresh", array( 'onclick' => 'refresh(); waitExtend = 5;', 'id' => 'refresh', 'style' => 'padding: 0.5rem 0.5rem 0.5rem 0.5rem' ) ); ?>
-	<?= $this->element( 'matchtable', array( 'matches' => $matches ) ); ?>
+	<?= $this->element( 'matchtable', [ 'progressmatches' => $progressmatches, 'finishedmatches' => $finishedmatches, 'lobbymatches' => $lobbymatches] ); ?>
     <div class="paginator">
         <ul class="pagination">
             <?= $this->Paginator->prev('< ' . __('previous')) ?>

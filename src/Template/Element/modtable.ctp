@@ -9,7 +9,7 @@
         </thead>
         <tbody>
             <?php foreach ($mods as $mod): ?>
-			<tr id=<?= 'mod_'.$mod->id ?>>
+			<tr clas="modpane" id=<?= 'mod_'.$mod->id ?>>
 				<td><?= h($mod->name) ?></td>
 				<td><?= $this->Html->link( $this->Html->image( 'mods/' . $mod->id . '/thumb64.jpeg'), ['controller' => 'Mods', 'action' => 'view', $mod->id], ['escape' => false]) ?></td>
 				<td><?= $mod->version ?></td>

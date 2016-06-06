@@ -45,8 +45,7 @@
 				tn = ui.value;
 				requestAnimationFrame(initialize);
 			}
-		});
-
+		}).slider("pips").slider("float");
 
 		// load the texture we need
 		var renderer = {};
@@ -85,6 +84,13 @@
 		var cols = [];
 		function initialize()
 		{
+			// Position
+			dom4.position.x = 0;
+			dom4.position.y = 0;
+			// Scale
+			dom4.scale.x = 1;
+			dom4.scale.y = 1;
+
 			renderer.resize( dom4.width, dom4.height );
 			topstage.clear();
 			renderer.render(stage);

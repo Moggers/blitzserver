@@ -8,35 +8,13 @@
 				window.location.hash = "modal";
 			}
 		});
-		$('#modtable tr').on('mouseover', function(e) {
-			if( e.delegateTarget.id.substring(0,3) == 'mod' ) {
-				$('#hiddenmods > option').each( function() {
-					if( this.value == e.delegateTarget.id.substring(4,6) ) {
-						if( !this.selected ) {
-							e.delegateTarget.style.background = '#f0f0ff';
-						}
-					}
-				});
-			}
-		});
-		$('#modtable tr').on('mouseout', function(e) {
-			if( e.delegateTarget.id.substring(0,3) == 'mod' ) {
-				$('#hiddenmods > option').each( function() {
-					if( this.value == e.delegateTarget.id.substring(4,6) ) {
-						if( !this.selected ) {
-							e.delegateTarget.style.background = '#ffffff';
-						}
-					}
-				});
-			}
-		});
 		$('#modtable tr').on('click', function(e) {
 			if( e.delegateTarget.id.substring(0,3) == 'mod' ) {
 				$('#hiddenmods > option').each( function() {
-					if( this.value == e.delegateTarget.id.substring(4,6) ) {
+					if( this.value == e.delegateTarget.id.split('_')[1] ) {
 						this.selected = !this.selected;
 						if( !this.selected )
-							e.delegateTarget.style.background = '#f0f0ff';
+							e.delegateTarget.style.background = '';
 						else 
 							e.delegateTarget.style.background = '#babaff';
 					}

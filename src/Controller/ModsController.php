@@ -63,7 +63,7 @@ class ModsController extends AppController
 						if( isset( $filepath['extension'] ) && $filepath['extension'] == 'dm' && $filepath['dirname'] == '.' ) {
 							$mod = $this->Mods->newEntity();
 							$mod = $this->Mods->patchEntity($mod, $this->request->data);
-							$mod->dmname = $filepath['filename'];
+							$mod->dmname = $filepath['basename'];
 							if( !file_exists( 'tmp/mods/' ) )
 								mkdir( 'tmp/mods/', 0777, true );
 							$zip->extractTo( WWW_ROOT . 'tmp/mods/', $zip->getNameIndex($i) );

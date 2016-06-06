@@ -74,9 +74,8 @@ class ModsTable extends Table
 					$zip->open( $entity->get('Archive')['tmp_name'] );
 					for( $i = 0; $i < $zip->numFiles; $i++ ) {
 						$filepath = pathinfo($zip->getNameIndex($i));
-						if( $filepath['filename'] == $entity->get('dmname')){
+						if( $filepath['basename'] == $entity->get('dmname')){
 							$fd = fopen( WWW_ROOT . 'tmp/mods/' . $zip->getNameIndex($i), 'r' );
-							$entity->set('dmname', $zip->getNameIndex($i));
 							if( $fd ) {
 								rewind( $fd );
 								while( ( $line = fgets( $fd ) ) !== false ) {
@@ -147,9 +146,14 @@ class ModsTable extends Table
 								case '#selectnation':
 									$nation = $this->Nations->find('all')->where(['mod_id' => $entity->id, 'dom_id' => $arr[1]])->first();
 									if( $nation == null ) { 
+										$reference = $this->Nations->find('all')->where(['dom_id' => $arr[1]])->first();
 										$nation = $this->Nations->newEntity();
 										$nation->mod_id = $entity->id;
 										$nation->dom_id = $arr[1];
+										$nation->name = $reference->name;
+										$nation->subtitle = $reference->subtitle;
+										$nation->turn_name = $reference->turn_name;
+										$nation->age = $reference->age;
 									}
 									break;
 								case '#era':
@@ -159,7 +163,7 @@ class ModsTable extends Table
 									break;
 								case '#name':
 									if( $nation != null ) {
-										$nation->name = $arr[1];
+										$nation->name = substr( $line, 7, -2 );
 									}
 									break;
 								case '#epithet':

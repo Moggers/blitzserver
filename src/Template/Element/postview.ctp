@@ -21,7 +21,7 @@
 			$('#postform').ajaxForm( function(res) {
 				var data = JSON.parse(res);
 				if( data.status == 0 ) {
-					$('#posttable tr:last').after('<tr><td><b>' + data.name + '</b>:<br />'+data.comment+'</td></tr>');
+					$('#posttable tr:first').before('<tr><td><b>' + data.name + '</b>:<br />'+data.comment+'</td></tr>');
 				} else {
 					alert( "Failure" );
 				}

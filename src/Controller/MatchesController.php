@@ -29,8 +29,12 @@ class MatchesController extends AppController
 		if( $this->request->query('layout') == 'false' ) {
 			$this->viewBuilder()->layout( false );
 		}
-		$this->set('matches', $this->paginate($this->Matches));
-		$this->set('_serialize', ['matches']);
+		$this->set('lobbymatches', $this->paginate($this->Matches->find()->where(['status IN' => [0,1,-2]])));
+		$this->set('finishedmatches', $this->paginate($this->Matches->find()->where(['status IN' => [-1,70,71]])));
+		$this->set('progressmatches', $this->paginate($this->Matches->find()->where(['status IN' => [3,2]])));
+		$this->set('_serialize', ['lobbymatches']);
+		$this->set('_serialize', ['finishedmatches']);
+		$this->set('_serialize', ['progressmatches']);
 	}
 
 	/**
@@ -122,7 +126,7 @@ class MatchesController extends AppController
 	public function view($id = null)
 	{
 		$match = $this->Matches->get($id, [
-				'contain' => ['Maps', 'Nations', 'Mods', 'Turns', 'Turns.Matchnationturns', 'Posts']
+				'contain' => ['Maps', 'Nations', 'Mods', 'Turns', 'Turns.Matchnationturns', 'Posts' => ['sort' =>['Posts.id' => 'DESC']]]
 		]);
 		$maps = $this->Matches->Maps->find('list', ['limit' => 200]);
 		$this->set(compact('match', 'maps'));
@@ -146,12 +150,12 @@ class MatchesController extends AppController
 		$this->set('_serialize', ['match']);
 		$this->set('mods', $this->paginate(
 			$this->Matches->Mods
-				->find(
-				)->matching('Matches', function(\Cake\ORM\Query $q ) use ($id) {
-					return $q->where([
+			->find()
+			->matching('Matches', function(\Cake\ORM\Query $q ) use ($id) {
+				return $q->where([
 					'Matches.id' => $id
 				]);
-				})->group(['Mods.id'])
+			})->group(['Mods.id'])
 		));
 	}
 
@@ -270,6 +274,57 @@ class MatchesController extends AppController
 		$maps = $this->Matches->Maps->find('list', ['limit' => 200]);
 		$this->set(compact('match', 'maps'));
 		$this->set('_serialize', ['match']);
+	}
+	public function finish($id = null)
+	{
+		$match = $this->Matches->get($id, [
+				'contain' => []
+		]);
+		if ($this->request->is(['patch', 'get', 'put'])) {
+			if( isset( $_COOKIE['password']) && $match->checkPassword( $_COOKIE['password'] )){
+				$match = $this->Matches->patchEntity($match, $this->request->data);
+				$match->status = 71;
+				if ($this->Matches->save($match)) {
+					$this->Flash->success(__('The match has been marked for death and should disappear shortly'));
+					return $this->redirect(['action' => 'index']);
+				} else {
+					$this->Flash->error(__('Oh fuck'));
+				}
+			} else {
+				$this->Flash->error(__('Incorrect password'));
+				return $this->redirect(['action' => 'index']);
+			}
+		}
+		$maps = $this->Matches->Maps->find('list', ['limit' => 200]);
+		$this->set(compact('match', 'maps'));
+		$this->set('_serialize', ['match']);
+		return $this->redirect(['action' => 'index']);
+	}
+
+	public function unstart($id = null)
+	{
+		$match = $this->Matches->get($id, [
+				'contain' => []
+		]);
+		if ($this->request->is(['patch', 'get', 'put'])) {
+			if( isset( $_COOKIE['password']) && $match->checkPassword( $_COOKIE['password'] )){
+				$match = $this->Matches->patchEntity($match, $this->request->data);
+				$match->status = -2;
+				if ($this->Matches->save($match)) {
+					$this->Flash->success(__('The match has been marked for death and should disappear shortly'));
+					return $this->redirect(['action' => 'index']);
+				} else {
+					$this->Flash->error(__('Oh fuck'));
+				}
+			} else {
+				$this->Flash->error(__('Incorrect password'));
+				return $this->redirect(['action' => 'index']);
+			}
+		}
+		$maps = $this->Matches->Maps->find('list', ['limit' => 200]);
+		$this->set(compact('match', 'maps'));
+		$this->set('_serialize', ['match']);
+		return $this->redirect(['action' => 'index']);
 	}
 	public function destroy($id = null)
 	{

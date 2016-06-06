@@ -2,3 +2,10 @@
 	 padding-left: 0px;
 	 padding-right: 0px;
  }
+
+#modtable tr {
+	transition: 0.5s;
+}
+#modtable tr:hover {
+	background-color: lightblue;
+}

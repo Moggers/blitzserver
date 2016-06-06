@@ -41,7 +41,8 @@
 		}
 		$('#aination').on('change', function(e)
 		{
-			$.post('../markcomputer', {'id': <?=$match->id?>, 'nation_id': $('#aination').val()}, function(data) {
+			$.post('../markcomputer', {'id': <?=$match->id?>, 'nation_id': $('#aination').val()}, function(res) {
+				var data = JSON.parse(res);
 				if( data.status == 0 ){
 					alert('Done');
 				} if( data.status == 1 ) {
@@ -53,7 +54,8 @@
 		});
 		$('#turndelay').on('change', function(e)
 		{
-			$.post('../turndelay', {'id': <?=$match->id?>, 'turndelay': $('#turndelay').val()}, function(data) {
+			$.post('../turndelay', {'id': <?=$match->id?>, 'turndelay': $('#turndelay').val()}, function(res) {
+				var data = JSON.parse(res);
 				if( data.status == 0 ){
 					alert('Done');
 				} if( data.status == 1 ) {
@@ -110,7 +112,7 @@
 				<?php foreach ($match->nations as $nation): ?>
 					<tr>
 						<td>
-						<?=$nation['name']. ', ' .$nation['subtitle']; if( $nation->_joinData->computer == 1 ) { echo " <font color='blue'>AI</font>";}?>
+						<?=$nation['name']. ', ' .$nation['subtitle']; if( $nation->_joinData->computer == 1 ) { echo ' <span style="color:blue">AI</span>';}?>
 						</td>
 						<?php if( $match->status !== 3 ) { ?>
 								<td>
@@ -121,7 +123,8 @@
 							<?php } ?>
 							</td>
 						<?php } else {
-							echo "<td>";
+							echo "<td style='overflow:hidden'>";
+							echo "<div style='letter-spacing: -1px; float:right'>";
 							foreach( $match->turns as $turn ):
 								$found = 0;
 								foreach( $turn->matchnationturns as $mnt ):
@@ -132,13 +135,14 @@
 									}
 								endforeach;
 								if( $found == 0 ) {
-									echo '<font color="red">|</font>';
+									echo '<span style="color:red">|</span>';
 								} else if( $found == 1 ){
-									echo '<font color="green">|</font>';
+									echo '<span style="color:green">|</span>';
 								} else if( $found == 2 ){
-									echo '<font color="blue">|</font>';
+									echo '<span style="color:blue">|</span>';
 								}
 							endforeach;
+							echo "</div>";
 							echo "</td>";
 						}?>
 					</tr>
@@ -210,14 +214,12 @@
 				<?= $this->Form->end() ?>
 				<?= $this->Form->select('ainations', $allnations, ['id'=>'aination','style'=>'position:relative', 'empty' => 'Set Nation AI']); ?>
 			</div>
+			<?= $this->element( 'modtable', array( 'mods' => $match->mods )); ?>
 		</div>
 		<div id="mapview" class="mappreview">
 			<?= $this->element('mapvoronoi', array('match' => $match )); ?>
 			<?= $this->Form->input('turndelay', ['default' => $match->turndelay, 'label' => 'Turn Delay', 'id' => 'turndelay']); ?>
 			<?= $this->element('postview', [ 'posts' => $match->posts, 'newpost' => $newpost] ); ?>
-		</div>
-		<div class="mods index large-12 medium-12 columns content">
-			<?= $this->element( 'modtable', array( 'mods' => $match->mods )); ?>
 		</div>
 	</div>
 	<div style="width:300px" class="remodal" id="swm" data-remodal-id="scheduleweek">
