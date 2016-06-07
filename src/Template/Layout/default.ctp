@@ -40,8 +40,6 @@ $cakeDescription = 'Blitzserver';
 	<?= $this->Html->css('jquery-ui.structure.min.css'); ?>
 	<?= $this->Html->css('jquery-ui.theme.min.css'); ?>
 	<?= $this->Html->css('jquery-ui-slider-pips.css'); ?>
-	<?= $this->Html->css('https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css'); ?>
-	<?= $this->Html->css('https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css'); ?>
 
 	<?= $this->Html->script('https://code.jquery.com/jquery-2.2.0.min.js'); ?>
 	<?= $this->Html->script('remodal.js'); ?>
@@ -54,7 +52,6 @@ $cakeDescription = 'Blitzserver';
 	<?= $this->Html->script('pixi.min.js'); ?>
 	<?= $this->Html->script('voronoi.js'); ?>
 	<?= $this->Html->script('moment-precise-range.js'); ?>
-	<?= $this->Html->script('https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js'); />
 	
 	<script type='text/javascript'>
 		$(document).ready( function() {
