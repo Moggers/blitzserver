@@ -36,6 +36,7 @@ $cakeDescription = 'Blitzserver';
 	<?= $this->Html->css('remodal.css'); ?>
 	<?= $this->Html->css('remodal-default-theme.css'); ?>
 	<?= $this->Html->css('shared.css'); ?>
+	<?= $this->Html->css('modimage.css'); ?>
 	<?= $this->Html->css('jquery-ui.min.css'); ?>
 	<?= $this->Html->css('jquery-ui.structure.min.css'); ?>
 	<?= $this->Html->css('jquery-ui.theme.min.css'); ?>

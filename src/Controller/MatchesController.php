@@ -191,7 +191,7 @@ class MatchesController extends AppController
 		}
 		$maps = $this->Matches->Maps->find('list', ['limit' => 200]);
 		$this->set(compact('match', 'maps'));
-		$this->set('modsfull', $this->paginate($this->Matches->Mods->find()->where(['hidden' => 0])));
+		$this->set('modsfull', $this->Matches->Mods->find()->where(['hidden' => 0]));
 		$this->set('mods', $this->Matches->Mods->find('list') );
 		$this->set('_serialize', ['match']);
 	}

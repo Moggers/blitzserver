@@ -10,7 +10,6 @@ use App\Controller\AppController;
  */
 class ModsController extends AppController
 {
-
     /**
      * Index method
      *
@@ -19,7 +18,7 @@ class ModsController extends AppController
     public function index()
     {
 		$query = $this->Mods->find('all')->where(['hidden' => 0]);
-        $this->set('mods', $this->paginate($query));
+        $this->set('mods', $query );
         $this->set('_serialize', ['mods']);
     }
 

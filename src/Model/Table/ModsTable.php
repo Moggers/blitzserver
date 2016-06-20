@@ -31,6 +31,7 @@ class ModsTable extends Table
         $this->hasMany('Nations', [
             'foreignKey' => 'mod_id'
         ]);
+		$this->paginator = [ 'limit' => 10 ];
     }
 
     /**
