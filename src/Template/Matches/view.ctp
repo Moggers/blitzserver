@@ -112,7 +112,7 @@
 				<?php foreach ($match->nations as $nation): ?>
 					<tr>
 						<td>
-						<?=$nation['name']. ', ' .$nation['subtitle']; if( $nation->_joinData->computer == 1 ) { echo ' <span style="color:blue">AI</span>';}?>
+						<?=$nation['_joinData']['name']?> <br /><span style="font-size:11px;color:grey"><?= $nation['name']. ', ' .$nation['subtitle']?></style><?php if( $nation->_joinData->computer == 1 ) { echo ' <span style="color:blue">AI</span>';}?>
 						</td>
 						<?php if( $match->status !== 3 ) { ?>
 								<td>
@@ -150,6 +150,7 @@
 				</table>
 				<?= $this->Form->create( $match, ['id' => 'emailform', 'url' => ['action' => 'requestnotify']] ); ?>
 					<h5>New Turn Notification</h5>
+					<i>Only enter the address if you want to be told of new turns, enter your nation and the time before rollover, if you want to warned about staling</i>
 					<div class='large-12 medium-12 small-12 columns content nopad'>
 						<?= $this->Form->input('email', ['label' => false, 'placeholder' => 'Email Address'] ); ?>
 					</div>
