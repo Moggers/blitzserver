@@ -25,9 +25,6 @@ $cakeDescription = 'Blitzserver';
     </title>
     <?= $this->Html->meta('icon') ?>
 
-    <?= $this->Html->css('base.css') ?>
-    <?= $this->Html->css('cake.css') ?>
-
     <?= $this->fetch('meta') ?>
     <?= $this->fetch('css') ?>
     <?= $this->fetch('script') ?>
@@ -41,6 +38,8 @@ $cakeDescription = 'Blitzserver';
 	<?= $this->Html->css('jquery-ui.structure.min.css'); ?>
 	<?= $this->Html->css('jquery-ui.theme.min.css'); ?>
 	<?= $this->Html->css('jquery-ui-slider-pips.css'); ?>
+	<?= $this->Html->css('https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css'); ?>
+
 
 	<?= $this->Html->script('https://code.jquery.com/jquery-2.2.0.min.js'); ?>
 	<?= $this->Html->script('remodal.js'); ?>
@@ -53,6 +52,7 @@ $cakeDescription = 'Blitzserver';
 	<?= $this->Html->script('pixi.min.js'); ?>
 	<?= $this->Html->script('voronoi.js'); ?>
 	<?= $this->Html->script('moment-precise-range.js'); ?>
+	<?= $this->Html->script('https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js'); ?>
 	
 	<script type='text/javascript'>
 		$(document).ready( function() {
@@ -68,32 +68,51 @@ $cakeDescription = 'Blitzserver';
 		});
 
 	</script>
-	If you dont get any email please resubmit the email request form on the game page. All emails were dropped after I messed up some live changes
 </head>
 <body>
-    <nav class="top-bar expanded" data-topbar role="navigation">
-        <ul class="title-area large-3 medium-4 columns">
-            <li class="name">
-                <h1><a href="">Blitzserver <sup>Alpha</sup></a></h1>
-            </li>
-        </ul>
-        <section class="top-bar-section">
-            <ul class="left">
-				<li><?= $this->Html->link(__('Show Matches'), ['controller' => 'Matches', 'action' => 'index']) ?></li>
-				<li><?= $this->Html->link(__('New Match'), ['controller' => 'Matches', 'action' => 'add']) ?></li>
-				<li><?= $this->Html->link(__('Show Maps'), ['controller' => 'Maps', 'action' => 'index']) ?></li>
-				<li><?= $this->Html->link(__('Upload Map'), ['controller' => 'Maps', 'action' => 'add']) ?></li>
-				<li><?= $this->Html->link(__('Show Mods'), ['controller' => 'Mods', 'action' => 'index']) ?></li>
-				<li><?= $this->Html->link(__('Upload Mod'), ['controller' => 'Mods', 'action' => 'add']) ?></li>
-				<li><?= $this->Html->link(__('Bug Report/Feature Request'), 'https://gitreports.com/issue/Moggers/blitzserver') ?></li>
-				<li><?= $this->Html->link(__('I Want To Help! (Github)'), 'https://github.com/moggers/blitzserver') ?></li>
-            </ul>
-			<ul class="right">
-				<li> <?= $this->Form->input('password', ['label' => false, 'id' => 'password', 'placeholder' => 'Password']); ?> </li>
-			</ul>
-        </section>
-		</section>
-    </nav>
+	<nav class="navbar navbar-default">
+		<div class="container-fluid">
+			<div class="navbar-header">
+				<button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-navbar-collapse-1" aria-expanded="false">
+					<span class="sr-only">Toggle navigation</span>
+					<span class="icon-bar"></span>
+					<span class="icon-bar"></span>
+					<span class="icon-bar"></span>
+				</button>
+				<a class="navbar-brand" href="#">Blitzserver</a>
+			</div>
+			<div class="collapse navbar-collapse" id="bs-navbar-collapse-1">
+				<ul class="nav navbar-nav navbar-left">
+					<li class="dropdown">
+						<a href="matches" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Matches <span class="caret"></span></a>
+						<ul class="dropdown-menu">
+						 <li><a href="/matches/add">Create </a></li>
+						 <li><a href="/matches/index">List </a></li>
+						</ul>
+					</li>
+					<li class="dropdown">
+						<a href="matches" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Maps <span class="caret"></span></a>
+						<ul class="dropdown-menu">
+						 <li><a href="/maps/add">Upload </a></li>
+						 <li><a href="/maps/index">List </a></li>
+						</ul>
+					</li>
+					<li class="dropdown">
+						<a href="matches" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Mods <span class="caret"></span></a>
+						<ul class="dropdown-menu">
+						 <li><a href="/mods/add">Upload </a></li>
+						 <li><a href="/mods/index">List </a></li>
+						</ul>
+					</li>
+				</ul>
+				<ul class="nav navbar-nav navbar-right">
+					<li><input class="form-control" type="password" name="password" id="password" placeholder="Password"/></li>
+					<li><a href="https://gitreports.com/issue/Moggers/blitzserver">Bug Report</a></lI>
+					<li><a href="https://github.com/moggers/blitzserver">Github</a></lI>
+				</ul>
+			</div>
+		</div>
+	</nav>
     <?= $this->Flash->render() ?>
     <section class="container clearfix">
         <?= $this->fetch('content') ?>
