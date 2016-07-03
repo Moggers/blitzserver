@@ -20,3 +20,7 @@
 	animation-iteration-count: infinite;
 	animation-timing-function: linear;
 }
+
+.container {
+	background-color:#f8f8f8;
+}
