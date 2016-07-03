@@ -19,7 +19,7 @@ $cakeDescription = 'Blitzserver';
 <html>
 <head>
     <?= $this->Html->charset() ?>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0 maximum-scale=1, user-scaleable=no">
     <title>
         <?= "Blitzserver Alpha" ?>
     </title>
@@ -79,7 +79,7 @@ $cakeDescription = 'Blitzserver';
 					<span class="icon-bar"></span>
 					<span class="icon-bar"></span>
 				</button>
-				<a class="navbar-brand" href="#">Blitzserver</a>
+				<a class="navbar-brand" href="#">Blitzserver<sup>Testing</sup></a>
 			</div>
 			<div class="collapse navbar-collapse" id="bs-navbar-collapse-1">
 				<ul class="nav navbar-nav navbar-left">
