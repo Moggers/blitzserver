@@ -59,6 +59,23 @@ class Match extends Entity
 		}
 	}
 
+	protected function _getDiffString()
+	{
+		switch( $this->research_diff ) {
+			case -1:
+				return "Very Easy";
+			case 0:
+				return "Easy";
+			case 1:
+				return "Normal";
+			case 2:
+				return "Hard";
+			case 3:
+				return "Vert Hard";
+
+		}
+	}
+
 	protected function _getDayString()
 	{
 		switch( $this->day ) {

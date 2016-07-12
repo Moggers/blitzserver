@@ -22,6 +22,10 @@
 						<td><?= $match::ages( $match->age ) ?></td>
 					</tr>
 					<tr>
+						<th><?= __('Research Difficulty') ?></th>
+						<td><?= $match->diff_string ?></td>
+					</tr>
+					<tr>
 						<th><?= __('Magic Sites') ?></th>
 						<td><?= $match->siterarity ?></td>
 					</tr>
