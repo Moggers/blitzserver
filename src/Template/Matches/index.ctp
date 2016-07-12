@@ -17,7 +17,7 @@
 	} );
 </script>
 <div class="matches index col-md-12 col-sm-12">
-    <h3><?= __('Dominions 4 Matches') ?></h3>
+    <h3 style="padding:20px 0px"><?= __('Dominions 4 Matches') ?></h3>
 	<button class="btn refresh-btn btn-default btn-small" style="float:right"><a class="glyphicon glyphicon-refresh" id="refresh" ></a></button>
 	<?= $this->element( 'matchtable', [ 'progressmatches' => $progressmatches, 'finishedmatches' => $finishedmatches, 'lobbymatches' => $lobbymatches] ); ?>
 </div>
