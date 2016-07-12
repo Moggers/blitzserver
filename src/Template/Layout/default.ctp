@@ -106,7 +106,7 @@ $cakeDescription = 'Blitzserver';
 					</li>
 				</ul>
 				<ul class="nav navbar-nav navbar-right">
-					<li><input class="form-control" type="password" name="password" id="password" placeholder="Password"/></li>
+					<li><div class="input-group"><input class="form-control" type="password" name="password" id="password" placeholder="Password"/></div></li>
 					<li><a href="https://gitreports.com/issue/Moggers/blitzserver">Bug Report</a></lI>
 					<li><a href="https://github.com/moggers/blitzserver">Github</a></lI>
 				</ul>
