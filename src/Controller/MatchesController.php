@@ -23,7 +23,9 @@ class MatchesController extends AppController
 	public function index()
 	{
 		$this->paginate = [
-			'contain' => ['Maps', 'Nations', 'Turns']
+			'contain' => ['Maps', 'Nations', 'Turns'],
+			'limit' => 10000,
+			'maxLimit' => 10000
 		];
 
 		if( $this->request->query('layout') == 'false' ) {
@@ -285,20 +287,18 @@ class MatchesController extends AppController
 				$match = $this->Matches->patchEntity($match, $this->request->data);
 				$match->status = 71;
 				if ($this->Matches->save($match)) {
-					$this->Flash->success(__('The match has been marked for death and should disappear shortly'));
-					return $this->redirect(['action' => 'index']);
+					die( json_encode( ['status' => 0] ) );
 				} else {
-					$this->Flash->error(__('Oh fuck'));
+					die( json_encode( ['status' => 2] ) );
 				}
 			} else {
-				$this->Flash->error(__('Incorrect password'));
-				return $this->redirect(['action' => 'index']);
+				die( json_encode( ['status' => 1] ) );
 			}
 		}
 		$maps = $this->Matches->Maps->find('list', ['limit' => 200]);
 		$this->set(compact('match', 'maps'));
 		$this->set('_serialize', ['match']);
-		return $this->redirect(['action' => 'index']);
+		die( json_encode( ['status' => 2] ) );
 	}
 
 	public function unstart($id = null)
@@ -311,20 +311,18 @@ class MatchesController extends AppController
 				$match = $this->Matches->patchEntity($match, $this->request->data);
 				$match->status = -2;
 				if ($this->Matches->save($match)) {
-					$this->Flash->success(__('The match has been marked for death and should disappear shortly'));
-					return $this->redirect(['action' => 'index']);
+					die( json_encode( ['status' => 0] ) );
 				} else {
-					$this->Flash->error(__('Oh fuck'));
+					die( json_encode( ['status' => 2] ) );
 				}
 			} else {
-				$this->Flash->error(__('Incorrect password'));
-				return $this->redirect(['action' => 'index']);
+				die( json_encode( ['status' => 1] ) );
 			}
 		}
 		$maps = $this->Matches->Maps->find('list', ['limit' => 200]);
 		$this->set(compact('match', 'maps'));
 		$this->set('_serialize', ['match']);
-		return $this->redirect(['action' => 'index']);
+		die( json_encode( ['status' => 2] ) );
 	}
 	public function destroy($id = null)
 	{
@@ -336,20 +334,18 @@ class MatchesController extends AppController
 				$match = $this->Matches->patchEntity($match, $this->request->data);
 				$match->status = -1;
 				if ($this->Matches->save($match)) {
-					$this->Flash->success(__('The match has been marked for death and should disappear shortly'));
-					return $this->redirect(['action' => 'index']);
+					die( json_encode( ['status' => 0] ) );
 				} else {
-					$this->Flash->error(__('Oh fuck'));
+					die( json_encode( ['status' => 2] ) );
 				}
 			} else {
-				$this->Flash->error(__('Incorrect password'));
-				return $this->redirect(['action' => 'index']);
+				die( json_encode( ['status' => 1] ) );
 			}
 		}
 		$maps = $this->Matches->Maps->find('list', ['limit' => 200]);
 		$this->set(compact('match', 'maps'));
 		$this->set('_serialize', ['match']);
-		return $this->redirect(['action' => 'index']);
+		die( json_encode( ['status' => 2] ) );
 	}
 
 	public function removePlayer( $id = null )
