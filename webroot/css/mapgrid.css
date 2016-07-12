@@ -1,0 +1,21 @@
+.mapgrid .pane {
+	width:128px;
+	height:128px;
+	padding:0px;
+}
+.mapgrid .pane .helper {
+	display:inline-block;
+	height:100%;
+	vertical-align: middle;
+	width:0px;
+}
+.mapgrid .pane img {
+	max-width:128px;
+	max-height:128px;
+	padding:0px;
+	margin-left:-5px;
+	vertical-align:middle;
+}
+.tooltip {
+	z-index:99999999;
+}

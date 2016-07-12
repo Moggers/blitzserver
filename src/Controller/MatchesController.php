@@ -180,18 +180,15 @@ class MatchesController extends AppController
 				// Insert vanilla mod to link all games to vanilla nations
 				array_push($match->mods, $this->Matches->Mods->find('all')->where(['id' => 1])->first());
 				if ($this->Matches->save($match)) {
-					$this->Flash->success(__('The match has been requested.'));
-					die( json_encode( [ 'status' => 1, 'id' => $match->id ] ) );
+					die( json_encode( [ 'status' => 0, 'id' => $match->id ] ) );
 				} else {
-					$this->Flash->error(__('The match could not be saved. Please, try again.'));
+					die( json_encode( [ 'status' => 2, 'id' => $match->id ] ) );
 				}
 			} else {
-				if ($this->request->is('ajax')) {
-					die( json_encode( [ 'status' => 0, 'id' => $match->id ] ) );
-				}
+				die( json_encode( [ 'status' => 1, 'id' => $match->id ] ) );
 			}
 		}
-		$maps = $this->Matches->Maps->find('list', ['limit' => 200]);
+		$maps = $this->Matches->Maps->find('all', ['limit' => 200])->where(['hide' => 0]);
 		$this->set(compact('match', 'maps'));
 		$this->set('modsfull', $this->Matches->Mods->find()->where(['hidden' => 0]));
 		$this->set('mods', $this->Matches->Mods->find('list') );

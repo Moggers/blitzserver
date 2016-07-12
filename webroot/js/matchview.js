@@ -3,7 +3,7 @@ $(document).on('ready', function(e) {
 	$('#lobby-controls').hide();
 	if( matchstatus == 3 ) {
 		$('#progress-controls').show();
-	} else if( matchstatus == 1 ) {
+	} else if( matchstatus == 1 || matchstatus == 0 ) {
 		$('#lobby-controls').show();
 	}
 	$('#cancelbutton').on('click', function(e) {
