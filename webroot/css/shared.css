@@ -3,24 +3,26 @@
 	 padding-right: 0px;
  }
 
-#modtable tr {
-	transition: 0.5s;
+@keyframes spin{
+	from {
+		transform:rotate(0deg);
+	}
+	to {
+		transform:rotate(360deg);
+	}
 }
-#modtable tr:hover {
-	background-color: lightblue;
-}
-@keyframes spin {
-	from {transform:rotate(deg);}
-	to {transform:rotate(360deg);}
-}
-
 .animate-spin {
 	animation-name: spin;
 	animation-duration: 1000ms;
 	animation-iteration-count: infinite;
 	animation-timing-function: linear;
 }
-
-.container {
-	background-color:#f8f8f8;
+.overflow-ellipsis {
+	overflow:hidden;
+	white-space:nowrap;
+	-ms-text-overflow:ellipsis;
+	text-overflow:ellipsis;
+	width:300px;
+	height:1.3em;
 }
+
