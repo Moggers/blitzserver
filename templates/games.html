@@ -1,0 +1,8 @@
+{% for game in games %}
+<a href={{format!("game/{}", game.id)}}> {{ game.name }}</a> <br>
+{% endfor %}
+<br>
+
+<a href="./games/create">Create New Game</a><br>
+<a href="./maps">View Maps</a><br>
+<a href="./mods">View Mods</a>

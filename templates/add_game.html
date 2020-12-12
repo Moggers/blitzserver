@@ -1,0 +1,26 @@
+<form action="./create" method="POST" action="./create">
+	<label for="name">Name</label>
+	<input required type="text" value="{{params.name}}" name="name"/>
+	<br>
+
+	<input name="mapfilter" value="{{params.mapfilter}}" placeholder="Search"/>
+	<input formmethod="GET" type="submit" value="Search"/>
+	<br>
+	
+	{% for map in maps %}
+		<label for="map-{{map.id}}">{{ map.name }}</label>
+		<input {% if map.id == params.map %} checked="checked" {% endif %} name="map" id="map-{{map.id}}" type="radio" value="{{map.id}}" />
+		<br>
+	{% endfor %}
+
+	<label for="era">Era</label>
+	<select required selected="{{params.era}}" name="era">
+		<option value="1">Early</option>
+		<option value="2">Middle</option>
+		<option value="3">Late</option>
+	</select>
+	<br>
+
+	<input type="submit" value="Create Game" />
+</form>
+<a href="/games">Cancel</a>

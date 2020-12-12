@@ -1,0 +1,11 @@
+<h1>{{ game.name }}</h1>
+<br>
+<span><b>Era:</b> {{ self.game.era_name() }}</span>
+<br>
+{% if self.game.port.is_some() %}
+	<span><b>Address:</b> {{ format!("{}:{}", self.hostname, self.game.port.unwrap()) }} </span>
+{% else %}
+	<span><b>Address:</b> N/A </span>
+{% endif %}
+<br>
+<a href="/games">Return To Game List</a>

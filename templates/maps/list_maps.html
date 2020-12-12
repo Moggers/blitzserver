@@ -1,0 +1,8 @@
+{% for map in maps %}
+<a href={{format!("maps/{}", map.id)}}> {{ map.name }}</a> <br>
+{% endfor %}
+<br>
+
+<a href="/maps/upload">Upload Map</a>
+<br>
+<a href="/games">Return To Game List</a>
