@@ -5,6 +5,7 @@ extern crate num_enum;
 #[macro_use]
 extern crate diesel;
 extern crate byteorder;
+extern crate image;
 extern crate zip;
 use self::diesel::prelude::*;
 use self::models::*;
@@ -70,7 +71,7 @@ struct GameDetailsTemplate<'a> {
 }
 
 #[derive(Template)]
-#[template(path = "maps/list_maps.html")]
+#[template(path = "maps/list.html")]
 struct ListMapsTemplate<'a> {
     maps: &'a [Map],
 }
@@ -266,13 +267,16 @@ async fn game_details_get(
     Ok(HttpResponse::Ok().content_type("text/html").body(
         (GameDetailsTemplate {
             mods: &crate::schema::game_mods::dsl::game_mods
-            .filter(crate::schema::game_mods::dsl::game_id.eq(game.id))
-            .inner_join(
-                crate::schema::mods::dsl::mods
-                    .on(crate::schema::mods::dsl::id.eq(crate::schema::game_mods::dsl::mod_id)),
-            )
-            .get_results::<(GameMod, Mod)>(&db)
-            .unwrap().iter().map(|(_, m)| { m.name.clone() }).collect::<Vec<String>>(),
+                .filter(crate::schema::game_mods::dsl::game_id.eq(game.id))
+                .inner_join(
+                    crate::schema::mods::dsl::mods
+                        .on(crate::schema::mods::dsl::id.eq(crate::schema::game_mods::dsl::mod_id)),
+                )
+                .get_results::<(GameMod, Mod)>(&db)
+                .unwrap()
+                .iter()
+                .map(|(_, m)| m.name.clone())
+                .collect::<Vec<String>>(),
             game,
             players: &game_players
                 .iter()
@@ -340,10 +344,18 @@ async fn add_game_post(
         .expect("Error saving new game");
 
     diesel::insert_into(crate::schema::game_mods::table)
-        .values(params.cmods.iter().map(|m| NewGameMod { game_id: game.id, mod_id: *m }).collect::<Vec<NewGameMod>>())
+        .values(
+            params
+                .cmods
+                .iter()
+                .map(|m| NewGameMod {
+                    game_id: game.id,
+                    mod_id: *m,
+                })
+                .collect::<Vec<NewGameMod>>(),
+        )
         .get_results::<GameMod>(&db)
         .unwrap();
-    
     app_data
         .manager_notifier
         .send(game_manager::ManagerMsg::Start(game.id))
@@ -448,8 +460,76 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(middleware::Logger::default())
             .data(app_data.clone())
+            .service(
+                actix_files::Files::new("/images/maps", "./images/maps").default_handler(
+                    |req: actix_web::dev::ServiceRequest| {
+                        println!("Printing shit in default handler");
+
+                        async {
+                            let app_data = req
+                                .app_data::<actix_web::web::Data<self::frontend::AppData>>()
+                                .unwrap();
+                            let db = app_data.pool.get().unwrap();
+                            println!("Got db");
+                            let (http_req, _payload) = req.into_parts();
+                            let map_id_regex =
+                                regex::Regex::new(r#"/images/maps/([0-9]+).jpg"#).unwrap();
+                            if let Some(captures) = map_id_regex.captures(http_req.path()) {
+                                let id_i32: i32 =
+                                    captures.get(1).unwrap().as_str().parse().unwrap();
+                                let (map, file): (Map, File) = crate::schema::maps::dsl::maps
+                                    .filter(crate::schema::maps::dsl::id.eq(id_i32))
+                                    .inner_join(
+                                        crate::schema::files::dsl::files
+                                            .on(crate::schema::files::dsl::id
+                                                .eq(crate::schema::maps::dsl::tgafile_id)),
+                                    )
+                                    .get_result::<(Map, File)>(&db)
+                                    .unwrap();
+                                let reader = crate::image::io::Reader::with_format(
+                                    std::io::Cursor::new(file.filebinary),
+                                    crate::image::ImageFormat::Tga,
+                                )
+                                .decode()
+                                .unwrap();
+                                let maps_dir = std::path::PathBuf::from("./images/maps");
+                                if !maps_dir.exists() {
+                                    std::fs::create_dir_all(&maps_dir);
+                                }
+                                std::fs::create_dir_all(&maps_dir);
+                                let mut file =
+                                    std::fs::File::create(maps_dir.join(format!("{}.jpg", map.id)))
+                                        .unwrap();
+                                reader
+                                    .write_to(&mut file, crate::image::ImageFormat::Jpeg)
+                                    .unwrap();
+                                let mut jpg_bytes: Vec<u8> = Vec::new();
+                                reader
+                                    .write_to(
+                                        &mut std::io::Cursor::new(&mut jpg_bytes),
+                                        crate::image::ImageFormat::Jpeg,
+                                    )
+                                    .unwrap();
+                                Ok(actix_web::dev::ServiceResponse::new(
+                                    http_req,
+                                    HttpResponse::Ok()
+                                        .content_type("application/jpg")
+                                        .body(jpg_bytes),
+                                ))
+                            } else {
+                                Ok(actix_web::dev::ServiceResponse::new(
+                                    http_req,
+                                    HttpResponse::NotFound().finish(),
+                                ))
+                            }
+                        }
+                    },
+                ),
+            )
             .service(index)
             .service(favicon)
+            .service(frontend::maps::details)
+            .service(frontend::maps::image)
             .service(upload_map_get)
             .service(upload_map_post)
             .service(get_maps)

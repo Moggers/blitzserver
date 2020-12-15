@@ -3,6 +3,7 @@ use super::game_manager::ManagerMsg;
 use diesel::PgConnection;
 
 pub mod mods;
+pub mod maps;
 
 #[derive(Clone)]
 pub struct AppData {
