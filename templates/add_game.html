@@ -13,6 +13,14 @@
 		<br>
 	{% endfor %}
 
+	<fieldset>
+		{% for cmod in mods %}
+			<label for="mod-{{cmod.id}}">{{ cmod.name }}</label>
+			<input {% if params.cmods.contains(cmod.id) %} checked="checked" {% endif %} name="cmods[]" id="mod-{{cmod.id}}" type="checkbox" value="{{cmod.id}}" />
+			<br>
+		{% endfor %}
+	</fieldset>
+
 	<label for="era">Era</label>
 	<select required selected="{{params.era}}" name="era">
 		<option value="1">Early</option>

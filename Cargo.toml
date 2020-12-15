@@ -19,3 +19,8 @@ actix-files ="*"
 futures = "*"
 regex = "*"
 crossbeam-channel = "*"
+notify = { version = "5.0.0-pre.4", features = [ "serde" ] }
+byteorder = "*"
+num_enum = "*"
+zip = "*"
+serde_qs = "*"

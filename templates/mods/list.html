@@ -1,0 +1,8 @@
+{% for cmod in mods %}
+<a href={{format!("mod/{}", cmod.id)}}> {{ cmod.name }}</a> <br>
+{% endfor %}
+<br>
+<a href="/mods/upload">Uplod Mod</a>
+
+<br>
+<a href="/games">Return To Game List</a>
