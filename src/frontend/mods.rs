@@ -18,8 +18,14 @@ pub struct ListModsTemplate {
 #[template(path = "mods/upload.html")]
 pub struct UploadModTemplate {}
 
+#[derive(Template)]
+#[template(path = "mods/details.html")]
+pub struct ModDetailsTemplate<'a> {
+    cmod: &'a Mod
+}
+
 #[get("/mods")]
-pub async fn list_mods(app_data: web::Data<AppData>) -> Result<HttpResponse> {
+pub async fn list(app_data: web::Data<AppData>) -> Result<HttpResponse> {
     let db = app_data.pool.get().expect("Unable to connect to database");
     Ok(HttpResponse::Ok().content_type("text/html").body((ListModsTemplate {
         mods: crate::schema::mods::dsl::mods.load::<Mod>(&db).unwrap()
@@ -27,12 +33,12 @@ pub async fn list_mods(app_data: web::Data<AppData>) -> Result<HttpResponse> {
 }
 
 #[get("/mods/upload")]
-pub async fn upload_mod_get(_app_data: web::Data<AppData>) -> Result<HttpResponse> {
+pub async fn upload_get(_app_data: web::Data<AppData>) -> Result<HttpResponse> {
     Ok(HttpResponse::Ok().body((UploadModTemplate {}).render().unwrap()))
 }
 
 #[post("/mods/upload")]
-pub async fn upload_mod_post(
+pub async fn upload_post(
     (app_data, mut payload): (web::Data<AppData>, Multipart),
 ) -> Result<HttpResponse> {
     let db = app_data.pool.get().expect("Unable to connect to database");
@@ -103,4 +109,19 @@ pub async fn upload_mod_post(
         }
     }
     panic!("Havent implemented bad body stuff yet");
+}
+
+#[get("/mod/{id}")]
+pub async fn details((app_data, path): (web::Data<AppData>, web::Path<i32>)) -> Result<HttpResponse> {
+    let db = app_data.pool.get().expect("Unable to connect to database");
+    let cmod = crate::schema::mods::dsl::mods.filter(crate::schema::mods::dsl::id.eq(*path)).get_result::<Mod>(&db).unwrap();
+    Ok(HttpResponse::Ok().body((ModDetailsTemplate{cmod: &cmod}).render().unwrap()))
+}
+
+#[get("/mod/{id}/download")]
+async fn download((app_data, modid): (web::Data<AppData>, web::Path<i32>)) -> Result<HttpResponse> {
+    let db = app_data.pool.get().expect("Unable to connect to database");
+    let (_cmod,zipfile) = crate::schema::mods::dsl::mods.filter(crate::schema::mods::dsl::id.eq(*modid)).inner_join(crate::schema::files::dsl::files.on(crate::schema::files::dsl::id.eq(crate::schema::mods::dsl::file_id))).get_result::<(Mod, File)>(&db).unwrap();
+
+    Ok(HttpResponse::Ok().content_type("application/zip").body(zipfile.filebinary))
 }

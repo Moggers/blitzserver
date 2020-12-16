@@ -81,6 +81,7 @@ pub struct Map {
     pub mapfile_id: i32,
     pub tgafile_id: i32,
     pub winterfile_id: i32,
+    pub archive_id: i32,
 }
 
 #[derive(Insertable)]
@@ -90,6 +91,7 @@ pub struct NewMap {
     pub mapfile_id: i32,
     pub tgafile_id: i32,
     pub winterfile_id: i32,
+    pub archive_id: i32
 }
 
 #[derive(Identifiable, Queryable, Associations, PartialEq, Debug)]

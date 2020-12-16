@@ -32,6 +32,7 @@ table! {
         mapfile_id -> Int4,
         tgafile_id -> Int4,
         winterfile_id -> Int4,
+        archive_id -> Int4,
     }
 }
 

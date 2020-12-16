@@ -5,6 +5,7 @@ CREATE TABLE maps (
 	mapfile_id INT NOT NULL,
 	tgafile_id INT NOT NULL,
 	winterfile_id INT NOT NULL,
+	archive_id INT NOT NULL,
 
 	CONSTRAINT FK_MAPFILE
 		FOREIGN KEY(mapfile_id)
@@ -16,6 +17,10 @@ CREATE TABLE maps (
 
 	CONSTRAINT FK_WINTERFILE
 		FOREIGN KEY(winterfile_id)
+			REFERENCES files(id),
+
+	CONSTRAINT FK_ARCHIVE
+		FOREIGN KEY(archive_id)
 			REFERENCES files(id)
 );
 
