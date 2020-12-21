@@ -28,6 +28,7 @@ pub struct GameMsg {
 
 pub enum GameCmd {
     LaunchCmd(LaunchCmd),
+    SetTimerCmd,
 }
 
 pub struct LaunchCmd {
@@ -59,10 +60,29 @@ struct Dom5Proc {
 }
 
 impl Dom5Proc {
-    fn set_countdown(&self, countdown: u64) {
-        let mut file = std::fs::File::create(self.savedir.join("domcmd")).unwrap();
-        write!(file, "settimeleft {}", countdown).unwrap();
+    fn add_string_to_domcmd<'a>(&self, cmd: &'a str) {
+        let mut file = if self.savedir.join("cmd").exists() {
+            std::fs::File::open(self.savedir.join("domcmd")).unwrap()
+        } else {
+            std::fs::File::create(self.savedir.join("domcmd")).unwrap()
+        };
+        write!(file, "{}", cmd).unwrap();
     }
+    fn set_countdown(&self, countdown: u64) {
+        self.add_string_to_domcmd(&format!("settimeleft {}", countdown));
+    }
+
+    fn set_timer(&mut self) {
+        let db = self.db_pool.get().unwrap();
+        let game: Game = crate::schema::games::dsl::games
+            .filter(crate::schema::games::dsl::id.eq(self.game_id))
+            .get_result(&db)
+            .unwrap();
+        if let Some(timer) = game.timer {
+            self.add_string_to_domcmd(&format!("setinterval {}", timer));
+        }
+    }
+
     fn update_nations(&self, bin: &std::path::Path) {
         let db = self.db_pool.get().unwrap();
         let res = String::from_utf8(
@@ -220,7 +240,7 @@ impl Dom5Proc {
         if !mod_dir.exists() {
             std::fs::create_dir_all(&mod_dir).unwrap();
         }
-        for (_, cmod, cmodfile) in mods.iter() {
+        for (_, _, cmodfile) in mods.iter() {
             let mut archive =
                 zip::ZipArchive::new(std::io::Cursor::new(&cmodfile.filebinary)).unwrap();
             for i in 0..archive.len() {
@@ -269,7 +289,12 @@ impl Dom5Proc {
         } else {
             use super::schema::player_turns::dsl::*;
             diesel::update(
-                player_turns.filter(nation_id.eq(twoh.nationid).and(game_id.eq(self.game_id))),
+                player_turns.filter(
+                    nation_id
+                        .eq(twoh.nationid)
+                        .and(game_id.eq(self.game_id))
+                        .and(turn_number.eq(twoh.turnnumber)),
+                ),
             )
             .set(twohfile_id.eq(file.id))
             .execute(&db)
@@ -348,9 +373,9 @@ impl Dom5Proc {
                 "Failed to launch dom5 binary for game {}",
                 self.name
             ));
+        self.set_timer();
         let datadir = self.datadir.clone();
         let (file_s, file_r) = crossbeam_channel::unbounded::<notify::Event>();
-        let pool = self.db_pool.clone();
         let (cmd_s, cmd_r) = crossbeam_channel::unbounded::<GameCmd>();
         std::thread::spawn(move || {
             let mut watcher: notify::RecommendedWatcher =
@@ -371,6 +396,9 @@ impl Dom5Proc {
                             Ok(GameCmd::LaunchCmd(cmd)) => {
                                 self.set_countdown(cmd.countdown.as_secs());
                             },
+                            Ok(GameCmd::SetTimerCmd) => {
+                                self.set_timer();
+                            }
                             _ => panic!("What the hell is this"),
                         }
                     },

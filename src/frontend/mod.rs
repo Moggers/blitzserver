@@ -4,6 +4,7 @@ use diesel::PgConnection;
 
 pub mod mods;
 pub mod maps;
+pub mod games;
 
 #[derive(Clone)]
 pub struct AppData {

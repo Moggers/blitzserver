@@ -15,9 +15,16 @@ pub struct Game {
     pub era: i32,
     pub map_id: i32,
     pub port: Option<i32>,
+    pub timer: Option<i32>,
 }
 
 impl Game {
+    pub fn timer_string(&self) -> String {
+        match self.timer {
+            None => "".to_owned(),
+            Some(t) => t.to_string()
+        }
+    }
     pub fn era_name(&self) -> String {
         match self.era {
             Era::EARLY => "Early".to_string(),
@@ -131,7 +138,8 @@ pub struct NewNation {
     pub epithet: String,
 }
 
-#[derive(Identifiable, Queryable)]
+#[derive(Associations, Identifiable, Queryable)]
+#[belongs_to(parent = "Game", foreign_key = "game_id")]
 pub struct Turn {
     id: i32,
     pub game_id: i32,

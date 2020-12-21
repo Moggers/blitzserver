@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 actix-web ="*"
-diesel = { version = "*", features = ["r2d2", "postgres"] }
+diesel = { git = "https://github.com/diesel-rs/diesel", features = ["r2d2", "postgres"] }
 serde = {version = "*", features=["derive"]}
 dotenv = "*"
 askama = "*"
@@ -23,5 +23,5 @@ notify = { version = "5.0.0-pre.4", features = [ "serde" ] }
 byteorder = "*"
 num_enum = "*"
 zip = "*"
-serde_qs = "*"
+serde_qs = { version = "*", features = [ "actix" ] }
 image = "*"

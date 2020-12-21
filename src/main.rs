@@ -10,13 +10,11 @@ extern crate zip;
 use self::diesel::prelude::*;
 use self::models::*;
 use actix_web::http::header;
-use actix_web::{get, middleware, post, web, App, HttpResponse, HttpServer, Result};
-use askama::Template;
+use actix_web::{get, middleware, App, HttpResponse, HttpServer, Result};
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use dotenv::dotenv;
-use futures::{StreamExt, TryStreamExt};
-use game_manager::{GameManager, GameManagerConfig, ManagerMsg};
+use game_manager::{GameManager, GameManagerConfig};
 use serde::Deserialize;
 use std::env;
 use std::io::Write;
@@ -29,46 +27,6 @@ pub mod statusdump;
 pub mod twoh;
 
 use frontend::AppData;
-
-fn default_one() -> i32 {
-    1
-}
-#[derive(Debug, Deserialize)]
-struct CreateGame {
-    #[serde(default)]
-    name: String,
-    #[serde(default = "default_one")]
-    era: i32,
-    #[serde(default = "default_one")]
-    map: i32,
-    #[serde(default)]
-    cmods: Vec<i32>,
-    #[serde(default)]
-    mapfilter: String,
-}
-
-#[derive(Template)]
-#[template(path = "games.html")]
-struct GamesTemplate<'a> {
-    games: &'a [Game],
-}
-
-#[derive(Template)]
-#[template(path = "add_game.html")]
-struct AddGameTemplate<'a> {
-    params: &'a CreateGame,
-    maps: &'a [Map],
-    mods: &'a [Mod],
-}
-
-#[derive(Template)]
-#[template(path = "game_details.html")]
-struct GameDetailsTemplate<'a> {
-    game: Game,
-    hostname: String,
-    players: &'a Vec<String>,
-    mods: &'a Vec<String>,
-}
 
 #[get("/")]
 async fn index() -> Result<HttpResponse> {
@@ -84,185 +42,9 @@ async fn favicon() -> Result<HttpResponse> {
         .body(&include_bytes!("../content/favicon.ico")[..]))
 }
 
-#[get("/game/{id}")]
-async fn game_details_get(
-    (app_data, web::Path(path_id)): (web::Data<AppData>, web::Path<String>),
-) -> Result<HttpResponse> {
-    let db = app_data.pool.get().expect("Unable to connect to database");
-    let game = if let Ok(id_i32) = path_id.parse::<i32>() {
-        use self::schema::games::dsl::*;
-        games.filter(id.eq(id_i32)).get_result::<Game>(&*db)
-    } else {
-        use self::schema::games::dsl::*;
-        games.filter(name.ilike(path_id)).get_result::<Game>(&*db)
-    }
-    .unwrap();
-    let game_players: Vec<(Player, Nation)> = {
-        use self::schema::players::dsl::*;
-        Player::belonging_to(&game)
-            .inner_join(
-                self::schema::nations::dsl::nations.on(self::schema::nations::dsl::game_id
-                    .eq(game.id)
-                    .and(self::schema::nations::dsl::nation_id.eq(nationid))),
-            )
-            .get_results(&db)
-            .unwrap()
-    };
-    Ok(HttpResponse::Ok().content_type("text/html").body(
-        (GameDetailsTemplate {
-            mods: &crate::schema::game_mods::dsl::game_mods
-                .filter(crate::schema::game_mods::dsl::game_id.eq(game.id))
-                .inner_join(
-                    crate::schema::mods::dsl::mods
-                        .on(crate::schema::mods::dsl::id.eq(crate::schema::game_mods::dsl::mod_id)),
-                )
-                .get_results::<(GameMod, Mod)>(&db)
-                .unwrap()
-                .iter()
-                .map(|(_, m)| m.name.clone())
-                .collect::<Vec<String>>(),
-            game,
-            players: &game_players
-                .iter()
-                .map(|(_, nation)| nation.name.clone())
-                .collect(),
-            hostname: std::env::var("HOSTNAME").unwrap(),
-        })
-        .render()
-        .unwrap(),
-    ))
-}
-
-#[get("/games/create")]
-async fn add_game_get(
-    (req, app_data): (web::HttpRequest, web::Data<AppData>),
-) -> Result<HttpResponse> {
-    let config = serde_qs::Config::new(10, false);
-    let params: CreateGame = config.deserialize_str(req.query_string()).unwrap();
-    let db = app_data.pool.get().expect("Unable to connect to database");
-    use self::schema::maps::dsl::*;
-    let result_maps = maps
-        .filter(name.ilike(format!("%{}%", params.mapfilter)))
-        .load::<Map>(&db)
-        .unwrap();
-    let result_mods = self::schema::mods::dsl::mods.load::<Mod>(&db).unwrap();
-    Ok(HttpResponse::Ok().content_type("text/html").body(
-        (AddGameTemplate {
-            params: &params,
-            maps: &result_maps,
-            mods: &result_mods,
-        })
-        .render()
-        .unwrap(),
-    ))
-}
-
-#[post("/games/create")]
-async fn add_game_post(
-    (app_data, mut body): (web::Data<AppData>, web::Payload),
-) -> Result<HttpResponse> {
-    let db = app_data.pool.get().expect("Unable to connect to database");
-    let mut bytes = web::BytesMut::new();
-    while let Some(item) = body.next().await {
-        bytes.extend_from_slice(&item?);
-    }
-    let config = serde_qs::Config::new(10, false);
-    let params: CreateGame = config.deserialize_bytes(&*bytes).unwrap();
-
-    let era = match params.era {
-        Era::EARLY => Era::EARLY,
-        Era::MIDDLE => Era::MIDDLE,
-        Era::LATE => Era::LATE,
-        _ => Era::EARLY,
-    };
-
-    let new_game = NewGame {
-        name: &params.name,
-        era,
-        map_id: params.map,
-    };
-
-    let game: Game = diesel::insert_into(self::schema::games::table)
-        .values(&new_game)
-        .get_result(&db)
-        .expect("Error saving new game");
-
-    diesel::insert_into(crate::schema::game_mods::table)
-        .values(
-            params
-                .cmods
-                .iter()
-                .map(|m| NewGameMod {
-                    game_id: game.id,
-                    mod_id: *m,
-                })
-                .collect::<Vec<NewGameMod>>(),
-        )
-        .get_results::<GameMod>(&db)
-        .unwrap();
-    app_data
-        .manager_notifier
-        .send(game_manager::ManagerMsg::Start(game.id))
-        .unwrap();
-
-    Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}", game.id))
-        .finish())
-}
-
-#[get("/games")]
-async fn get_games(app_data: web::Data<AppData>) -> Result<HttpResponse> {
-    let db = app_data.pool.get().expect("Unable to connect to database");
-
-    // Create game
-    use self::schema::games::dsl::games;
-    let results = games.load::<Game>(&db).expect("Error loading games");
-    Ok(HttpResponse::Ok()
-        .content_type("text/html")
-        .body((GamesTemplate { games: &results }).render().unwrap()))
-}
-
 #[derive(Deserialize)]
 struct StartGame {
     countdown: u64,
-}
-
-#[post("/game/{id}/launch")]
-async fn game_launch_post(
-    (app_data, web::Path(path_id), form): (
-        web::Data<AppData>,
-        web::Path<String>,
-        web::Form<StartGame>,
-    ),
-) -> Result<HttpResponse> {
-    let game = {
-        let db = app_data.pool.get().expect("Unable to connect to database");
-        if let Ok(id_i32) = path_id.parse::<i32>() {
-            use self::schema::games::dsl::*;
-            games
-                .filter(id.eq(id_i32))
-                .get_result::<Game>(&*db)
-                .unwrap()
-        } else {
-            use self::schema::games::dsl::*;
-            games
-                .filter(name.ilike(path_id))
-                .get_result::<Game>(&*db)
-                .unwrap()
-        }
-    };
-    app_data
-        .manager_notifier
-        .send(ManagerMsg::GameMsg(self::game_manager::GameMsg {
-            id: game.id,
-            cmd: self::game_manager::GameCmd::LaunchCmd(self::game_manager::LaunchCmd {
-                countdown: std::time::Duration::from_secs(form.countdown),
-            }),
-        }))
-        .unwrap();
-    Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}", game.id))
-        .finish())
 }
 
 #[actix_web::main]
@@ -301,7 +83,6 @@ async fn main() -> std::io::Result<()> {
     });
 
     HttpServer::new(move || {
-
         // TODO: Hack here, we create the map thumbnail dir VERY ahead of time since the file
         // watcher needs it to be there otherwise it wont discover new files
         let maps_dir = std::path::PathBuf::from("./images/maps");
@@ -375,11 +156,12 @@ async fn main() -> std::io::Result<()> {
             .service(frontend::maps::upload_post)
             .service(frontend::maps::list)
             .service(frontend::maps::download)
-            .service(game_details_get)
-            .service(game_launch_post)
-            .service(get_games)
-            .service(add_game_get)
-            .service(add_game_post)
+            .service(frontend::games::timer)
+            .service(frontend::games::details)
+            .service(frontend::games::launch)
+            .service(frontend::games::list)
+            .service(frontend::games::create_get)
+            .service(frontend::games::create_post)
             .service(frontend::mods::list)
             .service(frontend::mods::upload_get)
             .service(frontend::mods::upload_post)

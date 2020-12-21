@@ -1,2 +1,3 @@
 -- This file should undo anything in `up.sql`
-DROP TABLE game_mods;
+ALTER TABLE games
+	DROP COLUMN timer

@@ -22,6 +22,7 @@ table! {
         era -> Int4,
         map_id -> Int4,
         port -> Nullable<Int4>,
+        timer -> Nullable<Int4>,
     }
 }
 

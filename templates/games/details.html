@@ -1,0 +1,67 @@
+<head>
+	<meta charset="utf-8" /> 
+</head>
+<body>
+	<h1>{{ game.name }}</h1>
+	<br>
+	<span><b>Status:</b> {{ self.status }}</span>
+	<br>
+	{% if self.status == "Active" %}
+	<span><b>Turn:</b> {{ self.turn_number }}</span>
+	<br>
+	{% endif %}
+	<span><b>Era:</b> {{ self.game.era_name() }}</span>
+	<br>
+	{% if self.game.port.is_some() %}
+		<span><b>Address:</b> {{ format!("{}:{}", self.hostname, self.game.port.unwrap()) }} </span>
+	{% else %}
+		<span><b>Address:</b> N/A </span>
+	{% endif %}
+	<br>
+	<b>Players:</b>
+	<br>
+	{% for player in players %}
+		{{ player.1 }}:
+		<br>
+		{% match self.turns.get(player.0) %}
+			{% when Some with (turn_vec) %}
+				{% for turn in turn_vec %}
+					{% match turn.twohfile_id %}
+						{% when Some with (_) %}
+							◼
+						{% else %}
+							◻
+					{% endmatch %}
+				{% endfor %}
+			{% else %}
+		{% endmatch %}
+		<br>
+	{% endfor %}
+	<b>Mods:</b>
+	<br>
+	{% for cmod in mods %}
+	{{ cmod }}
+	<br>
+	{% endfor %}
+	<br>
+	{% if self.status == "Active" %}
+	<fieldset>
+		<field>
+			<form method="POST" action="/game/{{self.game.id}}/timer">
+				<label for="timer">Countdown(Minutes):</label>
+				<input name="timer" type="text" format="number" value="{{self.game.timer_string()}}"></input>
+				<input type="submit" value="Set Timer"></input>
+			</form>
+		</field>
+	</fieldset>
+	{% else %}
+		<form method="POST" action="/game/{{self.game.id}}/launch">
+			<label for="countdown">Countdown(secs):</label>
+			<input name="countdown" type="text" format="number" value="60"></input>
+			<br>
+			<input type="submit" value="Launch Game"></input>
+		</form>
+		<br>
+	{% endif %}
+	<a href="/games">Return To Game List</a>
+</body>
