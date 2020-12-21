@@ -1,0 +1,11 @@
+image: alpine/edge
+packages:
+- rustup
+sources:
+  - https://git.sr.ht/~moggers/blitzserver
+tasks:
+- install_rust: |
+  rustup install nightly
+- build: |
+  cd blitzserver
+  cargo build
