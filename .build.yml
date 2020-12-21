@@ -9,4 +9,4 @@ tasks:
       rustup install nightly
       cd blitzserver
       # cargo build
-      ssh -i ~/.ssh/blitzserver-production ssh://dom5@172.105.163.51:8022 'bash -s' < .build/deploy.sh
+      ssh -i ~/.ssh/46f739e5-4538-45dd-a79f-bf173b7a2ed9 ssh://dom5@172.105.163.51:8022 'bash -s' < .build/deploy.sh
