@@ -1,6 +1,6 @@
 image: alpine/edge
 packages:
-- rustup
+  - rustup
 sources:
   - https://git.sr.ht/~moggers/blitzserver
 tasks:
