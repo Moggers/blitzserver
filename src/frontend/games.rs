@@ -16,6 +16,10 @@ fn default_one() -> i32 {
     1
 }
 
+fn default_five() -> i32 {
+    5
+}
+
 #[derive(Debug, Deserialize)]
 struct CreateGame {
     #[serde(default)]
@@ -30,6 +34,14 @@ struct CreateGame {
     mapfilter: String,
     #[serde(default)]
     modfilter: String,
+    #[serde(default = "default_five")]
+    thrones_t1: i32,
+    #[serde(default)]
+    thrones_t2: i32,
+    #[serde(default)]
+    thrones_t3: i32,
+    #[serde(default = "default_five")]
+    throne_points_required: i32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -196,7 +208,6 @@ async fn create_get(
         use crate::schema::mods::dsl::*;
         mods.load::<Mod>(&db).unwrap()
     };
-    println!("What: {:?}", params);
     Ok(HttpResponse::Ok().content_type("text/html").body(
         (AddGameTemplate {
             params: &params,
@@ -231,6 +242,10 @@ async fn create_post(
         name: &params.name,
         era,
         map_id: params.map,
+        thrones_t1: params.thrones_t1,
+        thrones_t2: params.thrones_t2,
+        thrones_t3: params.thrones_t3,
+        throne_points_required: params.throne_points_required,
     };
 
     let game: Game = diesel::insert_into(crate::schema::games::table)

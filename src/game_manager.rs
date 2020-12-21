@@ -326,6 +326,19 @@ impl Dom5Proc {
                 .flat_map(|(_, m)| vec![String::from("-M"), m.dm_filename.clone()])
                 .collect::<Vec<String>>()
         };
+        {
+            let db = self.db_pool.get().expect("Unable to connect to database");
+            use crate::schema::games::dsl::*;
+            let game: Game = games.filter(id.eq(self.game_id)).get_result(&db).unwrap();
+            arguments.append(&mut vec![
+                String::from("--thrones"),
+                game.thrones_t1.to_string(),
+                game.thrones_t2.to_string(),
+                game.thrones_t3.to_string(),
+                String::from("--requiredap"),
+                game.throne_points_required.to_string(),
+            ]);
+        }
         arguments.append(&mut vec![
             String::from("-T"),
             String::from("--tcpserver"),

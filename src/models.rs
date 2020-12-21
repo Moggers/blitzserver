@@ -16,6 +16,10 @@ pub struct Game {
     pub map_id: i32,
     pub port: Option<i32>,
     pub timer: Option<i32>,
+    pub thrones_t1: i32,
+    pub thrones_t2: i32,
+    pub thrones_t3: i32,
+    pub throne_points_required: i32,
 }
 
 impl Game {
@@ -41,6 +45,10 @@ pub struct NewGame<'a> {
     pub name: &'a str,
     pub era: i32,
     pub map_id: i32,
+    pub thrones_t1: i32,
+    pub thrones_t2: i32,
+    pub thrones_t3: i32,
+    pub throne_points_required: i32,
 }
 
 #[derive(Debug, Queryable)]

@@ -23,6 +23,10 @@ table! {
         map_id -> Int4,
         port -> Nullable<Int4>,
         timer -> Nullable<Int4>,
+        thrones_t1 -> Int4,
+        thrones_t2 -> Int4,
+        thrones_t3 -> Int4,
+        throne_points_required -> Int4,
     }
 }
 

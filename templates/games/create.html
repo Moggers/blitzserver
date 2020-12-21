@@ -2,7 +2,7 @@
 	<label for="name">Name</label>
 	<input title="Alphanumeric, underscores and hyphens. No spaces, Dominions dislikes that." pattern="[0-9a-zA-Z_-]+" required type="text" value="{{params.name}}" name="name"/>
 	<br>
-
+	<hr>
 	<input name="mapfilter" type="search" value="{{params.mapfilter}}" placeholder="Search"/>
 	<input formmethod="GET" type="submit" formnovalidate value="Search"/>
 	<br>
@@ -12,7 +12,7 @@
 		<input {% if map.id == params.map %} checked="checked" {% endif %} name="map" id="map-{{map.id}}" type="radio" value="{{map.id}}" />
 		<br>
 	{% endfor %}
-
+	<hr>
 	<input name="modfilter" type="search" value="{{params.modfilter}}" placeholder="Search"/>
 	<input formmethod="GET" type="submit" formnovalidate value="Search"/>
 	<br>
@@ -23,7 +23,7 @@
 			<br>
 		</section>
 	{% endfor %}
-
+	<hr>
 	<label for="era">Era</label>
 	<select required selected="{{params.era}}" name="era">
 		<option value="1">Early</option>
@@ -31,7 +31,21 @@
 		<option value="3">Late</option>
 	</select>
 	<br>
-
+	Thrones:
+	<br>
+	<label for="thrones_t1">T1:</label>
+	<input name="thrones_t1" value="{{params.thrones_t1}}" type="text" />
+	<br>
+	<label for="thrones_t2">T2:</label>
+	<input name="thrones_t2" value="{{params.thrones_t2}}" type="text" />
+	<br>
+	<label for="thrones_t3">T3:</label>
+	<input name="thrones_t3" value="{{params.thrones_t3}}" type="text" />
+	<br>
+	<label for="throne_points_required">Points Required:</label>
+	<input name="throne_points_required" value="{{params.throne_points_required}}"type="text" />
+	<br>
+	<hr>
 	<input type="submit" value="Create Game" />
 </form>
 <a href="/games">Cancel</a>
