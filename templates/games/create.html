@@ -1,6 +1,6 @@
 <form action="./create" method="POST" action="./create">
 	<label for="name">Name</label>
-	<input required type="text" value="{{params.name}}" name="name"/>
+	<input title="Alphanumeric, underscores and hyphens. No spaces, Dominions dislikes that." pattern="[0-9a-zA-Z_-]+" required type="text" value="{{params.name}}" name="name"/>
 	<br>
 
 	<input name="mapfilter" value="{{params.mapfilter}}" placeholder="Search"/>

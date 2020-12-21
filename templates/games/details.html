@@ -21,21 +21,26 @@
 	<b>Players:</b>
 	<br>
 	{% for player in players %}
-		{{ player.1 }}:
-		<br>
-		{% match self.turns.get(player.0) %}
-			{% when Some with (turn_vec) %}
-				{% for turn in turn_vec %}
-					{% match turn.twohfile_id %}
-						{% when Some with (_) %}
-							◼
-						{% else %}
-							◻
-					{% endmatch %}
-				{% endfor %}
-			{% else %}
-		{% endmatch %}
-		<br>
+		{% if self.status == "Active" %}
+			{{ player.1 }}:
+			<br>
+			{% match self.turns.get(player.0) %}
+				{% when Some with (turn_vec) %}
+					{% for turn in turn_vec %}
+						{% match turn.twohfile_id %}
+							{% when Some with (_) %}
+								◼
+							{% else %}
+								◻
+						{% endmatch %}
+					{% endfor %}
+				{% else %}
+			{% endmatch %}
+			<br>
+		{% else %}
+			{{ player.1 }}
+			<br>
+		{% endif %}
 	{% endfor %}
 	<b>Mods:</b>
 	<br>
@@ -48,7 +53,7 @@
 	<fieldset>
 		<field>
 			<form method="POST" action="/game/{{self.game.id}}/timer">
-				<label for="timer">Countdown(Minutes):</label>
+				<label for="timer">Timer(Minutes):</label>
 				<input name="timer" type="text" format="number" value="{{self.game.timer_string()}}"></input>
 				<input type="submit" value="Set Timer"></input>
 			</form>
