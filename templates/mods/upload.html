@@ -2,6 +2,12 @@
 	<label for="archive">Mod Archive (zip)</label>
 	<input type="file" name="archive" />
 	<br>
+	{% match self.err %}
+		{% when Some with (e) %}
+			<label>{{ e }}</label>
+			<br>
+		{% else %}
+	{% endmatch %}
 	<input type="submit" value="Upload" />
 </form>
 

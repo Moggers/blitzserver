@@ -28,6 +28,8 @@ struct CreateGame {
     cmods: Vec<i32>,
     #[serde(default)]
     mapfilter: String,
+    #[serde(default)]
+    modfilter: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -59,6 +61,7 @@ struct GameDetailsTemplate<'a> {
     hostname: String,
     players: &'a Vec<(i32, String)>,
     mods: &'a Vec<String>,
+    map: Map,
 }
 
 #[post("/game/{id}/timer")]
@@ -103,12 +106,18 @@ async fn details(
     (app_data, web::Path(path_id)): (web::Data<AppData>, web::Path<String>),
 ) -> Result<HttpResponse> {
     let db = app_data.pool.get().expect("Unable to connect to database");
-    let game = if let Ok(id_i32) = path_id.parse::<i32>() {
+    let (game, map) = if let Ok(id_i32) = path_id.parse::<i32>() {
         use crate::schema::games::dsl::*;
-        games.filter(id.eq(id_i32)).get_result::<Game>(&*db)
+        games
+            .filter(id.eq(id_i32))
+            .inner_join(crate::schema::maps::dsl::maps.on(crate::schema::maps::dsl::id.eq(map_id)))
+            .get_result::<(Game, Map)>(&*db)
     } else {
         use crate::schema::games::dsl::*;
-        games.filter(name.ilike(path_id)).get_result::<Game>(&*db)
+        games
+            .filter(name.ilike(path_id))
+            .inner_join(crate::schema::maps::dsl::maps.on(crate::schema::maps::dsl::id.eq(map_id)))
+            .get_result::<(Game, Map)>(&*db)
     }
     .unwrap();
     let game_players: Vec<(Player, Nation)> = {
@@ -141,6 +150,7 @@ async fn details(
     let turns: Vec<Turn> = { Turn::belonging_to(&game).get_results(&db).unwrap() };
     Ok(HttpResponse::Ok().content_type("text/html").body(
         (GameDetailsTemplate {
+            map,
             turns: player_turn_map,
             status: if turns.len() > 0 {
                 "Active"
@@ -173,17 +183,20 @@ async fn details(
 
 #[get("/games/create")]
 async fn create_get(
-    (req, app_data): (web::HttpRequest, web::Data<AppData>),
+    (app_data, params): (web::Data<AppData>, serde_qs::actix::QsQuery<CreateGame>),
 ) -> Result<HttpResponse> {
-    let config = serde_qs::Config::new(10, false);
-    let params: CreateGame = config.deserialize_str(req.query_string()).unwrap();
     let db = app_data.pool.get().expect("Unable to connect to database");
-    use crate::schema::maps::dsl::*;
-    let result_maps = maps
-        .filter(name.ilike(format!("%{}%", params.mapfilter)))
-        .load::<Map>(&db)
-        .unwrap();
-    let result_mods = crate::schema::mods::dsl::mods.load::<Mod>(&db).unwrap();
+    let result_maps = {
+        use crate::schema::maps::dsl::*;
+        maps.filter(name.ilike(format!("%{}%", params.mapfilter)))
+            .load::<Map>(&db)
+            .unwrap()
+    };
+    let result_mods = {
+        use crate::schema::mods::dsl::*;
+        mods.load::<Mod>(&db).unwrap()
+    };
+    println!("What: {:?}", params);
     Ok(HttpResponse::Ok().content_type("text/html").body(
         (AddGameTemplate {
             params: &params,

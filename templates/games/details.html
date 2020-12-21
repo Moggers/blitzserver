@@ -42,23 +42,24 @@
 			<br>
 		{% endif %}
 	{% endfor %}
-	<b>Mods:</b>
+	{% if mods.len() > 0 %}
+		<b>Mods:</b>
+		<br>
+		{% for cmod in mods %}
+			{{ cmod }}
+			<br>
+		{% endfor %}
+	{% endif %}
+	<b>Map:</b>
 	<br>
-	{% for cmod in mods %}
-	{{ cmod }}
-	<br>
-	{% endfor %}
+	<img width="100px" src="/images/maps/{{ self.map.id }}.jpg" />
 	<br>
 	{% if self.status == "Active" %}
-	<fieldset>
-		<field>
-			<form method="POST" action="/game/{{self.game.id}}/timer">
-				<label for="timer">Timer(Minutes):</label>
-				<input name="timer" type="text" format="number" value="{{self.game.timer_string()}}"></input>
-				<input type="submit" value="Set Timer"></input>
-			</form>
-		</field>
-	</fieldset>
+		<form method="POST" action="/game/{{self.game.id}}/timer">
+			<label for="timer">Timer(Minutes):</label>
+			<input name="timer" type="text" format="number" value="{{self.game.timer_string()}}"></input>
+			<input type="submit" value="Set Timer"></input>
+		</form>
 	{% else %}
 		<form method="POST" action="/game/{{self.game.id}}/launch">
 			<label for="countdown">Countdown(secs):</label>

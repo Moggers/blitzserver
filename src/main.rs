@@ -93,6 +93,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(middleware::Logger::default())
             .data(app_data.clone())
+            .app_data(serde_qs::actix::QsQueryConfig::default().qs_config(serde_qs::Config::new(10, false)))
             .service(
                 actix_files::Files::new("/images/maps", "./images/maps")
                     .show_files_listing()

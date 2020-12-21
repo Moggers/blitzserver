@@ -3,8 +3,8 @@
 	<input title="Alphanumeric, underscores and hyphens. No spaces, Dominions dislikes that." pattern="[0-9a-zA-Z_-]+" required type="text" value="{{params.name}}" name="name"/>
 	<br>
 
-	<input name="mapfilter" value="{{params.mapfilter}}" placeholder="Search"/>
-	<input formmethod="GET" type="submit" value="Search"/>
+	<input name="mapfilter" type="search" value="{{params.mapfilter}}" placeholder="Search"/>
+	<input formmethod="GET" type="submit" formnovalidate value="Search"/>
 	<br>
 	
 	{% for map in maps %}
@@ -13,13 +13,16 @@
 		<br>
 	{% endfor %}
 
-	<fieldset>
-		{% for cmod in mods %}
+	<input name="modfilter" type="search" value="{{params.modfilter}}" placeholder="Search"/>
+	<input formmethod="GET" type="submit" formnovalidate value="Search"/>
+	<br>
+	{% for cmod in mods %}
+		<section{% if !cmod.name.contains(params.modfilter) %} hidden {% endif %}>
 			<label for="mod-{{cmod.id}}">{{ cmod.name }}</label>
 			<input {% if params.cmods.contains(cmod.id) %} checked="checked" {% endif %} name="cmods[]" id="mod-{{cmod.id}}" type="checkbox" value="{{cmod.id}}" />
 			<br>
-		{% endfor %}
-	</fieldset>
+		</section>
+	{% endfor %}
 
 	<label for="era">Era</label>
 	<select required selected="{{params.era}}" name="era">
