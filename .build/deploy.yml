@@ -1,5 +1,12 @@
-cd /home/dom5/blitzserver
-git pull
-~/.cargo/bin/diesel migration run
-cargo build
-systemctl --user restart blitzserver
+image: archlinux
+packages:
+  - rustup
+  - postgresql
+sources:
+  - https://git.sr.ht/~moggers/blitzserver
+tasks:
+  - build: |
+      rustup install nightly
+      cd blitzserver
+      cargo build
+      ssh -i ~/.ssh/blitzserver-production ssh://dom5@172.105.163.51:8022 'bash -s' < .build/deploy.sh
