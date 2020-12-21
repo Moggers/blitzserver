@@ -4,8 +4,7 @@ packages:
 sources:
   - https://git.sr.ht/~moggers/blitzserver
 tasks:
-- install_rust: |
-    rustup install nightly
 - build: |
+    rustup install nightly
     cd blitzserver
     cargo build
