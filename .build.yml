@@ -1,6 +1,7 @@
 image: archlinux
 packages:
   - rustup
+  - postgres 
 sources:
   - https://git.sr.ht/~moggers/blitzserver
 tasks:
