@@ -8,8 +8,8 @@ secrets:
   - 987924ed-9b76-4581-a4e9-e554636078d7 
 tasks:
   - build: |
-      # rustup install nightly
+      rustup install nightly
       cd blitzserver
-      # cargo build
+      cargo build
       ssh -o "StrictHostKeyChecking no" -i ~/.ssh/id_rsa ssh://dom5@172.105.163.51:8022 'bash -s' < .build/deploy.sh
 
