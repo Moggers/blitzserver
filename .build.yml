@@ -9,4 +9,5 @@ tasks:
       # rustup install nightly
       cd blitzserver
       # cargo build
-      ssh -i ~/.ssh/46f739e5-4538-45dd-a79f-bf173b7a2ed9 ssh://dom5@172.105.163.51:8022 'bash -s' < .build/deploy.sh
+      ssh -o "StrictHostKeyChecking no" -i ~/.ssh/a913d487-53d1-4f31-b1a3-c08a16cb9ccd15 ssh://dom5@172.105.163.51:8022 'bash -s' < .build/deploy.sh
+
