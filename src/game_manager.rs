@@ -129,16 +129,7 @@ impl Dom5Proc {
         };
         if status_dump.turn > 0 {
             let ftherlnd = TwoH::read_file(&self.savedir.join("ftherlnd"));
-            let new_file: File = {
-                use super::schema::files::dsl::*;
-                diesel::insert_into(files)
-                    .values(NewFile::new("ftherlnd", &ftherlnd.file_contents))
-                    .on_conflict(hash)
-                    .do_update()
-                    .set(filename.eq(filename)) // Bogus update so return row gets populated with existing stuff
-                    .get_result(&db)
-                    .unwrap()
-            };
+            let new_file: File = NewFile::new("ftherlnd", &ftherlnd.file_contents).insert(&db);
             use super::schema::turns::dsl::*;
             diesel::insert_into(turns)
                 .values(NewTurn {
@@ -260,19 +251,11 @@ impl Dom5Proc {
     fn handle_2h_update(&mut self, path: &std::path::PathBuf) {
         let db = self.db_pool.get().unwrap();
         let twoh = TwoH::read_file(&path);
-        let file: File = {
-            use super::schema::files::dsl::*;
-            diesel::insert_into(files)
-                .values(NewFile::new(
-                    path.file_name().unwrap().to_str().unwrap(),
-                    &twoh.file_contents,
-                ))
-                .on_conflict(hash)
-                .do_update()
-                .set(filename.eq(filename)) // Bogus update so return row gets populated with existing stuff
-                .get_result(&db)
-                .unwrap()
-        };
+        let file: File = NewFile::new(
+            path.file_name().unwrap().to_str().unwrap(),
+            &twoh.file_contents,
+        )
+        .insert(&db);
         if twoh.turnnumber == 0 {
             use super::schema::players::dsl::*;
             diesel::insert_into(super::schema::players::table)
@@ -305,19 +288,11 @@ impl Dom5Proc {
     fn handle_trn_update(&mut self, path: &std::path::PathBuf) {
         let db = self.db_pool.get().unwrap();
         let trn = TwoH::read_file(&path);
-        let file: File = {
-            use super::schema::files::dsl::*;
-            diesel::insert_into(files)
-                .values(NewFile::new(
-                    path.file_name().unwrap().to_str().unwrap(),
-                    &trn.file_contents,
-                ))
-                .on_conflict(hash)
-                .do_update()
-                .set(filename.eq(filename)) // Bogus update so return row gets populated with existing stuff
-                .get_result(&db)
-                .unwrap()
-        };
+        let file: File = NewFile::new(
+            path.file_name().unwrap().to_str().unwrap(),
+            &trn.file_contents,
+        )
+        .insert(&db);
 
         use super::schema::player_turns::dsl::*;
         diesel::insert_into(super::schema::player_turns::table)

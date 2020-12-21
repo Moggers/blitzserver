@@ -1,4 +1,4 @@
-use super::schema::{game_mods, files, games, maps, mods, nations, player_turns, players, turns};
+use super::schema::{files, game_mods, games, maps, mods, nations, player_turns, players, turns};
 use std::hash::{Hash, Hasher};
 
 pub struct Era;
@@ -22,7 +22,7 @@ impl Game {
     pub fn timer_string(&self) -> String {
         match self.timer {
             None => "".to_owned(),
-            Some(t) => t.to_string()
+            Some(t) => t.to_string(),
         }
     }
     pub fn era_name(&self) -> String {
@@ -49,6 +49,26 @@ pub struct File {
     pub filename: String,
     pub filebinary: Vec<u8>,
     pub hash: i64,
+}
+
+impl<'a> NewFile<'a> {
+    pub fn insert<'b>(
+        self,
+        db: &'b r2d2::PooledConnection<diesel::r2d2::ConnectionManager<diesel::PgConnection>>,
+    ) -> File {
+        use super::diesel::prelude::*;
+        use crate::schema::files::dsl::*;
+        match files.filter(hash.eq(self.hash)).get_result(db) {
+            Ok(f) => f,
+            Err(_) => diesel::insert_into(files)
+                .values(self)
+                .on_conflict(hash)
+                .do_update()
+                .set(filename.eq(filename)) // Bogus update so return row gets populated with existing stuff
+                .get_result(db)
+                .unwrap(),
+        }
+    }
 }
 
 #[derive(Insertable)]
@@ -98,7 +118,7 @@ pub struct NewMap {
     pub mapfile_id: i32,
     pub tgafile_id: i32,
     pub winterfile_id: i32,
-    pub archive_id: i32
+    pub archive_id: i32,
 }
 
 #[derive(Identifiable, Queryable, Associations, PartialEq, Debug)]
@@ -195,12 +215,12 @@ pub struct Mod {
 #[table_name = "game_mods"]
 pub struct NewGameMod {
     pub game_id: i32,
-    pub mod_id: i32
+    pub mod_id: i32,
 }
 
 #[derive(Identifiable, Queryable, Associations)]
 pub struct GameMod {
     id: i32,
     pub game_id: i32,
-    pub mod_id: i32
+    pub mod_id: i32,
 }
