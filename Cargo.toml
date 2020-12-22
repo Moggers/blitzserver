@@ -23,5 +23,5 @@ notify = { version = "5.0.0-pre.4", features = [ "serde" ] }
 byteorder = "*"
 num_enum = "*"
 zip = "*"
-serde_qs = { version = "*", features = [ "actix" ] }
+serde_qs = { git = "https://github.com/Moggers/serde_qs.git", branch = "main", features = [ "actix" ] }
 image = "*"

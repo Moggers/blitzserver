@@ -331,12 +331,66 @@ impl Dom5Proc {
             use crate::schema::games::dsl::*;
             let game: Game = games.filter(id.eq(self.game_id)).get_result(&db).unwrap();
             arguments.append(&mut vec![
-                String::from("--thrones"),
+                "--thrones".to_string(),
                 game.thrones_t1.to_string(),
                 game.thrones_t2.to_string(),
                 game.thrones_t3.to_string(),
-                String::from("--requiredap"),
+                "--requiredap".to_string(),
                 game.throne_points_required.to_string(),
+                "--research".to_string(),
+                game.research_diff.to_string(),
+                if game.research_rand {
+                    ""
+                } else {
+                    "--norandres"
+                }
+                .to_string(),
+                "--hofsize".to_string(),
+                game.hof_size.to_string(),
+                "--globals".to_string(),
+                game.global_size.to_string(),
+                "--indepstr".to_string(),
+                game.indepstr.to_string(),
+                "--magicsites".to_string(),
+                game.magicsites.to_string(),
+                "--eventrarity".to_string(),
+                game.eventrarity.to_string(),
+                "--richness".to_string(),
+                game.richness.to_string(),
+                "--resources".to_string(),
+                game.resources.to_string(),
+                "--supplies".to_string(),
+                game.supplies.to_string(),
+                "--startprov".to_string(),
+                game.startprov.to_string(),
+                if game.renaming { "--renaming" } else { "" }.to_string(),
+                if game.scoregraphs {
+                    "--scoregraphs"
+                } else {
+                    ""
+                }
+                .to_string(),
+                if game.nationinfo {
+                    ""
+                } else {
+                    "--nonationinfo"
+                }
+                .to_string(),
+                "--era".to_string(),
+                game.era.to_string(),
+                if game.artrest { "" } else { "--noartrest" }.to_string(),
+                if game.teamgame { "--teamgame" } else { "" }.to_string(),
+                if game.clustered { "--clustered" } else { "" }.to_string(),
+                match game.storyevents {
+                    0 => "--nostoryevents",
+                    1 => "--storyevents",
+                    2 => "--allstoryevents",
+                    _=> "",
+                }
+                .to_string(),
+                "--newailvl".to_string(),
+                game.newailvl.to_string(),
+                if game.newai { "" } else { "--nonewai" }.to_string(),
             ]);
         }
         arguments.append(&mut vec![
@@ -345,12 +399,9 @@ impl Dom5Proc {
             String::from("--statusdump"),
             String::from("--mapfile"),
             self.mapname.clone(),
-            format!("{}", self.era),
             String::from("--newgame"),
             String::from("--port"),
             format!("{}", self.port),
-            String::from("--era"),
-            format!("{}", self.era),
             format!("{}", self.name),
         ]);
         std::process::Command::new(bin)

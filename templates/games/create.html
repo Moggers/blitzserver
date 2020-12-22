@@ -34,17 +34,100 @@
 	Thrones:
 	<br>
 	<label for="thrones_t1">T1:</label>
-	<input name="thrones_t1" value="{{params.thrones_t1}}" type="text" />
+	<input id="thrones_t1" ame="thrones_t1" value="{{params.thrones_t1}}" type="number" />
 	<br>
 	<label for="thrones_t2">T2:</label>
-	<input name="thrones_t2" value="{{params.thrones_t2}}" type="text" />
+	<input id="thrones_t2" name="thrones_t2" value="{{params.thrones_t2}}" type="number" />
 	<br>
 	<label for="thrones_t3">T3:</label>
-	<input name="thrones_t3" value="{{params.thrones_t3}}" type="text" />
+	<input id="thrones_t3" name="thrones_t3" value="{{params.thrones_t3}}" type="number" />
 	<br>
 	<label for="throne_points_required">Points Required:</label>
-	<input name="throne_points_required" value="{{params.throne_points_required}}"type="text" />
+	<input id="throne_points_required" name="throne_points_required" value="{{params.throne_points_required}}"type="number" />
 	<br>
+	<label for="research_diff">Research Difficulty:</label>
+	<input name="research_diff" id="research_diff" value="{{ params.research_diff}}" type="number" />
+	<br>
+	<label for="research_rand">Random Research:</label>
+	<input type="hidden" name="research_rand[0]" value="0" />
+	<input  name="research_rand[0]" id="research_rand" {% if params.research_rand > 0 %} checked {% endif %} value="1" type="checkbox" />
+	<br>
+	<label for="hof_size">Hall of Fame Size:</label>
+	<input name="hof_size" id="hof_size" value="{{ params.hof_size}}" type="number" />
+	<br>
+	<label for="global_size">Global Enchantment Slots:</label>
+	<input name="global_size" id="global_size" value="{{ params.global_size}}" type="number" />
+	<br>
+	<label for="indepstr">Independent Strength:</label>
+	<input name="indepstr" id="indepstr" value="{{ params.indepstr}}" type="number" />
+	<br>
+	<label for="magicsites">Magic Site Frequency:</label>
+	<input name="magicsites" id="magicsites" value="{{ params.magicsites}}" type="number"></input>
+	<br>
+	<label for="eventrarity">Event Rarity:</label>
+	<input name="eventrarity" id="eventrarity" value="{{ params.eventrarity}}" type="number"></input>
+	<br>
+	<label for="richness">Gold Multiplier:</label>
+	<input name="richness" id="richness" value="{{ params.richness}}" type="number"></input>
+	<br>
+	<label for="resources">Resource Multiplier:</label>
+	<input name="resources" id="resources" value="{{ params.resources}}" type="number"></input>
+	<br>
+	<label for="recruitment">Recruitment Points Multiplier:</label>
+	<input name="recruitment" id="recruitment" value="{{ params.recruitment}}" type="number"></input>
+	<br>
+	<label for="supplies">Supplies Multiplier:</label>
+	<input name="supplies" id="supplies" value="{{ params.supplies}}" type="number"></input>
+	<br>
+	<!--<label for="masterpass"></label>
+	<input id="masterpass"></input>-->
+	<label for="startprov">Starting Provinces:</label>
+	<input name="startprov" id="startprov" value="{{ params.startprov}}" type="number"></input>
+	<br>
+	<label for="renaming">Renaming:</label>
+	<input type="hidden" name="renaming[0]" value="0"/>
+	<input name="renaming[0]" id="renaming" {% if params.renaming > 0 %} checked {% endif %} value="1" type="checkbox"></input>
+	<br>
+	<label for="scoregraphs">Score Graphs:</label>
+	<input type="hidden" name="scoregraphs[0]" value="0" />
+	<input name="scoregraphs[0]" id="scoregraphs" {% if params.scoregraphs > 0 %} checked {% endif %} value="1" type="checkbox"></input>
+	<br>
+	<label for="nationinfo">Nation Info:</label>
+	<input type="hidden" name="nationinfo[0]" value="0" />
+	<input name="nationinfo[0]" id="nationinfo" {% if params.nationinfo > 0 %} checked {% endif %} value="1" type="checkbox"></input>
+	<br>
+	<label for="artrest">Artifact Forging Limit:</label>
+	<input type="hidden" name="artrest[0]" value="0" />
+	<input name="artrest[0]" id="artrest" {% if params.artrest > 0 %} checked {% endif %} value="1" type="checkbox"></input>
+	<br>
+	<label for="teamgame">Disciples:</label>
+	<input type="hidden" name="teamgame[0]" value="0" />
+	<input name="teamgame[0]" id="teamgame" {% if params.teamgame > 0 %} checked {% endif %} value="1" type="checkbox"></input>
+	<br>
+	<label for="clustered">Clustered Disciples:</label>
+	<input type="hidden" name="clustered[0]" value="0" />
+	<input name="clustered[0]" id="clustered" {% if params.clustered > 0 %} checked {% endif %} value="1" type="checkbox"></input>
+	<br>
+	<label for="storyevents">Story Events:</label>
+	<select name="storyevents">
+		<option {% if params.storyevents == 0 %} selected {% endif %} value="0">None</option>
+		<option {% if params.storyevents == 1 %} selected {% endif %} value="1">Minor</option>
+		<option {% if params.storyevents == 2 %} selected {% endif %} value="2">Full</option>
+	</select>
+	<br>
+	<label for="newailvl">AI Difficulty:</label>
+	<select name="newailvl" id="newailvl" type="number">
+		<option {% if params.newailvl == 1 %} selected {% endif %} value="1">Easy</option>
+		<option {% if params.newailvl == 2 %} selected {% endif %} value="2">Normal</option>
+		<option {% if params.newailvl == 3 %} selected {% endif %} value="3">Difficult</option>
+		<option {% if params.newailvl == 4 %} selected {% endif %} value="4">Mighty</option>
+		<option {% if params.newailvl == 5 %} selected {% endif %} value="5">Master</option>
+		<option {% if params.newailvl == 6 %} selected {% endif %} value="6">Impossible</option>
+	</select>
+	<br>
+	<label for="newai">Allow AI:</label>
+	<input type="hidden" name="newai[0]" value="0" />
+	<input name="newai[0]" id="newai" {% if params.newai > 0 %} checked {% endif %} value="1" type="checkbox"></input>
 	<hr>
 	<input type="submit" value="Create Game" />
 </form>

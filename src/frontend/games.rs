@@ -9,7 +9,7 @@ use actix_web::http::header;
 use actix_web::{get, post, web, HttpResponse, Result};
 use askama::Template;
 use futures::StreamExt;
-use serde::Deserialize;
+use serde::{de::Error, Deserialize};
 use std::collections::HashMap;
 
 fn default_one() -> i32 {
@@ -18,6 +18,20 @@ fn default_one() -> i32 {
 
 fn default_five() -> i32 {
     5
+}
+
+fn default_two() -> i32 {
+    2
+}
+
+fn default_ten() -> i32 {
+    10
+}
+fn default_forty() -> i32 {
+    40
+}
+fn default_hundred() -> i32 {
+    100
 }
 
 #[derive(Debug, Deserialize)]
@@ -42,6 +56,84 @@ struct CreateGame {
     thrones_t3: i32,
     #[serde(default = "default_five")]
     throne_points_required: i32,
+    #[serde(default = "default_two")]
+    research_diff: i32,
+    #[serde(default = "default_one")]
+    #[serde(deserialize_with = "de_map_to_scalar")]
+    research_rand: i32,
+    #[serde(default = "default_ten")]
+    hof_size: i32,
+    #[serde(default = "default_five")]
+    global_size: i32,
+    #[serde(default = "default_five")]
+    indepstr: i32,
+    #[serde(default = "default_forty")]
+    magicsites: i32,
+    #[serde(default = "default_two")]
+    eventrarity: i32,
+    #[serde(default = "default_hundred")]
+    richness: i32,
+    #[serde(default = "default_hundred")]
+    resources: i32,
+    #[serde(default = "default_hundred")]
+    recruitment: i32,
+    #[serde(default = "default_hundred")]
+    supplies: i32,
+    #[serde(default = "default_one")]
+    startprov: i32,
+    #[serde(default)]
+    #[serde(deserialize_with = "de_map_to_scalar")]
+    renaming: i32,
+    #[serde(default = "default_one")]
+    #[serde(deserialize_with = "de_map_to_scalar")]
+    scoregraphs: i32,
+    #[serde(default = "default_one")]
+    #[serde(deserialize_with = "de_map_to_scalar")]
+    nationinfo: i32,
+    #[serde(default = "default_one")]
+    #[serde(deserialize_with = "de_map_to_scalar")]
+    artrest: i32,
+    #[serde(default)]
+    #[serde(deserialize_with = "de_map_to_scalar")]
+    teamgame: i32,
+    #[serde(default)]
+    #[serde(deserialize_with = "de_map_to_scalar")]
+    clustered: i32,
+    #[serde(default = "default_one")]
+    storyevents: i32,
+    #[serde(default = "default_two")]
+    newailvl: i32,
+    #[serde(default = "default_one")]
+    #[serde(deserialize_with = "de_map_to_scalar")]
+    newai: i32,
+}
+
+fn de_map_to_scalar<'de, D>(deserializer: D) -> Result<i32, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    // define a visitor that deserializes
+    // `ActualData` encoded as json within a string
+    struct MapVisitor;
+
+    impl<'de> serde::de::Visitor<'de> for MapVisitor {
+        type Value = i32;
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("A length 1 sequence containing an int")
+        }
+        fn visit_seq<A>(self, mut v: A) -> Result<Self::Value, A::Error>
+        where
+            A: serde::de::SeqAccess<'de>,
+        {
+            let mut last = Err(A::Error::custom("Zero length seq"));
+            while let Some(v) = v.next_element::<i32>()? {
+                last = Ok(v)
+            }
+            last
+        }
+    }
+    // use our visitor to deserialize an `ActualValue`
+    deserializer.deserialize_seq(MapVisitor)
 }
 
 #[derive(Debug, Deserialize)]
@@ -246,6 +338,27 @@ async fn create_post(
         thrones_t2: params.thrones_t2,
         thrones_t3: params.thrones_t3,
         throne_points_required: params.throne_points_required,
+        research_diff: params.research_diff,
+        research_rand: params.research_rand > 0,
+        hof_size: params.hof_size,
+        global_size: params.global_size,
+        indepstr: params.indepstr,
+        magicsites: params.magicsites,
+        eventrarity: params.eventrarity,
+        richness: params.richness,
+        resources: params.resources,
+        recruitment: params.recruitment,
+        supplies: params.supplies,
+        startprov: params.startprov,
+        renaming: params.renaming > 0,
+        scoregraphs: params.scoregraphs > 0,
+        nationinfo: params.nationinfo > 0,
+        artrest: params.artrest > 0,
+        teamgame: params.teamgame > 0,
+        clustered: params.clustered > 0,
+        storyevents: params.storyevents,
+        newailvl: params.newailvl,
+        newai: params.newai > 0,
     };
 
     let game: Game = diesel::insert_into(crate::schema::games::table)
