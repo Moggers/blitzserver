@@ -42,19 +42,11 @@
 		{% endif %}
 	{% endfor %}
 	<hr>
-	<b>Map:</b>
-	<br>
-	<img width="100px" src="/images/maps/{{ self.map.id }}.jpg" />
-	<br>
-	{% if mods.len() > 0 %}
-		<b>Mods:</b>
-		<br>
-		{% for cmod in mods %}
-			{{ cmod }}
-			<br>
-		{% endfor %}
-	{% endif %}
 	{% if self.status == "Active" %}
+		<b>Map:</b>
+		<br>
+		<img width="100px" src="/images/maps/{{ self.map.id }}.jpg" />
+		<br>
 		<hr>
 		<span><b>Era:</b> {{ self.game.era_name() }}</span>
 		<br>
@@ -66,9 +58,8 @@
 			<input type="submit" value="Set Timer"></input>
 		</form>
 	{% else %}
-		<hr>
+		{% let settings = self.settings.clone() %}
 		<form method="POST" action="/game/{{self.game.id}}/settings">
-			{% let settings = self.settings %}
 			{% include "settings.html" %}
 			<br>
 			<br>

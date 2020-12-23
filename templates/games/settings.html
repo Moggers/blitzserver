@@ -1,3 +1,26 @@
+<input type="hidden" name="loaded" value="1" />
+<input name="modfilter" type="search" value="{{settings.modfilter}}" placeholder="Search"/>
+<input formmethod="GET" type="submit" formaction="?" formnovalidate value="Search"/>
+<br>
+{% for cmod in mods %}
+	<section{% if !cmod.name.contains(settings.modfilter) %} hidden {% endif %}>
+		<label for="mod-{{cmod.id}}">{{ cmod.name }}</label>
+		<input {% if settings.cmods.contains(cmod.id) %} checked="checked" {% endif %} name="cmods[]" id="mod-{{cmod.id}}" type="checkbox" value="{{cmod.id}}" />
+		<br>
+	</section>
+{% endfor %}
+<br>
+<input name="mapfilter" type="search" value="{{settings.mapfilter}}" placeholder="Search"/>
+<input formmethod="GET" type="submit" formaction="?" formnovalidate value="Search"/>
+<br>
+{% for map in maps %}
+	<section{% if !map.name.contains(settings.mapfilter) %} hidden {% endif %}>
+		<label for="map-{{map.id}}">{{ map.name }}</label>
+		<input {% if map.id == settings.map %} checked="checked" {% endif %} name="map" id="map-{{map.id}}" type="radio" value="{{map.id}}" />
+		<br>
+	</section>
+{% endfor %}
+<br>
 <label for="era">Era</label>
 <select required selected="{{settings.era}}" name="era">
 	<option {% if settings.era == 1 %} selected {% endif %} value="1">Early</option>
@@ -8,7 +31,7 @@
 Thrones:
 <br>
 <label for="thrones_t1">T1:</label>
-<input id="thrones_t1" ame="thrones_t1" value="{{settings.thrones_t1}}" type="number" />
+<input id="thrones_t1" name="thrones_t1" value="{{settings.thrones_t1}}" type="number" />
 <br>
 <label for="thrones_t2">T2:</label>
 <input id="thrones_t2" name="thrones_t2" value="{{settings.thrones_t2}}" type="number" />

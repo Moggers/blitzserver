@@ -1,30 +1,9 @@
+{% let settings = params.settings.clone() %}
 <form action="./create" method="POST" action="./create">
 	<label for="name">Name</label>
 	<input title="Alphanumeric, underscores and hyphens. No spaces, Dominions dislikes that." pattern="[0-9a-zA-Z_-]+" required type="text" value="{{params.name}}" name="name"/>
 	<br>
 	<hr>
-	<input name="mapfilter" type="search" value="{{params.mapfilter}}" placeholder="Search"/>
-	<input formmethod="GET" type="submit" formnovalidate value="Search"/>
-	<br>
-	
-	{% for map in maps %}
-		<label for="map-{{map.id}}">{{ map.name }}</label>
-		<input {% if map.id == params.map %} checked="checked" {% endif %} name="map" id="map-{{map.id}}" type="radio" value="{{map.id}}" />
-		<br>
-	{% endfor %}
-	<hr>
-	<input name="modfilter" type="search" value="{{params.modfilter}}" placeholder="Search"/>
-	<input formmethod="GET" type="submit" formnovalidate value="Search"/>
-	<br>
-	{% for cmod in mods %}
-		<section{% if !cmod.name.contains(params.modfilter) %} hidden {% endif %}>
-			<label for="mod-{{cmod.id}}">{{ cmod.name }}</label>
-			<input {% if params.cmods.contains(cmod.id) %} checked="checked" {% endif %} name="cmods[]" id="mod-{{cmod.id}}" type="checkbox" value="{{cmod.id}}" />
-			<br>
-		</section>
-	{% endfor %}
-	<hr>
-	{% let settings = params.settings %}
 	{% include "settings.html" %}
 	<hr>
 	<input type="submit" value="Create Game" />

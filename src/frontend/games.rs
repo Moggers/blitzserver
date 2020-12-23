@@ -35,15 +35,25 @@ fn default_hundred() -> i32 {
 }
 
 fn from_str<'de, D, S>(deserializer: D) -> Result<S, D::Error>
-    where D: serde::Deserializer<'de>,
-          S: std::str::FromStr
+where
+    D: serde::Deserializer<'de>,
+    S: std::str::FromStr,
 {
     let s = <&str as serde::Deserialize>::deserialize(deserializer)?;
     S::from_str(&s).map_err(|_| D::Error::custom("could not parse string"))
 }
+fn from_str_seq<'de, D, S>(deserializer: D) -> Result<Vec<S>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    S: std::str::FromStr,
+{
+    let s = <Vec<&str> as serde::Deserialize>::deserialize(deserializer)?;
+    s.iter()
+        .map(|s| S::from_str(&s).map_err(|_| D::Error::custom("could not parse string")))
+        .collect()
+}
 
-
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Default, Clone, Debug, Deserialize)]
 struct GameSettings {
     #[serde(default = "default_one")]
     #[serde(deserialize_with = "from_str")]
@@ -123,10 +133,22 @@ struct GameSettings {
     #[serde(default = "default_one")]
     #[serde(deserialize_with = "de_map_to_scalar")]
     newai: i32,
+    #[serde(deserialize_with = "from_str")]
+    #[serde(default = "default_one")]
+    map: i32,
+    #[serde(default)]
+    mapfilter: String,
+    #[serde(default)]
+    #[serde(deserialize_with = "from_str_seq")]
+    cmods: Vec<i32>,
+    #[serde(default)]
+    modfilter: String,
+    // Marker to tell whether the form is on its first load
+    loaded: Option<String>,
 }
 
-impl From<&Game> for GameSettings {
-    fn from(game: &Game) -> GameSettings {
+impl From<(&Game, &[Mod])> for GameSettings {
+    fn from((game, mods): (&Game, &[Mod])) -> GameSettings {
         GameSettings {
             era: game.era,
             thrones_t1: game.thrones_t1,
@@ -154,24 +176,20 @@ impl From<&Game> for GameSettings {
             storyevents: game.storyevents,
             newailvl: game.newailvl,
             newai: game.newai as i32,
+            map: game.map_id,
+            mapfilter: "".to_string(),
+            modfilter: "".to_string(),
+            cmods: mods.iter().map(|m| m.id).collect(),
+            loaded: None,
         }
     }
 }
-
-impl Copy for GameSettings {}
 
 #[derive(Debug, Deserialize)]
 struct CreateGame {
     #[serde(default)]
     name: String,
-    #[serde(default = "default_one")]
-    map: i32,
     #[serde(default)]
-    cmods: Vec<i32>,
-    #[serde(default)]
-    mapfilter: String,
-    #[serde(default)]
-    modfilter: String,
     #[serde(flatten)]
     settings: GameSettings,
 }
@@ -233,7 +251,8 @@ struct GameDetailsTemplate<'a> {
     turns: HashMap<i32, Vec<PlayerTurn>>,
     hostname: String,
     players: &'a Vec<(i32, String)>,
-    mods: &'a Vec<String>,
+    mods: &'a Vec<Mod>,
+    maps: &'a Vec<Map>,
     map: Map,
 }
 
@@ -276,7 +295,11 @@ async fn timer(
 
 #[get("/game/{id}")]
 async fn details(
-    (app_data, web::Path(path_id)): (web::Data<AppData>, web::Path<String>),
+    (app_data, web::Path(path_id), game_settings): (
+        web::Data<AppData>,
+        web::Path<String>,
+        serde_qs::actix::QsQuery<GameSettings>,
+    ),
 ) -> Result<HttpResponse> {
     let db = app_data.pool.get().expect("Unable to connect to database");
     let (game, map) = if let Ok(id_i32) = path_id.parse::<i32>() {
@@ -321,18 +344,11 @@ async fn details(
         },
     );
     let turns: Vec<Turn> = { Turn::belonging_to(&game).get_results(&db).unwrap() };
-    Ok(HttpResponse::Ok().content_type("text/html").body(
-        (GameDetailsTemplate {
-            map,
-            settings: (&game).into(),
-            turns: player_turn_map,
-            status: if turns.len() > 0 {
-                "Active"
-            } else {
-                "Waiting for players"
-            },
-            turn_number: turns.len() as i32,
-            mods: &crate::schema::game_mods::dsl::game_mods
+    let settings: GameSettings = if let Some(_) = game_settings.loaded {
+        (*game_settings).clone()
+    } else {
+        let mods = {
+            &crate::schema::game_mods::dsl::game_mods
                 .filter(crate::schema::game_mods::dsl::game_id.eq(game.id))
                 .inner_join(
                     crate::schema::mods::dsl::mods
@@ -341,8 +357,42 @@ async fn details(
                 .get_results::<(GameMod, Mod)>(&db)
                 .unwrap()
                 .iter()
-                .map(|(_, m)| m.name.clone())
-                .collect::<Vec<String>>(),
+                .map(move |(_, m)| (*m).clone())
+                .collect::<Vec<Mod>>()
+        };
+        (&game, &mods[..]).into()
+    };
+    let (maps, mods): (Vec<Map>, Vec<Mod>) = if turns.len() == 0 {
+        (
+            {
+                use crate::schema::maps::dsl::*;
+                maps.filter(name.ilike(&format!("%{}%", game_settings.mapfilter)))
+                    .get_results(&db)
+                    .unwrap()
+            },
+            {
+                use crate::schema::mods::dsl::*;
+                mods.filter(name.ilike(&format!("%{}%", game_settings.modfilter)))
+                    .get_results(&db)
+                    .unwrap()
+            },
+        )
+    } else {
+        (vec![], vec![])
+    };
+    Ok(HttpResponse::Ok().content_type("text/html").body(
+        (GameDetailsTemplate {
+            map,
+            settings: settings,
+            turns: player_turn_map,
+            status: if turns.len() > 0 {
+                "Active"
+            } else {
+                "Waiting for players"
+            },
+            turn_number: turns.len() as i32,
+            maps: &maps,
+            mods: &mods,
             game,
             players: &game_players
                 .iter()
@@ -362,9 +412,7 @@ async fn create_get(
     let db = app_data.pool.get().expect("Unable to connect to database");
     let result_maps = {
         use crate::schema::maps::dsl::*;
-        maps.filter(name.ilike(format!("%{}%", params.mapfilter)))
-            .load::<Map>(&db)
-            .unwrap()
+        maps.load::<Map>(&db).unwrap()
     };
     let result_mods = {
         use crate::schema::mods::dsl::*;
@@ -403,7 +451,7 @@ async fn create_post(
     let new_game = NewGame {
         name: &params.name,
         era,
-        map_id: params.map,
+        map_id: params.settings.map,
         thrones_t1: params.settings.thrones_t1,
         thrones_t2: params.settings.thrones_t2,
         thrones_t3: params.settings.thrones_t3,
@@ -439,6 +487,7 @@ async fn create_post(
     diesel::insert_into(crate::schema::game_mods::table)
         .values(
             params
+                .settings
                 .cmods
                 .iter()
                 .map(|m| NewGameMod {
@@ -513,40 +562,70 @@ async fn launch(
 
 #[post("/game/{id}/settings")]
 async fn settings_post(
-    (app_data, path_id, body): (web::Data<AppData>, web::Path<i32>, web::Form<GameSettings>),
+    (app_data, path_id, mut body): (web::Data<AppData>, web::Path<i32>, web::Payload),
 ) -> Result<HttpResponse> {
-    use crate::schema::games::dsl::*;
     let db = app_data.pool.get().unwrap();
-    let game: Game = diesel::update(games.filter(id.eq(*path_id)))
-        .set((
-            era.eq(body.era),
-            thrones_t1.eq(body.thrones_t1),
-            thrones_t2.eq(body.thrones_t2),
-            thrones_t3.eq(body.thrones_t3),
-            throne_points_required.eq(body.throne_points_required),
-            research_diff.eq(body.research_diff),
-            research_rand.eq(body.research_rand > 0),
-            hof_size.eq(body.hof_size),
-            global_size.eq(body.global_size),
-            indepstr.eq(body.indepstr),
-            magicsites.eq(body.magicsites),
-            eventrarity.eq(body.eventrarity),
-            richness.eq(body.richness),
-            resources.eq(body.resources),
-            recruitment.eq(body.recruitment),
-            supplies.eq(body.supplies),
-            startprov.eq(body.startprov),
-            renaming.eq(body.renaming > 0),
-            scoregraphs.eq(body.scoregraphs > 0),
-            nationinfo.eq(body.nationinfo > 0),
-            artrest.eq(body.artrest > 0),
-            teamgame.eq(body.teamgame > 0),
-            clustered.eq(body.clustered > 0),
-            storyevents.eq(body.storyevents),
-            newailvl.eq(body.newailvl),
-            newai.eq(body.newai > 0),
-        ))
-        .get_result(&db)
+    let mut bytes = web::BytesMut::new();
+    while let Some(item) = body.next().await {
+        bytes.extend_from_slice(&item?);
+    }
+    let config = serde_qs::Config::new(10, false);
+    let body: GameSettings = config.deserialize_bytes(&*bytes).unwrap();
+    let game: Game = db
+        .transaction::<_, diesel::result::Error, _>(|| {
+            let game: Game = {
+                use crate::schema::games::dsl::*;
+                diesel::update(games.filter(id.eq(*path_id)))
+                    .set((
+                        era.eq(body.era),
+                        thrones_t1.eq(body.thrones_t1),
+                        thrones_t2.eq(body.thrones_t2),
+                        thrones_t3.eq(body.thrones_t3),
+                        throne_points_required.eq(body.throne_points_required),
+                        research_diff.eq(body.research_diff),
+                        research_rand.eq(body.research_rand > 0),
+                        hof_size.eq(body.hof_size),
+                        global_size.eq(body.global_size),
+                        indepstr.eq(body.indepstr),
+                        magicsites.eq(body.magicsites),
+                        eventrarity.eq(body.eventrarity),
+                        richness.eq(body.richness),
+                        resources.eq(body.resources),
+                        recruitment.eq(body.recruitment),
+                        supplies.eq(body.supplies),
+                        startprov.eq(body.startprov),
+                        renaming.eq(body.renaming > 0),
+                        scoregraphs.eq(body.scoregraphs > 0),
+                        nationinfo.eq(body.nationinfo > 0),
+                        artrest.eq(body.artrest > 0),
+                        teamgame.eq(body.teamgame > 0),
+                        clustered.eq(body.clustered > 0),
+                        storyevents.eq(body.storyevents),
+                        newailvl.eq(body.newailvl),
+                        newai.eq(body.newai > 0),
+                        map_id.eq(body.map),
+                    ))
+                    .get_result(&db)?
+            };
+            {
+                use crate::schema::game_mods::dsl::*;
+                diesel::delete(game_mods)
+                    .filter(game_id.eq(game.id))
+                    .execute(&db)?;
+                diesel::insert_into(game_mods)
+                    .values(
+                        body.cmods
+                            .iter()
+                            .map(|cm| NewGameMod {
+                                game_id: game.id,
+                                mod_id: *cm,
+                            })
+                            .collect::<Vec<NewGameMod>>(),
+                    )
+                    .execute(&db)?;
+            };
+            Ok(game)
+        })
         .unwrap();
     app_data
         .manager_notifier

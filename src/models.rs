@@ -253,7 +253,7 @@ pub struct NewMod<'a> {
     pub file_id: i32,
 }
 
-#[derive(Identifiable, Queryable, Associations)]
+#[derive(Clone, Identifiable, Queryable, Associations)]
 pub struct Mod {
     pub id: i32,
     pub dm_filename: String,
