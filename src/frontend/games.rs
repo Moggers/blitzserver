@@ -34,42 +34,67 @@ fn default_hundred() -> i32 {
     100
 }
 
+fn from_str<'de, D, S>(deserializer: D) -> Result<S, D::Error>
+    where D: serde::Deserializer<'de>,
+          S: std::str::FromStr
+{
+    let s = <&str as serde::Deserialize>::deserialize(deserializer)?;
+    S::from_str(&s).map_err(|_| D::Error::custom("could not parse string"))
+}
+
+
 #[derive(Clone, Debug, Deserialize)]
 struct GameSettings {
     #[serde(default = "default_one")]
+    #[serde(deserialize_with = "from_str")]
     era: i32,
     #[serde(default = "default_five")]
+    #[serde(deserialize_with = "from_str")]
     thrones_t1: i32,
     #[serde(default)]
+    #[serde(deserialize_with = "from_str")]
     thrones_t2: i32,
     #[serde(default)]
+    #[serde(deserialize_with = "from_str")]
     thrones_t3: i32,
     #[serde(default = "default_five")]
+    #[serde(deserialize_with = "from_str")]
     throne_points_required: i32,
     #[serde(default = "default_two")]
+    #[serde(deserialize_with = "from_str")]
     research_diff: i32,
     #[serde(default = "default_one")]
     #[serde(deserialize_with = "de_map_to_scalar")]
     research_rand: i32,
     #[serde(default = "default_ten")]
+    #[serde(deserialize_with = "from_str")]
     hof_size: i32,
     #[serde(default = "default_five")]
+    #[serde(deserialize_with = "from_str")]
     global_size: i32,
     #[serde(default = "default_five")]
+    #[serde(deserialize_with = "from_str")]
     indepstr: i32,
     #[serde(default = "default_forty")]
+    #[serde(deserialize_with = "from_str")]
     magicsites: i32,
     #[serde(default = "default_two")]
+    #[serde(deserialize_with = "from_str")]
     eventrarity: i32,
     #[serde(default = "default_hundred")]
+    #[serde(deserialize_with = "from_str")]
     richness: i32,
     #[serde(default = "default_hundred")]
+    #[serde(deserialize_with = "from_str")]
     resources: i32,
     #[serde(default = "default_hundred")]
+    #[serde(deserialize_with = "from_str")]
     recruitment: i32,
     #[serde(default = "default_hundred")]
+    #[serde(deserialize_with = "from_str")]
     supplies: i32,
     #[serde(default = "default_one")]
+    #[serde(deserialize_with = "from_str")]
     startprov: i32,
     #[serde(default)]
     #[serde(deserialize_with = "de_map_to_scalar")]
@@ -90,8 +115,10 @@ struct GameSettings {
     #[serde(deserialize_with = "de_map_to_scalar")]
     clustered: i32,
     #[serde(default = "default_one")]
+    #[serde(deserialize_with = "from_str")]
     storyevents: i32,
     #[serde(default = "default_two")]
+    #[serde(deserialize_with = "from_str")]
     newailvl: i32,
     #[serde(default = "default_one")]
     #[serde(deserialize_with = "de_map_to_scalar")]
@@ -167,8 +194,8 @@ where
             A: serde::de::SeqAccess<'de>,
         {
             let mut last = Err(A::Error::custom("Zero length seq"));
-            while let Some(v) = v.next_element::<i32>()? {
-                last = Ok(v)
+            while let Some(v) = v.next_element::<String>()? {
+                last = Ok(v.parse().unwrap())
             }
             last
         }

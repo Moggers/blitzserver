@@ -1,5 +1,5 @@
 <label for="era">Era</label>
-<select required name="era">
+<select required selected="{{settings.era}}" name="era">
 	<option {% if settings.era == 1 %} selected {% endif %} value="1">Early</option>
 	<option {% if settings.era == 2 %} selected {% endif %} value="2">Middle</option>
 	<option {% if settings.era == 3 %} selected {% endif %} value="3">Late</option>
