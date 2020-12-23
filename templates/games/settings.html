@@ -43,7 +43,13 @@ Thrones:
 <input id="throne_points_required" name="throne_points_required" value="{{settings.throne_points_required}}"type="number" />
 <br>
 <label for="research_diff">Research Difficulty:</label>
-<input name="research_diff" id="research_diff" value="{{ settings.research_diff}}" type="number" />
+<select name="research_diff" id="research_diff">
+	<option {% if settings.research_diff == 0 %} selected {% endif %} if value="0">Very Easy</option>
+	<option {% if settings.research_diff == 1 %} selected {% endif %} if value="1">Easy</option>
+	<option {% if settings.research_diff == 2 %} selected {% endif %} if value="2">Normal</option>
+	<option {% if settings.research_diff == 3 %} selected {% endif %} if value="3">Difficult</option>
+	<option {% if settings.research_diff == 4 %} selected {% endif %} if value="4">Very Difficult</option>
+</select>
 <br>
 <label for="research_rand">Random Research:</label>
 <input type="hidden" name="research_rand[0]" value="0" />
