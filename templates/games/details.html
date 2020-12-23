@@ -54,18 +54,27 @@
 			<br>
 		{% endfor %}
 	{% endif %}
-	<hr>
-	<span><b>Era:</b> {{ self.game.era_name() }}</span>
-	<br>
-	<b>Thrones:</b> {{ self.game.thrones_t1 }} / {{ self.game.thrones_t2 }} / {{ self.game.thrones_t3 }} ( {{ self.game.throne_points_required }} )
-	<hr>
 	{% if self.status == "Active" %}
+		<hr>
+		<span><b>Era:</b> {{ self.game.era_name() }}</span>
+		<br>
+		<b>Thrones:</b> {{ self.game.thrones_t1 }} / {{ self.game.thrones_t2 }} / {{ self.game.thrones_t3 }} ( {{ self.game.throne_points_required }} )
+		<hr>
 		<form method="POST" action="/game/{{self.game.id}}/timer">
 			<label for="timer">Timer(Minutes):</label>
 			<input name="timer" type="text" format="number" value="{{self.game.timer_string()}}"></input>
 			<input type="submit" value="Set Timer"></input>
 		</form>
 	{% else %}
+		<hr>
+		<form method="POST" action="/game/{{self.game.id}}/settings">
+			{% let settings = self.settings %}
+			{% include "settings.html" %}
+			<br>
+			<br>
+			<input type="submit" value="Update and Reboot" />
+		</form>
+		<hr>
 		<form method="POST" action="/game/{{self.game.id}}/launch">
 			<label for="countdown">Countdown(secs):</label>
 			<input name="countdown" type="text" format="number" value="60"></input>

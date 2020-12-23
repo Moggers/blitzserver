@@ -163,6 +163,7 @@ async fn main() -> std::io::Result<()> {
             .service(frontend::games::list)
             .service(frontend::games::create_get)
             .service(frontend::games::create_post)
+            .service(frontend::games::settings_post)
             .service(frontend::mods::list)
             .service(frontend::mods::upload_get)
             .service(frontend::mods::upload_post)

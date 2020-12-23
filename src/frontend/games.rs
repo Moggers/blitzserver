@@ -34,20 +34,10 @@ fn default_hundred() -> i32 {
     100
 }
 
-#[derive(Debug, Deserialize)]
-struct CreateGame {
-    #[serde(default)]
-    name: String,
+#[derive(Clone, Debug, Deserialize)]
+struct GameSettings {
     #[serde(default = "default_one")]
     era: i32,
-    #[serde(default = "default_one")]
-    map: i32,
-    #[serde(default)]
-    cmods: Vec<i32>,
-    #[serde(default)]
-    mapfilter: String,
-    #[serde(default)]
-    modfilter: String,
     #[serde(default = "default_five")]
     thrones_t1: i32,
     #[serde(default)]
@@ -108,6 +98,57 @@ struct CreateGame {
     newai: i32,
 }
 
+impl From<&Game> for GameSettings {
+    fn from(game: &Game) -> GameSettings {
+        GameSettings {
+            era: game.era,
+            thrones_t1: game.thrones_t1,
+            thrones_t2: game.thrones_t2,
+            thrones_t3: game.thrones_t3,
+            throne_points_required: game.throne_points_required,
+            research_diff: game.research_diff,
+            research_rand: game.research_rand as i32,
+            hof_size: game.hof_size,
+            global_size: game.global_size,
+            indepstr: game.indepstr,
+            magicsites: game.magicsites,
+            eventrarity: game.eventrarity,
+            richness: game.richness,
+            resources: game.resources,
+            recruitment: game.recruitment,
+            supplies: game.supplies,
+            startprov: game.startprov,
+            renaming: game.renaming as i32,
+            scoregraphs: game.scoregraphs as i32,
+            nationinfo: game.nationinfo as i32,
+            artrest: game.artrest as i32,
+            teamgame: game.teamgame as i32,
+            clustered: game.clustered as i32,
+            storyevents: game.storyevents,
+            newailvl: game.newailvl,
+            newai: game.newai as i32,
+        }
+    }
+}
+
+impl Copy for GameSettings {}
+
+#[derive(Debug, Deserialize)]
+struct CreateGame {
+    #[serde(default)]
+    name: String,
+    #[serde(default = "default_one")]
+    map: i32,
+    #[serde(default)]
+    cmods: Vec<i32>,
+    #[serde(default)]
+    mapfilter: String,
+    #[serde(default)]
+    modfilter: String,
+    #[serde(flatten)]
+    settings: GameSettings,
+}
+
 fn de_map_to_scalar<'de, D>(deserializer: D) -> Result<i32, D::Error>
 where
     D: serde::de::Deserializer<'de>,
@@ -159,6 +200,7 @@ struct AddGameTemplate<'a> {
 #[template(path = "games/details.html")]
 struct GameDetailsTemplate<'a> {
     game: Game,
+    settings: GameSettings,
     status: &'a str,
     turn_number: i32,
     turns: HashMap<i32, Vec<PlayerTurn>>,
@@ -255,11 +297,12 @@ async fn details(
     Ok(HttpResponse::Ok().content_type("text/html").body(
         (GameDetailsTemplate {
             map,
+            settings: (&game).into(),
             turns: player_turn_map,
             status: if turns.len() > 0 {
                 "Active"
             } else {
-                "Waiting for plyers "
+                "Waiting for players"
             },
             turn_number: turns.len() as i32,
             mods: &crate::schema::game_mods::dsl::game_mods
@@ -323,7 +366,7 @@ async fn create_post(
     let config = serde_qs::Config::new(10, false);
     let params: CreateGame = config.deserialize_bytes(&*bytes).unwrap();
 
-    let era = match params.era {
+    let era = match params.settings.era {
         Era::EARLY => Era::EARLY,
         Era::MIDDLE => Era::MIDDLE,
         Era::LATE => Era::LATE,
@@ -334,31 +377,31 @@ async fn create_post(
         name: &params.name,
         era,
         map_id: params.map,
-        thrones_t1: params.thrones_t1,
-        thrones_t2: params.thrones_t2,
-        thrones_t3: params.thrones_t3,
-        throne_points_required: params.throne_points_required,
-        research_diff: params.research_diff,
-        research_rand: params.research_rand > 0,
-        hof_size: params.hof_size,
-        global_size: params.global_size,
-        indepstr: params.indepstr,
-        magicsites: params.magicsites,
-        eventrarity: params.eventrarity,
-        richness: params.richness,
-        resources: params.resources,
-        recruitment: params.recruitment,
-        supplies: params.supplies,
-        startprov: params.startprov,
-        renaming: params.renaming > 0,
-        scoregraphs: params.scoregraphs > 0,
-        nationinfo: params.nationinfo > 0,
-        artrest: params.artrest > 0,
-        teamgame: params.teamgame > 0,
-        clustered: params.clustered > 0,
-        storyevents: params.storyevents,
-        newailvl: params.newailvl,
-        newai: params.newai > 0,
+        thrones_t1: params.settings.thrones_t1,
+        thrones_t2: params.settings.thrones_t2,
+        thrones_t3: params.settings.thrones_t3,
+        throne_points_required: params.settings.throne_points_required,
+        research_diff: params.settings.research_diff,
+        research_rand: params.settings.research_rand > 0,
+        hof_size: params.settings.hof_size,
+        global_size: params.settings.global_size,
+        indepstr: params.settings.indepstr,
+        magicsites: params.settings.magicsites,
+        eventrarity: params.settings.eventrarity,
+        richness: params.settings.richness,
+        resources: params.settings.resources,
+        recruitment: params.settings.recruitment,
+        supplies: params.settings.supplies,
+        startprov: params.settings.startprov,
+        renaming: params.settings.renaming > 0,
+        scoregraphs: params.settings.scoregraphs > 0,
+        nationinfo: params.settings.nationinfo > 0,
+        artrest: params.settings.artrest > 0,
+        teamgame: params.settings.teamgame > 0,
+        clustered: params.settings.clustered > 0,
+        storyevents: params.settings.storyevents,
+        newailvl: params.settings.newailvl,
+        newai: params.settings.newai > 0,
     };
 
     let game: Game = diesel::insert_into(crate::schema::games::table)
@@ -433,6 +476,57 @@ async fn launch(
                 cmd: self::game_manager::GameCmd::LaunchCmd(self::game_manager::LaunchCmd {
                     countdown: std::time::Duration::from_secs(form.countdown),
                 }),
+            },
+        ))
+        .unwrap();
+    Ok(HttpResponse::Found()
+        .header(header::LOCATION, format!("/game/{}", game.id))
+        .finish())
+}
+
+#[post("/game/{id}/settings")]
+async fn settings_post(
+    (app_data, path_id, body): (web::Data<AppData>, web::Path<i32>, web::Form<GameSettings>),
+) -> Result<HttpResponse> {
+    use crate::schema::games::dsl::*;
+    let db = app_data.pool.get().unwrap();
+    let game: Game = diesel::update(games.filter(id.eq(*path_id)))
+        .set((
+            era.eq(body.era),
+            thrones_t1.eq(body.thrones_t1),
+            thrones_t2.eq(body.thrones_t2),
+            thrones_t3.eq(body.thrones_t3),
+            throne_points_required.eq(body.throne_points_required),
+            research_diff.eq(body.research_diff),
+            research_rand.eq(body.research_rand > 0),
+            hof_size.eq(body.hof_size),
+            global_size.eq(body.global_size),
+            indepstr.eq(body.indepstr),
+            magicsites.eq(body.magicsites),
+            eventrarity.eq(body.eventrarity),
+            richness.eq(body.richness),
+            resources.eq(body.resources),
+            recruitment.eq(body.recruitment),
+            supplies.eq(body.supplies),
+            startprov.eq(body.startprov),
+            renaming.eq(body.renaming > 0),
+            scoregraphs.eq(body.scoregraphs > 0),
+            nationinfo.eq(body.nationinfo > 0),
+            artrest.eq(body.artrest > 0),
+            teamgame.eq(body.teamgame > 0),
+            clustered.eq(body.clustered > 0),
+            storyevents.eq(body.storyevents),
+            newailvl.eq(body.newailvl),
+            newai.eq(body.newai > 0),
+        ))
+        .get_result(&db)
+        .unwrap();
+    app_data
+        .manager_notifier
+        .send(game_manager::ManagerMsg::GameMsg(
+            self::game_manager::GameMsg {
+                id: game.id,
+                cmd: self::game_manager::GameCmd::RebootCmd,
             },
         ))
         .unwrap();

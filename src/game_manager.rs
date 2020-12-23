@@ -29,6 +29,7 @@ pub struct GameMsg {
 pub enum GameCmd {
     LaunchCmd(LaunchCmd),
     SetTimerCmd,
+    RebootCmd,
 }
 
 pub struct LaunchCmd {
@@ -39,6 +40,7 @@ pub enum ManagerMsg {
     Start(i32),
     Stop(i32),
     GameMsg(GameMsg),
+    GameDied(i32), // Odd sheep, this one comes from the servers and tells the monitor it's dead
 }
 
 pub struct GameManagerConfig<'a> {
@@ -309,7 +311,11 @@ impl Dom5Proc {
             .unwrap();
     }
 
-    fn launch(mut self, bin: &std::path::Path) -> Sender<GameCmd> {
+    fn launch(
+        mut self,
+        bin: &std::path::Path,
+        dc_sender: crossbeam_channel::Sender<ManagerMsg>,
+    ) -> Sender<GameCmd> {
         self.update_nations(bin);
         self.populate_savegame();
         let mut arguments = {
@@ -385,7 +391,7 @@ impl Dom5Proc {
                     0 => "--nostoryevents",
                     1 => "--storyevents",
                     2 => "--allstoryevents",
-                    _=> "",
+                    _ => "",
                 }
                 .to_string(),
                 "--newailvl".to_string(),
@@ -404,7 +410,7 @@ impl Dom5Proc {
             format!("{}", self.port),
             format!("{}", self.name),
         ]);
-        std::process::Command::new(bin)
+        let mut cmd = std::process::Command::new(bin)
             .env("DOM5_CONF", &self.datadir)
             .args(arguments)
             .spawn()
@@ -438,7 +444,14 @@ impl Dom5Proc {
                             Ok(GameCmd::SetTimerCmd) => {
                                 self.set_timer();
                             }
-                            _ => panic!("What the hell is this"),
+                            Ok(GameCmd::RebootCmd) => {
+                                cmd.kill().unwrap();
+                                cmd.wait().unwrap();
+                                break;
+                            }
+                            Err(_) => {
+                                panic!("Failed to receive command from game manager");
+                            }
                         }
                     },
                     recv(file_r) -> res => {
@@ -466,6 +479,7 @@ impl Dom5Proc {
                     }
                 };
             }
+            dc_sender.send(ManagerMsg::GameDied(self.game_id)).unwrap();
         });
         cmd_s
     }
@@ -553,6 +567,10 @@ impl GameManager {
     pub fn monitor(&mut self) {
         for msg in self.receiver.clone().iter() {
             match msg {
+                ManagerMsg::GameDied(id) => {
+                    let sender = self.launch_game(id);
+                    self.proc_senders.insert(id, sender);
+                }
                 ManagerMsg::Start(id) => {
                     let sender = self.launch_game(id);
                     self.proc_senders.insert(id, sender);
@@ -560,7 +578,9 @@ impl GameManager {
                 ManagerMsg::GameMsg(game_cmd) => match self.proc_senders.get(&game_cmd.id) {
                     Some(s) => {
                         if let Err(_) = s.send(game_cmd.cmd) {
-                            println!("WARN!!!! Failed to send message to server");
+                            println!("WARN!!!! Failed to send message to slave for game {}, assumed the server no longer exists and rebooting!", game_cmd.id);
+                            let sender = self.launch_game(game_cmd.id);
+                            self.proc_senders.insert(game_cmd.id, sender);
                         }
                     }
                     None => {
@@ -630,7 +650,7 @@ impl GameManager {
         };
         proc.populate_maps();
         proc.populate_mods();
-        proc.launch(&self.dom5_bin)
+        proc.launch(&self.dom5_bin, self.get_sender())
     }
 
     fn launch_games(&mut self) {
