@@ -10,14 +10,17 @@ use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use notify::Watcher;
 use std::io::Write;
+use tokio::io::AsyncWriteExt;
 
 pub struct GameManager {
     db_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
     tmp_dir: std::path::PathBuf,
     dom5_bin: std::path::PathBuf,
     port_range: [i32; 2],
+    internal_port_range: [i32; 2],
     sender: Sender<ManagerMsg>,
     receiver: Receiver<ManagerMsg>,
+    future_runtime: tokio::runtime::Runtime,
     proc_senders: std::collections::HashMap<i32, Sender<GameCmd>>,
 }
 
@@ -48,16 +51,18 @@ pub struct GameManagerConfig<'a> {
     pub tmp_dir: &'a std::path::Path,
     pub dom5_bin: &'a std::path::Path,
     pub port_range: &'a [i32; 2],
+    pub internal_port_range: &'a [i32; 2],
 }
 
 struct Dom5Proc {
     pub name: String,
-    pub port: i32,
     pub era: i32,
     pub mapname: String,
     pub datadir: String,
     pub savedir: std::path::PathBuf,
     pub game_id: i32,
+    pub receiver: crossbeam_channel::Receiver<GameCmd>,
+    status: Option<()>,
     db_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
 }
 
@@ -311,11 +316,7 @@ impl Dom5Proc {
             .unwrap();
     }
 
-    fn launch(
-        mut self,
-        bin: &std::path::Path,
-        dc_sender: crossbeam_channel::Sender<ManagerMsg>,
-    ) -> Sender<GameCmd> {
+    fn launch(mut self, bin: &std::path::Path, dc_sender: crossbeam_channel::Sender<ManagerMsg>) {
         self.update_nations(bin);
         self.populate_savegame();
         let mut arguments = {
@@ -397,6 +398,8 @@ impl Dom5Proc {
                 "--newailvl".to_string(),
                 game.newailvl.to_string(),
                 if game.newai { "" } else { "--nonewai" }.to_string(),
+                String::from("--port"),
+                format!("{}", game.internal_port.unwrap()),
             ]);
         }
         arguments.append(&mut vec![
@@ -406,8 +409,6 @@ impl Dom5Proc {
             String::from("--mapfile"),
             self.mapname.clone(),
             String::from("--newgame"),
-            String::from("--port"),
-            format!("{}", self.port),
             format!("{}", self.name),
         ]);
         let mut cmd = std::process::Command::new(bin)
@@ -418,10 +419,10 @@ impl Dom5Proc {
                 "Failed to launch dom5 binary for game {}",
                 self.name
             ));
+        self.status = Some(());
         self.set_timer();
         let datadir = self.datadir.clone();
         let (file_s, file_r) = crossbeam_channel::unbounded::<notify::Event>();
-        let (cmd_s, cmd_r) = crossbeam_channel::unbounded::<GameCmd>();
         std::thread::spawn(move || {
             let mut watcher: notify::RecommendedWatcher =
                 notify::Watcher::new_immediate(move |res| match res {
@@ -436,7 +437,7 @@ impl Dom5Proc {
                 .unwrap();
             loop {
                 crossbeam_channel::select! {
-                    recv(cmd_r) -> res => {
+                    recv(self.receiver) -> res => {
                         match res {
                             Ok(GameCmd::LaunchCmd(cmd)) => {
                                 self.set_countdown(cmd.countdown.as_secs());
@@ -479,9 +480,7 @@ impl Dom5Proc {
                     }
                 };
             }
-            dc_sender.send(ManagerMsg::GameDied(self.game_id)).unwrap();
         });
-        cmd_s
     }
 
     pub fn populate_maps(&mut self) {
@@ -544,7 +543,9 @@ impl GameManager {
             tmp_dir: cfg.tmp_dir.to_owned(),
             dom5_bin: cfg.dom5_bin.to_owned(),
             port_range: cfg.port_range.clone(),
+            internal_port_range: cfg.internal_port_range.clone(),
             sender: s,
+            future_runtime: tokio::runtime::Runtime::new().unwrap(),
             receiver: r,
             proc_senders: std::collections::HashMap::new(),
         }
@@ -583,15 +584,12 @@ impl GameManager {
                             self.proc_senders.insert(game_cmd.id, sender);
                         }
                     }
-                    None => {
-                        panic!("Tried to control game before it has started");
-                    }
+                    None => {}
                 },
                 _ => {}
             }
         }
     }
-
     fn launch_game(&mut self, launch_id: i32) -> Sender<GameCmd> {
         let db = self.db_pool.get().expect("Unable to connect to database");
         let mut game: Game = {
@@ -621,6 +619,19 @@ impl GameManager {
                 .get_result::<(Map, File)>(&db)
                 .unwrap()
         };
+        // Allocate a new internal port (always reallocate- we want to avoid using the last port we had if we just rebooted)
+        let new_internal_port: i32 = diesel::dsl::sql::<diesel::sql_types::Int4>(&format!(
+                    "SELECT * FROM generate_series({}, {}) num LEFT OUTER JOIN games g ON g.internal_port=num WHERE g.id IS NULL",
+                    self.internal_port_range[0], self.internal_port_range[1]
+                ))
+                .get_result(&db)
+                .unwrap();
+        use super::schema::games::dsl::*;
+        game = diesel::update(games.filter(id.eq(game.id)))
+            .set(internal_port.eq(new_internal_port))
+            .get_result(&db)
+            .unwrap();
+        // Allocate new external port if there is none
         if let None = game.port {
             let new_port: i32 = diesel::dsl::sql::<diesel::sql_types::Int4>(&format!(
                     "SELECT * FROM generate_series({}, {}) num LEFT OUTER JOIN games g ON g.port=num WHERE g.id IS NULL",
@@ -634,23 +645,87 @@ impl GameManager {
                 .get_result(&db)
                 .unwrap();
         }
-        let mut proc = Dom5Proc {
-            game_id: game.id,
-            savedir: std::path::PathBuf::from(&tmp_game_path)
-                .join("savedgames")
-                .join(&game.name),
-            name: game.name,
-            port: game
-                .port
-                .expect("No port specified for game, something went wrong!"),
-            era: game.era,
-            mapname: mapfile.filename.clone(),
-            datadir: tmp_game_path.into_os_string().into_string().unwrap(),
-            db_pool: self.db_pool.clone(),
-        };
-        proc.populate_maps();
-        proc.populate_mods();
-        proc.launch(&self.dom5_bin, self.get_sender())
+        let (proxy_s, proxy_r) = crossbeam_channel::unbounded::<GameCmd>();
+
+        // Proxy listener
+        let runtime = self.future_runtime.handle().clone();
+        let db_pool = self.db_pool.clone();
+        let comm_sender = self.get_sender().clone();
+        let binpath = self.dom5_bin.clone();
+
+        self.future_runtime.handle().clone().spawn(async move {
+            let listener =
+                tokio::net::TcpListener::bind(format!("127.0.0.1:{}", game.port.unwrap()))
+                    .await
+                    .expect("What da fug");
+            let conn_count: std::sync::Arc<()> = std::sync::Arc::new(());
+            let (proc_sender, proc_receiver) = crossbeam_channel::unbounded();
+            loop {
+                select! {
+                        Ok((mut client_sock, _)) = listener.accept() => {
+                            let ccc = std::sync::Arc::clone(&conn_count);
+                            if std::sync::Arc::strong_count(&ccc) == 2 {
+                                let mut proc = Dom5Proc {
+                                    game_id: game.id,
+                                    savedir: std::path::PathBuf::from(&tmp_game_path.clone())
+                                        .join("savedgames")
+                                        .join(&game.name),
+                                    name: game.name.clone(),
+                                    era: game.era,
+                                    mapname: mapfile.filename.clone(),
+                                    datadir: tmp_game_path
+                                        .clone()
+                                        .into_os_string()
+                                        .into_string()
+                                        .unwrap(),
+                                    db_pool: db_pool.clone(),
+                                    status: None,
+                                    receiver: proc_receiver.clone(),
+                                };
+                                proc.populate_maps();
+                                proc.populate_mods();
+                                proc.launch(&binpath, comm_sender.clone());
+                                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                            }
+                            let current_internal_port = game.internal_port.unwrap();
+                            let current_proc_sender = proc_sender.clone();
+                            runtime.spawn(async move {
+                                let (mut cr, mut cw) = client_sock.split();
+                                let mut serv_conn = tokio::net::TcpStream::connect(format!(
+                                    "0.0.0.0:{}",
+                                    current_internal_port
+                                ))
+                                .await
+                                .unwrap();
+                                let (mut sr, mut sw) = serv_conn.split();
+                                let client_to_server = async {
+                                    tokio::io::copy(&mut cr, &mut sw).await.unwrap();
+                                };
+                                let server_to_client = async {
+                                    tokio::io::copy(&mut sr, &mut cw).await.unwrap();
+                                };
+                                tokio::select! {
+                                    _ = client_to_server => {
+                                    }
+                                    _ = server_to_client => {
+                                    }
+                                }
+                                cw.shutdown().await.unwrap();
+                                sw.shutdown().await.unwrap();
+                                if std::sync::Arc::strong_count(&ccc) == 2 {
+                                    // 1 for the base, 1 for us (the last copy), shutdown server
+                                    current_proc_sender.send(GameCmd::RebootCmd).unwrap();
+                                }
+                                drop(ccc);
+                            });
+                            ()
+                    },
+                    Ok(GameCmd) = proxy_r.next() => {
+                    }
+                }
+            }
+        });
+        proxy_s
     }
 
     fn launch_games(&mut self) {

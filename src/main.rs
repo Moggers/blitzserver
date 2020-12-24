@@ -1,4 +1,5 @@
 #![feature(try_blocks)]
+#![feature(async_closure)]
 #![feature(type_alias_impl_trait)]
 #[macro_use]
 extern crate num_enum;
@@ -7,6 +8,8 @@ extern crate diesel;
 extern crate byteorder;
 extern crate image;
 extern crate zip;
+#[macro_use]
+extern crate tokio;
 use self::diesel::prelude::*;
 use self::models::*;
 use actix_web::http::header;
@@ -58,8 +61,10 @@ async fn main() -> std::io::Result<()> {
     };
 
     let mut manager = {
-        let port_var = env::var("PORT_RANGE").expect("PORT_RANGE must be set (ie. '10000,11000')");
+        let port_var = env::var("PORT_RANGE").expect("PORT_RANGE must be set (ie. '10000,10999')");
+        let internal_port_var = env::var("INTERNAL_PORT_RANGE").expect("INTERNAL_PORT_RANGE must be set (ie. '11000,11999')");
         let range: Vec<&str> = port_var.split(",").collect();
+        let internal_range: Vec<&str> = internal_port_var.split(",").collect();
         let cfg = GameManagerConfig {
             db_pool: &pool.clone(),
             tmp_dir: &env::current_dir().unwrap().join("tmp"),
@@ -67,6 +72,10 @@ async fn main() -> std::io::Result<()> {
             port_range: &[
                 range[0].parse::<i32>().unwrap(),
                 range[1].parse::<i32>().unwrap(),
+            ],
+            internal_port_range: &[
+                internal_range[0].parse::<i32>().unwrap(),
+                internal_range[1].parse::<i32>().unwrap(),
             ],
         };
 

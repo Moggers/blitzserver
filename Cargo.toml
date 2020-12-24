@@ -25,3 +25,4 @@ num_enum = "*"
 zip = "*"
 serde_qs = { git = "https://github.com/Moggers/serde_qs.git", branch = "main", features = [ "actix" ] }
 image = "*"
+tokio = {version= "1.0.0", features = ["full"] }

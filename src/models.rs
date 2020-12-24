@@ -41,6 +41,7 @@ pub struct Game {
     pub storyevents: i32,
     pub newailvl: i32,
     pub newai: bool,
+    pub internal_port: Option<i32>,
 }
 
 impl Game {
