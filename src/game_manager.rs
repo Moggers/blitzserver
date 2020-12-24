@@ -413,7 +413,7 @@ impl Dom5Proc {
         }
         let new_internal_port = (self.internal_port_range[0]..self.internal_port_range[1])
             .find(|check_port| {
-                match std::net::TcpListener::bind(format!("127.0.0.1:{}", check_port)) {
+                match std::net::TcpListener::bind(format!("0.0.0.0:{}", check_port)) {
                     Ok(_) => {
                         println!("Bound to {}, using", check_port);
                         true
@@ -669,7 +669,7 @@ impl GameManager {
         let proc_handle = base_proc_handle.clone();
         std::thread::spawn(move || {
             let listener =
-                std::net::TcpListener::bind(format!("127.0.0.1:{}", game.port.unwrap())).unwrap();
+                std::net::TcpListener::bind(format!("0.0.0.0:{}", game.port.unwrap())).unwrap();
             while let Ok((client_sock, _)) = listener.accept() {
                 let our_proc_handle = {
                     let mut locked_handle = proc_handle.write().expect("D5Proc RWLock poisoned");
