@@ -1,6 +1,7 @@
 #![feature(try_blocks)]
 #![feature(async_closure)]
 #![feature(type_alias_impl_trait)]
+#![feature(get_mut_unchecked)]
 #[macro_use]
 extern crate num_enum;
 #[macro_use]
@@ -8,8 +9,6 @@ extern crate diesel;
 extern crate byteorder;
 extern crate image;
 extern crate zip;
-#[macro_use]
-extern crate tokio;
 use self::diesel::prelude::*;
 use self::models::*;
 use actix_web::http::header;

@@ -48,7 +48,6 @@ table! {
         storyevents -> Int4,
         newailvl -> Int4,
         newai -> Bool,
-        internal_port -> Nullable<Int4>,
     }
 }
 
