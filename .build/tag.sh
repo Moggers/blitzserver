@@ -1,5 +1,5 @@
 #!/bin/bash
-set-cargo-version Cargo.toml $1
+~/.cargo/bin/set-cargo-version Cargo.toml $1
 git reset 
 git add Cargo.toml
 git commit -m "Version bump to $1"
