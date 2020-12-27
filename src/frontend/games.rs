@@ -291,7 +291,7 @@ async fn timer(
         .send(game_manager::ManagerMsg::GameMsg(
             self::game_manager::GameMsg {
                 id: game.id,
-                cmd: self::game_manager::GameCmd::SetTimerCmd,
+                cmd: crate::dom5_proc::GameCmd::SetTimerCmd,
             },
         ))
         .unwrap();
@@ -556,7 +556,7 @@ async fn launch(
         .send(game_manager::ManagerMsg::GameMsg(
             self::game_manager::GameMsg {
                 id: game.id,
-                cmd: self::game_manager::GameCmd::LaunchCmd(self::game_manager::LaunchCmd {
+                cmd: crate::dom5_proc::GameCmd::LaunchCmd(crate::dom5_proc::LaunchCmd {
                     countdown: std::time::Duration::from_secs(form.countdown),
                 }),
             },
@@ -639,7 +639,7 @@ async fn settings_post(
         .send(game_manager::ManagerMsg::GameMsg(
             self::game_manager::GameMsg {
                 id: game.id,
-                cmd: self::game_manager::GameCmd::RebootCmd,
+                cmd: crate::dom5_proc::GameCmd::RebootCmd,
             },
         ))
         .unwrap();

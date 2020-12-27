@@ -68,22 +68,6 @@ pub async fn image(
         .body(jpg_bytes))
 }
 
-pub async fn image_handler(
-    req: actix_web::dev::ServiceRequest,
-) -> impl futures::Future<
-    Output = Result<actix_web::dev::ServiceResponse<actix_web::body::Body>, actix_web::Error>,
-> {
-    let (http_req, _payload) = req.into_parts();
-    let map_id_regex = regex::Regex::new(r#"/images/maps/[0-9]+.jpg"#).unwrap();
-    if let Some(captures) = map_id_regex.captures(http_req.path()) {}
-    async {
-        Ok(actix_web::dev::ServiceResponse::new(
-            http_req,
-            HttpResponse::NotFound().finish(),
-        ))
-    }
-}
-
 #[derive(Template)]
 #[template(path = "maps/list.html")]
 struct ListMapsTemplate<'a> {
@@ -101,7 +85,7 @@ struct UploadMapTemplate<'a> {
 #[get("/map/{id}/download")]
 async fn download((app_data, mapid): (web::Data<AppData>, web::Path<i32>)) -> Result<HttpResponse> {
     let db = app_data.pool.get().expect("Unable to connect to database");
-    let (map,zipfile) = crate::schema::maps::dsl::maps.filter(crate::schema::maps::dsl::id.eq(mapid.0)).inner_join(crate::schema::files::dsl::files.on(crate::schema::files::dsl::id.eq(crate::schema::maps::dsl::archive_id))).get_result::<(Map, File)>(&db).unwrap();
+    let (_map,zipfile) = crate::schema::maps::dsl::maps.filter(crate::schema::maps::dsl::id.eq(mapid.0)).inner_join(crate::schema::files::dsl::files.on(crate::schema::files::dsl::id.eq(crate::schema::maps::dsl::archive_id))).get_result::<(Map, File)>(&db).unwrap();
 
     Ok(HttpResponse::Ok().content_type("application/zip").body(zipfile.filebinary))
 }
