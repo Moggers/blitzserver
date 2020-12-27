@@ -31,6 +31,7 @@ pub enum GameCmd {
     LaunchCmd(LaunchCmd),
     SetTimerCmd,
     RebootCmd,
+    RollTurn,
 }
 
 pub struct LaunchCmd {
@@ -74,6 +75,7 @@ struct Dom5Proc {
     pub savedir: std::path::PathBuf,
     pub game_id: i32,
     pub internal_port_range: [i32; 2],
+    pub manager_sender: crossbeam_channel::Sender<ManagerMsg>,
     db_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
 }
 
@@ -96,8 +98,31 @@ impl Dom5Proc {
             .filter(crate::schema::games::dsl::id.eq(self.game_id))
             .get_result(&db)
             .unwrap();
-        if let Some(timer) = game.timer {
-            self.add_string_to_domcmd(&format!("setinterval {}", timer));
+        if let Some(next_turn) = game.next_turn {
+            self.add_string_to_domcmd(&format!(
+                "setinterval {}",
+                next_turn
+                    .duration_since(std::time::SystemTime::now())
+                    .unwrap()
+                    .as_secs()
+                    / 60
+            ));
+            let sender = self.manager_sender.clone();
+            std::thread::spawn(move || {
+                println!("Waiting until turn..");
+                std::thread::sleep(
+                    next_turn
+                        .duration_since(std::time::SystemTime::now())
+                        .unwrap(),
+                );
+                println!("Rolling turn..");
+                sender
+                    .send(ManagerMsg::GameMsg(GameMsg {
+                        id: game.id,
+                        cmd: GameCmd::RollTurn,
+                    }))
+                    .unwrap();
+            });
         }
     }
 
@@ -147,19 +172,30 @@ impl Dom5Proc {
         };
         if status_dump.turn > 0 {
             let ftherlnd = TwoH::read_file(&self.savedir.join("ftherlnd"));
+            println!("inserting turn");
             let new_file: File = NewFile::new("ftherlnd", &ftherlnd.file_contents).insert(&db);
             use super::schema::turns::dsl::*;
-            diesel::insert_into(turns)
-                .values(NewTurn {
-                    game_id: self.game_id,
-                    turn_number: status_dump.turn,
-                    file_id: new_file.id,
-                })
-                .on_conflict((game_id, turn_number))
-                .do_update()
-                .set(file_id.eq(new_file.id))
-                .execute(&db)
-                .unwrap();
+            let existing_turn = turns
+                .filter(
+                    game_id
+                        .eq(self.game_id)
+                        .and(turn_number.eq(status_dump.turn - 1)),
+                )
+                .get_result::<Turn>(&db);
+            if existing_turn.is_ok() && existing_turn.unwrap().file_id != new_file.id {
+                diesel::insert_into(turns)
+                    .values(NewTurn {
+                        game_id: self.game_id,
+                        turn_number: status_dump.turn,
+                        file_id: new_file.id,
+                    })
+                    .on_conflict((game_id, turn_number))
+                    .do_update()
+                    .set(file_id.eq(new_file.id))
+                    .execute(&db)
+                    .unwrap();
+                self.set_timer();
+            }
         }
     }
     fn populate_savegame(&self) {
@@ -461,13 +497,19 @@ impl Dom5Proc {
                 crossbeam_channel::select! {
                     recv(receiver) -> res => {
                         match res {
+                            Ok(GameCmd::RollTurn) => {
+                                // TODO: Can't really forcehost an active game, can only set
+                                // a very short interval.
+                                self.add_string_to_domcmd(&format!("setinterval 1"));
+                            }
                             Ok(GameCmd::LaunchCmd(cmd)) => {
                                 self.set_countdown(cmd.countdown.as_secs());
-                            },
+                            }
                             Ok(GameCmd::SetTimerCmd) => {
                                 self.set_timer();
                             }
                             Ok(GameCmd::RebootCmd) => {
+                                // Shutdown, Drop will do our jobs for us
                                 break;
                             }
                             Err(_) => {
@@ -589,28 +631,48 @@ impl GameManager {
         self.launch_games()
     }
 
+    pub fn roll_turn(&mut self) {}
+
     pub fn monitor(&mut self) {
-        for msg in self.receiver.clone().iter() {
-            match msg {
-                ManagerMsg::GameDied(id) => {
-                    let sender = self.launch_game(id);
-                    self.proc_senders.insert(id, sender);
-                }
-                ManagerMsg::Start(id) => {
-                    let sender = self.launch_game(id);
-                    self.proc_senders.insert(id, sender);
-                }
-                ManagerMsg::GameMsg(game_cmd) => match self.proc_senders.get(&game_cmd.id) {
-                    Some(s) => {
-                        if let Err(_) = s.send(game_cmd.cmd) {
-                            println!("WARN!!!! Failed to send message to slave for game {}, assumed the server no longer exists and rebooting!", game_cmd.id);
-                            let sender = self.launch_game(game_cmd.id);
-                            self.proc_senders.insert(game_cmd.id, sender);
-                        }
+        loop {
+            if let Ok(msg) = self
+                .receiver
+                .recv_timeout(std::time::Duration::from_secs(5))
+            {
+                match msg {
+                    ManagerMsg::GameDied(id) => {
+                        let sender = self.launch_game(id);
+                        self.proc_senders.insert(id, sender);
                     }
-                    None => {}
-                },
-                _ => {}
+                    ManagerMsg::Start(id) => {
+                        let sender = self.launch_game(id);
+                        self.proc_senders.insert(id, sender);
+                    }
+                    ManagerMsg::GameMsg(game_cmd) => match self.proc_senders.get(&game_cmd.id) {
+                        Some(s) => {
+                            if let Err(_) = s.send(game_cmd.cmd) {
+                                println!("WARN!!!! Failed to send message to slave for game {}, assumed the server no longer exists and rebooting!", game_cmd.id);
+                                let sender = self.launch_game(game_cmd.id);
+                                self.proc_senders.insert(game_cmd.id, sender);
+                            }
+                        }
+                        None => {}
+                    },
+                    _ => {}
+                }
+            }
+            let games_to_roll = {
+                let db = self.db_pool.get().unwrap();
+                use crate::schema::games::dsl::*;
+                games
+                    .filter(next_turn.lt(std::time::SystemTime::now()))
+                    .get_results::<Game>(&db)
+                    .unwrap()
+            };
+            for game in games_to_roll {
+                if let Some(sender) = self.proc_senders.get(&game.id) {
+                    sender.send(GameCmd::RollTurn).unwrap();
+                }
             }
         }
     }
@@ -663,6 +725,8 @@ impl GameManager {
         let db_pool = self.db_pool.clone();
         let binpath = self.dom5_bin.clone();
         let ipr = self.internal_port_range.clone();
+        let sender = self.get_sender();
+        let mapname = mapfile.filename.clone();
 
         let base_proc_handle: std::sync::Arc<std::sync::RwLock<std::sync::Weak<Dom5ProcHandle>>> =
             std::sync::Arc::new(std::sync::RwLock::new(std::sync::Weak::new()));
@@ -677,13 +741,14 @@ impl GameManager {
                         Some(proc_handle) => proc_handle,
                         None => {
                             let mut proc = Dom5Proc {
+                                manager_sender: sender.clone(),
                                 game_id: game.id,
                                 savedir: std::path::PathBuf::from(&tmp_game_path.clone())
                                     .join("savedgames")
                                     .join(&game.name),
                                 name: game.name.clone(),
                                 era: game.era,
-                                mapname: mapfile.filename.clone(),
+                                mapname: mapname.clone(),
                                 datadir: tmp_game_path
                                     .clone()
                                     .into_os_string()
@@ -738,18 +803,16 @@ impl GameManager {
                 });
             }
         });
+
         std::thread::spawn(move || {
             while let Ok(msg) = proxy_r.recv() {
-                match base_proc_handle.read() {
-                    Ok(read_lock) => match read_lock.upgrade() {
+                match msg {
+                    _ => match base_proc_handle.read().unwrap().upgrade() {
                         Some(d5ph) => {
                             d5ph.sender.send(msg).unwrap();
                         }
                         None => {}
                     },
-                    Err(_) => {
-                        panic!("D5Proc RWLock poisoned");
-                    }
                 }
             }
         });

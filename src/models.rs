@@ -41,9 +41,39 @@ pub struct Game {
     pub storyevents: i32,
     pub newailvl: i32,
     pub newai: bool,
+    pub next_turn: Option<std::time::SystemTime>,
 }
 
 impl Game {
+    pub fn next_turn_string(&self) -> String {
+        match self.next_turn {
+            None => "When these shazbots submit their turns".to_string(),
+            Some(next_turn) => {
+                if let Ok(until) = next_turn.duration_since(std::time::SystemTime::now()) {
+                    format!(
+                        "{}{}",
+                        if until.as_secs() > (60 * 60) {
+                            // More than one hour
+                            format!("{} hours, ", (until.as_secs() as f32 / 60.0 / 60.0).floor())
+                        } else {
+                            "".to_string()
+                        },
+                        if until.as_secs() % (60 * 60) > 60 {
+                            // More than one minute within the hour
+                            format!(
+                                "{} minutes",
+                                (until.as_secs() as f32 % (60.0 * 60.0) / 60.0).floor(),
+                            )
+                        } else {
+                            "".to_string()
+                        }
+                    )
+                } else {
+                    "The past".to_string()
+                }
+            }
+        }
+    }
     pub fn timer_string(&self) -> String {
         match self.timer {
             None => "".to_owned(),
@@ -215,6 +245,7 @@ pub struct Turn {
     pub game_id: i32,
     pub turn_number: i32,
     pub file_id: i32,
+    pub created_at: std::time::SystemTime,
 }
 
 #[derive(Insertable)]

@@ -9,6 +9,8 @@
 	{% if self.status == "Active" %}
 	<span><b>Turn:</b> {{ self.turn_number }}</span>
 	<br>
+	<span><b>Next Turn:</b> {{ self.game.next_turn_string() }}</span>
+	<br>
 	{% endif %}
 	{% if self.game.port.is_some() %}
 		<span><b>Address:</b> {{ format!("{}:{}", self.hostname, self.game.port.unwrap()) }} </span>
@@ -54,7 +56,7 @@
 		<hr>
 		<form method="POST" action="/game/{{self.game.id}}/timer">
 			<label for="timer">Timer(Minutes):</label>
-			<input name="timer" type="text" format="number" value="{{self.game.timer_string()}}"></input>
+			<input required name="timer" type="text" type="number" value="{{self.game.timer_string()}}"></input>
 			<input type="submit" value="Set Timer"></input>
 		</form>
 	{% else %}

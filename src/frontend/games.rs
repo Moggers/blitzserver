@@ -11,6 +11,7 @@ use askama::Template;
 use futures::StreamExt;
 use serde::{de::Error, Deserialize};
 use std::collections::HashMap;
+use std::ops::Add;
 
 fn default_one() -> i32 {
     1
@@ -275,7 +276,13 @@ async fn timer(
     {
         use crate::schema::games::dsl::*;
         diesel::update(games.filter(id.eq(game.id)))
-            .set(timer.eq(Some(timer_form.timer)))
+            .set((
+                timer.eq(Some(timer_form.timer)),
+                next_turn.eq(Some(
+                    std::time::SystemTime::now()
+                        .add(std::time::Duration::from_secs(60 * timer_form.timer as u64)),
+                )),
+            ))
             .execute(&db)
             .unwrap();
     }

@@ -48,6 +48,7 @@ table! {
         storyevents -> Int4,
         newailvl -> Int4,
         newai -> Bool,
+        next_turn -> Nullable<Timestamp>,
     }
 }
 
@@ -107,6 +108,7 @@ table! {
         game_id -> Int4,
         turn_number -> Int4,
         file_id -> Int4,
+        created_at -> Timestamp,
     }
 }
 
