@@ -25,3 +25,5 @@ num_enum = "*"
 zip = "*"
 serde_qs = { git = "https://github.com/Moggers/serde_qs.git", branch = "main", features = [ "actix" ] }
 image = "*"
+env_logger = "*"
+log = "*"

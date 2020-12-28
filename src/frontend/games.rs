@@ -533,36 +533,32 @@ async fn list(app_data: web::Data<AppData>) -> Result<HttpResponse> {
 async fn launch(
     (app_data, web::Path(path_id), form): (
         web::Data<AppData>,
-        web::Path<String>,
+        web::Path<i32>,
         web::Form<StartGame>,
     ),
 ) -> Result<HttpResponse> {
-    let game = {
-        let db = app_data.pool.get().expect("Unable to connect to database");
-        if let Ok(id_i32) = path_id.parse::<i32>() {
-            use crate::schema::games::dsl::*;
-            games
-                .filter(id.eq(id_i32))
-                .get_result::<Game>(&*db)
-                .unwrap()
-        } else {
-            use crate::schema::games::dsl::*;
-            games
-                .filter(name.ilike(path_id))
-                .get_result::<Game>(&*db)
-                .unwrap()
-        }
-    };
+    let db = app_data.pool.get().expect("Unable to connect to database");
+    use crate::schema::games::dsl::*;
+    let game = games
+        .filter(id.eq(path_id))
+        .get_result::<Game>(&*db)
+        .unwrap();
+
+    diesel::update(games)
+        .filter(id.eq(path_id))
+        .set(
+            next_turn
+                .eq(std::time::SystemTime::now()
+                    .add(std::time::Duration::from_secs(form.countdown))),
+        )
+        .execute(&db)
+        .unwrap();
     app_data
         .manager_notifier
         .send(game_manager::ManagerMsg::GameMsg(
             crate::dom5_proxy::GameMsg {
                 id: game.id,
-                cmd: crate::dom5_proxy::GameMsgType::GameCmd(crate::dom5_proc::GameCmd::LaunchCmd(
-                    crate::dom5_proc::LaunchCmd {
-                        countdown: std::time::Duration::from_secs(form.countdown),
-                    },
-                )),
+                cmd: crate::dom5_proxy::GameMsgType::GameCmd(crate::dom5_proc::GameCmd::SetTimerCmd)
             },
         ))
         .unwrap();

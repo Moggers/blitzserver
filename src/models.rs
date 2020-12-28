@@ -58,7 +58,7 @@ impl Game {
                         } else {
                             "".to_string()
                         },
-                        if until.as_secs() % (60 * 60) > 60 {
+                        if until.as_secs() % (60 * 60) > 0 {
                             // More than one minute within the hour
                             format!(
                                 "{} minutes",

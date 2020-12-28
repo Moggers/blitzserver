@@ -9,15 +9,9 @@ use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use notify::Watcher;
 use std::io::Write;
-use std::ops::Add;
-
-pub struct LaunchCmd {
-    pub countdown: std::time::Duration,
-}
 
 pub enum GameCmd {
     Shutdown,
-    LaunchCmd(LaunchCmd),
     SetTimerCmd,
 }
 
@@ -57,9 +51,6 @@ impl Dom5Proc {
         };
         write!(file, "{}", cmd).unwrap();
     }
-    fn set_countdown(&self, countdown: u64) {
-        self.add_string_to_domcmd(&format!("settimeleft {}", countdown));
-    }
 
     fn unset_timer(&self) {
         self.add_string_to_domcmd("setinterval 0");
@@ -72,17 +63,36 @@ impl Dom5Proc {
             .get_result(&db)
             .unwrap();
         if let Some(next_turn) = game.next_turn {
-            if next_turn >= std::time::SystemTime::now().add(std::time::Duration::from_secs(60)) {
-                self.add_string_to_domcmd(&format!(
-                    "setinterval {}",
-                    next_turn
-                        .duration_since(std::time::SystemTime::now())
-                        .unwrap()
-                        .as_secs()
-                        / 60
-                ));
+            let turns: Vec<Turn> = crate::schema::turns::dsl::turns
+                .filter(crate::schema::turns::dsl::game_id.eq(self.game_id))
+                .get_results::<Turn>(&db)
+                .unwrap();
+            if turns.len() > 0 {
+                if next_turn >= std::time::SystemTime::now() {
+                    self.add_string_to_domcmd(&format!(
+                        "setinterval {}",
+                        (next_turn
+                            .duration_since(std::time::SystemTime::now())
+                            .unwrap()
+                            .as_secs() as f32
+                            / 60.0)
+                            .ceil()
+                    ));
+                } else {
+                    self.add_string_to_domcmd("setinterval 1");
+                }
             } else {
-                self.add_string_to_domcmd("setinterval 1");
+                if next_turn >= std::time::SystemTime::now() {
+                    self.add_string_to_domcmd(&format!(
+                        "settimeleft {}",
+                        next_turn
+                            .duration_since(std::time::SystemTime::now())
+                            .unwrap()
+                            .as_secs()
+                    ));
+                } else {
+                    self.add_string_to_domcmd("settimeleft 1");
+                }
             }
         }
     }
@@ -136,6 +146,11 @@ impl Dom5Proc {
             )
             .get_result::<Turn>(&db);
         if !existing_turn.is_ok() || existing_turn.unwrap().file_id != new_file.id {
+            log::info!(
+                "Game {}: Creating turn {}",
+                self.game_id,
+                ftherlnd.turnnumber
+            );
             diesel::insert_into(turns)
                 .values(NewTurn {
                     game_id: self.game_id,
@@ -415,6 +430,7 @@ impl Dom5Proc {
         }
         arguments.append(&mut vec![
             String::from("-T"),
+            String::from("--newgame"),
             String::from("--mapfile"),
             self.mapname.clone(),
             String::from("-g"),
@@ -451,7 +467,6 @@ impl Dom5Proc {
                 }
             }
         }
-        self.send_upstream.send(ProcEvent::NewTurn).unwrap();
     }
 
     pub fn launch(mut self, bin: &std::path::Path) -> Dom5ProcHandle {
@@ -595,9 +610,6 @@ impl Dom5Proc {
                                 cmd.wait().unwrap();
                                 break;
                             },
-                            Ok(GameCmd::LaunchCmd(cmd)) => {
-                                self.set_countdown(cmd.countdown.as_secs());
-                            }
                             Ok(GameCmd::SetTimerCmd) => {
                                 self.set_timer();
                             }

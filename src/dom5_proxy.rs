@@ -2,6 +2,7 @@ use super::models::{File, Game, Map};
 use crossbeam_channel::{Receiver, Sender};
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
+use log::info;
 
 use crate::diesel::prelude::*;
 use crate::dom5_proc::{Dom5Proc, Dom5ProcHandle, GameCmd};
@@ -36,7 +37,6 @@ pub struct Dom5ProxyHandle {
 
 impl Dom5Proxy {
     fn schedule_turn(&self) {
-        println!("Scheduling turn");
         let recv = self.nextturn_interupt_recv.clone();
         let notifier = self.manager_sender.clone();
         let id = self.game_id;
@@ -45,34 +45,31 @@ impl Dom5Proxy {
             use crate::schema::games::dsl::*;
             games.filter(id.eq(self.game_id)).get_result(&db).unwrap()
         };
-        println!("Found next turn when");
         if let Some(next_turn) = game.next_turn {
             match self
                 .nextturn_interupt
-                .send_timeout((), std::time::Duration::from_secs(5))
+                .send_timeout((), std::time::Duration::from_secs(1))
             {
-                Ok(_) => {
-                    println!("Sent interrupt");
-                }
-                Err(_) => {
-                    println!("Interrupt timeout- no other schedule");
-                }
+                Ok(_) => {}
+                Err(_) => {}
             }
 
-            println!("Begin test");
             match next_turn.duration_since(std::time::SystemTime::now()) {
                 Ok(duration) => {
-                    println!("Scheduling next turn in {:?}", duration);
+                    info!(
+                        "Game {}: New turn to be requested in {:?}",
+                        game.id, duration
+                    );
                     std::thread::spawn(move || {
                         match recv.recv_timeout(duration) {
-                            Ok(_) => {
-                                println!("Next turn interrupted");
-                            }
+                            Ok(_) => {}
                             Err(_) => {
-                                println!("Time for a new turn");
                                 // Small debounce to prevent thrashing while waiting for server
+                                info!(
+                                    "Game {}: scheduled turn time arrived, notifying proxy",
+                                    game.id
+                                );
                                 std::thread::sleep(std::time::Duration::from_secs(5));
-                                println!("Notifying");
                                 notifier
                                     .send(GameMsg {
                                         id,
@@ -84,7 +81,7 @@ impl Dom5Proxy {
                     });
                 }
                 Err(_) => {
-                    println!("Time for a new turn");
+                    info!("Game {}: New turn to be requested now", game.id);
                     notifier
                         .send(GameMsg {
                             id,
@@ -231,12 +228,13 @@ impl Dom5Proxy {
         let binpath = self.dom5_bin.clone();
         let mapname = mapfile.filename.clone();
         let proc_sender_clone = proc_sender.clone();
+        let game_id = self.game_id;
         std::thread::spawn(move || loop {
             crossbeam_channel::select! {
                 recv(proc_receiver) -> msg => {
                     match msg.unwrap() {
                         crate::dom5_proc::ProcEvent::NewTurn => {
-                            println!("New turn detected in dom5proxy");
+                            info!("Game {}: New turn received from process", game_id);
                             self.schedule_turn();
                             if let Some(d5ph) = base_proc_handle.read().unwrap().upgrade() {
                                 d5ph.sender.send(crate::dom5_proc::GameCmd::SetTimerCmd).unwrap();
@@ -246,8 +244,8 @@ impl Dom5Proxy {
                 }
                 recv(receiver) -> msg => match msg.unwrap().cmd {
                     GameMsgType::HostTurn => {
-                        println!("Here we check if the game is already running and hosting its own turns. If it is not, we fire one off");
                         if let None = base_proc_handle.read().unwrap().upgrade() {
+                            info!("Game {}: Dormant turn host required", game_id);
                                 let db = db_pool.get().unwrap();
                                 let game: Game = {
                                     use crate::schema::games::dsl::*;
@@ -255,7 +253,7 @@ impl Dom5Proxy {
                                 };
                                 Dom5Proc {
                                     game_id: game.id,
-                                    send_upstream:proc_sender_clone.clone(), 
+                                    send_upstream:proc_sender_clone.clone(),
                                     savedir: std::path::PathBuf::from(&game_dir)
                                         .join("savedgames")
                                         .join(&game.name),
@@ -273,6 +271,7 @@ impl Dom5Proxy {
                                 .host_turn(&binpath);
 
                         } else {
+                            info!("Game {}: Turn host required for active game, waiting for new turn", game_id);
                             self.schedule_turn();
                         }
                     }
@@ -285,8 +284,10 @@ impl Dom5Proxy {
                         }
                     },
                     GameMsgType::GameCmd(GameCmd::SetTimerCmd) => {
-                        println!("Received set timer cmd, scheduling turn");
                         self.schedule_turn();
+                        if let Some(d5ph) = base_proc_handle.read().unwrap().upgrade() {
+                            d5ph.sender.send(GameCmd::SetTimerCmd).unwrap();
+                        }
                     },
                     GameMsgType::GameCmd(game_cmd) => {
                         if let Some(d5ph) = base_proc_handle.read().unwrap().upgrade() {
