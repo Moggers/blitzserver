@@ -24,6 +24,7 @@ use std::io::Write;
 pub mod frontend;
 pub mod game_manager;
 pub mod dom5_proc;
+pub mod dom5_proxy;
 pub mod models;
 pub mod schema;
 pub mod statusdump;

@@ -1,10 +1,10 @@
 use super::diesel::prelude::*;
-use super::models::{File, Game, Map};
+use super::models::Game;
 use crossbeam_channel::{Receiver, Sender};
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 
-use crate::dom5_proc::{Dom5Proc, Dom5ProcHandle, GameCmd};
+use crate::dom5_proxy::{Dom5Proxy, Dom5ProxyHandle, GameMsg};
 
 pub struct GameManager {
     db_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
@@ -14,12 +14,7 @@ pub struct GameManager {
     internal_port_range: [i32; 2],
     sender: Sender<ManagerMsg>,
     receiver: Receiver<ManagerMsg>,
-    proc_senders: std::collections::HashMap<i32, Sender<GameCmd>>,
-}
-
-pub struct GameMsg {
-    pub id: i32,
-    pub cmd: GameCmd,
+    proxies: std::collections::HashMap<i32, Dom5ProxyHandle>,
 }
 
 pub enum ManagerMsg {
@@ -54,7 +49,7 @@ impl GameManager {
             internal_port_range: cfg.internal_port_range.clone(),
             sender: s,
             receiver: r,
-            proc_senders: std::collections::HashMap::new(),
+            proxies: std::collections::HashMap::new(),
         }
     }
 
@@ -77,176 +72,42 @@ impl GameManager {
             {
                 match msg {
                     ManagerMsg::Start(id) => {
-                        let sender = self.launch_game(id);
-                        self.proc_senders.insert(id, sender);
+                        self.launch_game(id);
                     }
-                    ManagerMsg::GameMsg(game_cmd) => match self.proc_senders.get(&game_cmd.id) {
-                        Some(s) => {
-                            if let Err(_) = s.send(game_cmd.cmd) {
-                                println!("WARN!!!! Failed to send message to slave for game {}, assumed the server no longer exists and rebooting!", game_cmd.id);
-                                let sender = self.launch_game(game_cmd.id);
-                                self.proc_senders.insert(game_cmd.id, sender);
+                    ManagerMsg::GameMsg(game_cmd) => {
+                        let id = game_cmd.id;
+                        match self.proxies.get(&id) {
+                            Some(ref s) => {
+                                if let Err(_) = s.manager_sender.send(game_cmd) {
+                                    println!("WARN!!!! Failed to send message to slave for game {}, assumed the server no longer exists and rebooting!", id);
+                                    self.launch_game(id);
+                                }
                             }
+                            None => {}
                         }
-                        None => {}
-                    },
+                    }
                     _ => {}
-                }
-            }
-            let games_to_roll = {
-                let db = self.db_pool.get().unwrap();
-                use crate::schema::games::dsl::*;
-                games
-                    .filter(next_turn.lt(std::time::SystemTime::now()))
-                    .get_results::<Game>(&db)
-                    .unwrap()
-            };
-            for game in games_to_roll {
-                if let Some(sender) = self.proc_senders.get(&game.id) {
-                    sender.send(GameCmd::RollTurn).unwrap();
                 }
             }
         }
     }
-    fn launch_game(&mut self, launch_id: i32) -> Sender<GameCmd> {
-        let db = self.db_pool.get().expect("Unable to connect to database");
-        let mut game: Game = {
-            use super::schema::games::dsl::*;
-            games
-                .filter(id.eq(launch_id))
-                .get_result(&db)
-                .expect(&format!("Faled to find game {} to launch", launch_id))
+    fn launch_game(&mut self, launch_id: i32) {
+        let (s, r) = crossbeam_channel::unbounded::<GameMsg>();
+        let (is, ir) = crossbeam_channel::bounded::<()>(0);
+        let proxy = Dom5Proxy {
+            game_id: launch_id,
+            db_pool: self.db_pool.clone(),
+            game_dir: self.tmp_dir.join("games").join(format!("{}", launch_id)),
+            dom5_bin: self.dom5_bin.clone(),
+            internal_port_range: self.internal_port_range,
+            manager_sender: s,
+            manager_receiver: r,
+            port_range: self.port_range,
+            nextturn_interupt: is,
+            nextturn_interupt_recv: ir,
         };
-        let tmp_game_path = self.tmp_dir.join("games").join(&game.id.to_string());
-        match std::fs::remove_dir_all(&tmp_game_path) {
-            Ok(_) => (),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                () // File might not exist..
-            }
-            Err(e) => println!("Found something odd {:?}", e),
-        }
-        std::fs::create_dir_all(&tmp_game_path.join("maps")).unwrap();
-        std::fs::create_dir_all(&tmp_game_path.join("mods")).unwrap();
-        let (_map, mapfile) = {
-            use super::schema::maps::dsl::*;
-            maps.filter(id.eq(game.map_id))
-                .inner_join(
-                    super::schema::files::dsl::files
-                        .on(super::schema::files::dsl::id.eq(super::schema::maps::dsl::mapfile_id)),
-                )
-                .get_result::<(Map, File)>(&db)
-                .unwrap()
-        };
-        // Allocate new external port if there is none
-        if let None = game.port {
-            let new_port: i32 = diesel::dsl::sql::<diesel::sql_types::Int4>(&format!(
-                    "SELECT * FROM generate_series({}, {}) num LEFT OUTER JOIN games g ON g.port=num WHERE g.id IS NULL",
-                    self.port_range[0], self.port_range[1]
-                ))
-                .get_result(&db)
-                .unwrap();
-            use super::schema::games::dsl::*;
-            game = diesel::update(games.filter(id.eq(game.id)))
-                .set(port.eq(new_port))
-                .get_result(&db)
-                .unwrap();
-        }
-        let (proxy_s, proxy_r) = crossbeam_channel::unbounded::<GameCmd>();
-
-        // Proxy listener
-        let db_pool = self.db_pool.clone();
-        let binpath = self.dom5_bin.clone();
-        let ipr = self.internal_port_range.clone();
-        let mapname = mapfile.filename.clone();
-
-        let base_proc_handle: std::sync::Arc<std::sync::RwLock<std::sync::Weak<Dom5ProcHandle>>> =
-            std::sync::Arc::new(std::sync::RwLock::new(std::sync::Weak::new()));
-        let proc_handle = base_proc_handle.clone();
-        std::thread::spawn(move || {
-            let listener =
-                std::net::TcpListener::bind(format!("0.0.0.0:{}", game.port.unwrap())).unwrap();
-            while let Ok((client_sock, _)) = listener.accept() {
-                let our_proc_handle = {
-                    let mut locked_handle = proc_handle.write().expect("D5Proc RWLock poisoned");
-                    match locked_handle.upgrade() {
-                        Some(proc_handle) => proc_handle,
-                        None => {
-                            let handle = std::sync::Arc::new(
-                                Dom5Proc {
-                                    game_id: game.id,
-                                    savedir: std::path::PathBuf::from(&tmp_game_path.clone())
-                                        .join("savedgames")
-                                        .join(&game.name),
-                                    name: game.name.clone(),
-                                    era: game.era,
-                                    mapname: mapname.clone(),
-                                    datadir: tmp_game_path
-                                        .clone()
-                                        .into_os_string()
-                                        .into_string()
-                                        .unwrap(),
-                                    db_pool: db_pool.clone(),
-                                    internal_port_range: ipr,
-                                }
-                                .launch(&binpath),
-                            );
-                            std::thread::sleep(std::time::Duration::from_millis(500)); // Wait for Dom5 to bind its port
-                            *locked_handle = std::sync::Arc::downgrade(&handle);
-                            handle
-                        }
-                    }
-                };
-                std::thread::spawn(move || {
-                    let serv_sock =
-                        std::net::TcpStream::connect(format!("0.0.0.0:{}", our_proc_handle.port))
-                            .unwrap();
-                    let mut client_write = client_sock.try_clone().unwrap();
-                    let mut serv_write = serv_sock.try_clone().unwrap();
-                    let mut client_read = client_sock.try_clone().unwrap();
-                    let mut serv_read = serv_sock.try_clone().unwrap();
-                    let (exit_s, exit_r) = crossbeam_channel::unbounded::<bool>();
-                    let ces = exit_s.clone();
-                    let ses = exit_s.clone();
-                    let client_handle = std::thread::spawn(move || {
-                        match std::io::copy(&mut client_read, &mut serv_write) {
-                            _ => {}
-                        }
-                        ces.send(true).unwrap();
-                    });
-                    let serv_handle = std::thread::spawn(move || {
-                        match std::io::copy(&mut serv_read, &mut client_write) {
-                            _ => {}
-                        }
-                        ses.send(true).unwrap();
-                    });
-                    exit_r.recv().unwrap();
-                    match (
-                        serv_sock.shutdown(std::net::Shutdown::Both),
-                        client_sock.shutdown(std::net::Shutdown::Both),
-                    ) {
-                        _ => {}
-                    }
-                    exit_r.recv().unwrap();
-                    serv_handle.join().unwrap();
-                    client_handle.join().unwrap();
-                    drop(our_proc_handle);
-                });
-            }
-        });
-
-        std::thread::spawn(move || {
-            while let Ok(msg) = proxy_r.recv() {
-                match msg {
-                    _ => match base_proc_handle.read().unwrap().upgrade() {
-                        Some(d5ph) => {
-                            d5ph.sender.send(msg).unwrap();
-                        }
-                        None => {}
-                    },
-                }
-            }
-        });
-        proxy_s
+        let proxy_handle = proxy.launch();
+        self.proxies.insert(launch_id, proxy_handle);
     }
 
     fn launch_games(&mut self) {
@@ -257,8 +118,7 @@ impl GameManager {
         };
 
         for game in current_games {
-            let sender = self.launch_game(game.id);
-            self.proc_senders.insert(game.id, sender);
+            self.launch_game(game.id);
         }
         self.monitor();
     }

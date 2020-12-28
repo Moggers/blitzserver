@@ -9,29 +9,30 @@ use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use notify::Watcher;
 use std::io::Write;
+use std::ops::Add;
 
 pub struct LaunchCmd {
     pub countdown: std::time::Duration,
 }
 
 pub enum GameCmd {
+    Shutdown,
     LaunchCmd(LaunchCmd),
     SetTimerCmd,
-    RebootCmd,
-    RollTurn,
+}
+
+pub enum ProcEvent {
+    NewTurn,
 }
 
 pub struct Dom5ProcHandle {
-    pub handle: std::process::Child,
     pub sender: crossbeam_channel::Sender<GameCmd>,
     pub port: i32,
 }
 
 impl Drop for Dom5ProcHandle {
     fn drop(&mut self) {
-        self.sender.send(GameCmd::RebootCmd).unwrap();
-        self.handle.kill().unwrap();
-        self.handle.wait().unwrap();
+        self.sender.send(GameCmd::Shutdown).unwrap();
     }
 }
 
@@ -40,6 +41,7 @@ pub struct Dom5Proc {
     pub era: i32,
     pub mapname: String,
     pub datadir: String,
+    pub send_upstream: crossbeam_channel::Sender<ProcEvent>,
     pub savedir: std::path::PathBuf,
     pub game_id: i32,
     pub internal_port_range: [i32; 2],
@@ -59,6 +61,10 @@ impl Dom5Proc {
         self.add_string_to_domcmd(&format!("settimeleft {}", countdown));
     }
 
+    fn unset_timer(&self) {
+        self.add_string_to_domcmd("setinterval 0");
+    }
+
     fn set_timer(&mut self) {
         let db = self.db_pool.get().unwrap();
         let game: Game = crate::schema::games::dsl::games
@@ -66,7 +72,7 @@ impl Dom5Proc {
             .get_result(&db)
             .unwrap();
         if let Some(next_turn) = game.next_turn {
-            if next_turn >= std::time::SystemTime::now() {
+            if next_turn >= std::time::SystemTime::now().add(std::time::Duration::from_secs(60)) {
                 self.add_string_to_domcmd(&format!(
                     "setinterval {}",
                     next_turn
@@ -75,15 +81,8 @@ impl Dom5Proc {
                         .as_secs()
                         / 60
                 ));
-                std::thread::spawn(move || {
-                    println!("Waiting until turn..");
-                    std::thread::sleep(
-                        next_turn
-                            .duration_since(std::time::SystemTime::now())
-                            .unwrap(),
-                    );
-                    println!("Rolling turn..");
-                });
+            } else {
+                self.add_string_to_domcmd("setinterval 1");
             }
         }
     }
@@ -124,8 +123,35 @@ impl Dom5Proc {
             .execute(&db)
             .unwrap();
     }
-    fn handle_statusdump_update(&mut self) {
+    fn handle_new_turn(&self) {
         let db = self.db_pool.get().unwrap();
+        let ftherlnd = TwoH::read_file(&self.savedir.join("ftherlnd"));
+        let new_file: File = NewFile::new("ftherlnd", &ftherlnd.file_contents).insert(&db);
+        use super::schema::turns::dsl::*;
+        let existing_turn = turns
+            .filter(
+                game_id
+                    .eq(self.game_id)
+                    .and(turn_number.eq(ftherlnd.turnnumber)),
+            )
+            .get_result::<Turn>(&db);
+        if !existing_turn.is_ok() || existing_turn.unwrap().file_id != new_file.id {
+            diesel::insert_into(turns)
+                .values(NewTurn {
+                    game_id: self.game_id,
+                    turn_number: ftherlnd.turnnumber,
+                    file_id: new_file.id,
+                })
+                .on_conflict((game_id, turn_number))
+                .do_update()
+                .set(file_id.eq(new_file.id))
+                .execute(&db)
+                .unwrap();
+            self.unset_timer();
+            self.send_upstream.send(ProcEvent::NewTurn).unwrap();
+        }
+    }
+    fn handle_statusdump_update(&mut self) {
         let status_dump = match std::fs::File::open(self.savedir.join("statusdump.txt")) {
             Err(_) => {
                 return;
@@ -133,30 +159,7 @@ impl Dom5Proc {
             Ok(f) => super::statusdump::StatusDump::from_file(f),
         };
         if status_dump.turn > 0 {
-            let ftherlnd = TwoH::read_file(&self.savedir.join("ftherlnd"));
-            let new_file: File = NewFile::new("ftherlnd", &ftherlnd.file_contents).insert(&db);
-            use super::schema::turns::dsl::*;
-            let existing_turn = turns
-                .filter(
-                    game_id
-                        .eq(self.game_id)
-                        .and(turn_number.eq(status_dump.turn - 1)),
-                )
-                .get_result::<Turn>(&db);
-            if existing_turn.is_ok() && existing_turn.unwrap().file_id != new_file.id {
-                diesel::insert_into(turns)
-                    .values(NewTurn {
-                        game_id: self.game_id,
-                        turn_number: status_dump.turn,
-                        file_id: new_file.id,
-                    })
-                    .on_conflict((game_id, turn_number))
-                    .do_update()
-                    .set(file_id.eq(new_file.id))
-                    .execute(&db)
-                    .unwrap();
-                self.set_timer();
-            }
+            self.handle_new_turn();
         }
     }
     fn populate_savegame(&self) {
@@ -324,6 +327,133 @@ impl Dom5Proc {
             .unwrap();
     }
 
+    pub fn host_turn(mut self, bin: &std::path::Path) {
+        self.update_nations(bin);
+        self.populate_savegame();
+        self.populate_mods();
+        self.populate_maps();
+        let mut arguments = {
+            let db = self.db_pool.get().expect("Unable to connect to database");
+            let mods: Vec<(GameMod, Mod)> = crate::schema::game_mods::dsl::game_mods
+                .filter(crate::schema::game_mods::dsl::game_id.eq(self.game_id))
+                .inner_join(
+                    crate::schema::mods::dsl::mods
+                        .on(crate::schema::mods::dsl::id.eq(crate::schema::game_mods::dsl::mod_id)),
+                )
+                .get_results::<(GameMod, Mod)>(&db)
+                .unwrap();
+            mods.iter()
+                .flat_map(|(_, m)| vec![String::from("-M"), m.dm_filename.clone()])
+                .collect::<Vec<String>>()
+        };
+        {
+            let db = self.db_pool.get().expect("Unable to connect to database");
+            use crate::schema::games::dsl::*;
+            let game: Game = games.filter(id.eq(self.game_id)).get_result(&db).unwrap();
+            arguments.append(&mut vec![
+                "--thrones".to_string(),
+                game.thrones_t1.to_string(),
+                game.thrones_t2.to_string(),
+                game.thrones_t3.to_string(),
+                "--requiredap".to_string(),
+                game.throne_points_required.to_string(),
+                "--research".to_string(),
+                game.research_diff.to_string(),
+                if game.research_rand {
+                    ""
+                } else {
+                    "--norandres"
+                }
+                .to_string(),
+                "--hofsize".to_string(),
+                game.hof_size.to_string(),
+                "--globals".to_string(),
+                game.global_size.to_string(),
+                "--indepstr".to_string(),
+                game.indepstr.to_string(),
+                "--magicsites".to_string(),
+                game.magicsites.to_string(),
+                "--eventrarity".to_string(),
+                game.eventrarity.to_string(),
+                "--richness".to_string(),
+                game.richness.to_string(),
+                "--resources".to_string(),
+                game.resources.to_string(),
+                "--supplies".to_string(),
+                game.supplies.to_string(),
+                "--startprov".to_string(),
+                game.startprov.to_string(),
+                if game.renaming { "--renaming" } else { "" }.to_string(),
+                if game.scoregraphs {
+                    "--scoregraphs"
+                } else {
+                    ""
+                }
+                .to_string(),
+                if game.nationinfo {
+                    ""
+                } else {
+                    "--nonationinfo"
+                }
+                .to_string(),
+                "--era".to_string(),
+                game.era.to_string(),
+                if game.artrest { "" } else { "--noartrest" }.to_string(),
+                if game.teamgame { "--teamgame" } else { "" }.to_string(),
+                if game.clustered { "--clustered" } else { "" }.to_string(),
+                match game.storyevents {
+                    0 => "--nostoryevents",
+                    1 => "--storyevents",
+                    2 => "--allstoryevents",
+                    _ => "",
+                }
+                .to_string(),
+                "--newailvl".to_string(),
+                game.newailvl.to_string(),
+                if game.newai { "" } else { "--nonewai" }.to_string(),
+            ]);
+        }
+        arguments.append(&mut vec![
+            String::from("-T"),
+            String::from("--mapfile"),
+            self.mapname.clone(),
+            String::from("-g"),
+            format!("{}", self.name),
+        ]);
+        std::process::Command::new(bin)
+            .env("DOM5_CONF", &self.datadir)
+            .args(arguments)
+            .output()
+            .expect(&format!(
+                "Failed to launch dom5 binary for game {}",
+                self.name
+            ));
+        self.handle_new_turn();
+        for entry in std::fs::read_dir(&self.savedir).unwrap() {
+            if let Ok(entry) = entry {
+                let file_name = std::path::PathBuf::from(entry.file_name());
+                match file_name.extension().and_then(std::ffi::OsStr::to_str) {
+                    Some("trn") => {
+                        self.handle_trn_update(&self.savedir.join(&file_name.to_path_buf()))
+                    }
+                    _ => {}
+                }
+            }
+        }
+        for entry in std::fs::read_dir(&self.savedir).unwrap() {
+            if let Ok(entry) = entry {
+                let file_name = std::path::PathBuf::from(entry.file_name());
+                match file_name.extension().and_then(std::ffi::OsStr::to_str) {
+                    Some("2h") => {
+                        self.handle_2h_update(&self.savedir.join(&file_name.to_path_buf()))
+                    }
+                    _ => {}
+                }
+            }
+        }
+        self.send_upstream.send(ProcEvent::NewTurn).unwrap();
+    }
+
     pub fn launch(mut self, bin: &std::path::Path) -> Dom5ProcHandle {
         self.update_nations(bin);
         self.populate_savegame();
@@ -432,7 +562,7 @@ impl Dom5Proc {
             String::from("--newgame"),
             format!("{}", self.name),
         ]);
-        let cmd = std::process::Command::new(bin)
+        let mut cmd = std::process::Command::new(bin)
             .env("DOM5_CONF", &self.datadir)
             .args(arguments)
             .spawn()
@@ -460,20 +590,16 @@ impl Dom5Proc {
                 crossbeam_channel::select! {
                     recv(receiver) -> res => {
                         match res {
-                            Ok(GameCmd::RollTurn) => {
-                                // TODO: Can't really forcehost an active game, can only set
-                                // a very short interval.
-                                self.add_string_to_domcmd(&format!("setinterval 1"));
-                            }
+                            Ok(GameCmd::Shutdown) => {
+                                cmd.kill().unwrap();
+                                cmd.wait().unwrap();
+                                break;
+                            },
                             Ok(GameCmd::LaunchCmd(cmd)) => {
                                 self.set_countdown(cmd.countdown.as_secs());
                             }
                             Ok(GameCmd::SetTimerCmd) => {
                                 self.set_timer();
-                            }
-                            Ok(GameCmd::RebootCmd) => {
-                                // Shutdown, Drop will do our jobs for us
-                                break;
                             }
                             Err(_) => {
                                 panic!("Failed to receive command from game manager");
@@ -507,7 +633,6 @@ impl Dom5Proc {
             }
         });
         Dom5ProcHandle {
-            handle: cmd,
             sender: sender,
             port: new_internal_port,
         }

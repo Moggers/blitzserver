@@ -278,10 +278,10 @@ async fn timer(
         diesel::update(games.filter(id.eq(game.id)))
             .set((
                 timer.eq(Some(timer_form.timer)),
-                next_turn.eq(Some(
-                    std::time::SystemTime::now()
-                        .add(std::time::Duration::from_secs(60 * timer_form.timer as u64)),
-                )),
+                next_turn
+                    .eq(Some(std::time::SystemTime::now().add(
+                        std::time::Duration::from_secs(60 * timer_form.timer as u64),
+                    ))),
             ))
             .execute(&db)
             .unwrap();
@@ -289,9 +289,11 @@ async fn timer(
     app_data
         .manager_notifier
         .send(game_manager::ManagerMsg::GameMsg(
-            self::game_manager::GameMsg {
+            crate::dom5_proxy::GameMsg {
                 id: game.id,
-                cmd: crate::dom5_proc::GameCmd::SetTimerCmd,
+                cmd: crate::dom5_proxy::GameMsgType::GameCmd(
+                    crate::dom5_proc::GameCmd::SetTimerCmd,
+                ),
             },
         ))
         .unwrap();
@@ -554,11 +556,13 @@ async fn launch(
     app_data
         .manager_notifier
         .send(game_manager::ManagerMsg::GameMsg(
-            self::game_manager::GameMsg {
+            crate::dom5_proxy::GameMsg {
                 id: game.id,
-                cmd: crate::dom5_proc::GameCmd::LaunchCmd(crate::dom5_proc::LaunchCmd {
-                    countdown: std::time::Duration::from_secs(form.countdown),
-                }),
+                cmd: crate::dom5_proxy::GameMsgType::GameCmd(crate::dom5_proc::GameCmd::LaunchCmd(
+                    crate::dom5_proc::LaunchCmd {
+                        countdown: std::time::Duration::from_secs(form.countdown),
+                    },
+                )),
             },
         ))
         .unwrap();
@@ -637,9 +641,9 @@ async fn settings_post(
     app_data
         .manager_notifier
         .send(game_manager::ManagerMsg::GameMsg(
-            self::game_manager::GameMsg {
+            crate::dom5_proxy::GameMsg {
                 id: game.id,
-                cmd: crate::dom5_proc::GameCmd::RebootCmd,
+                cmd: crate::dom5_proxy::GameMsgType::RebootCmd,
             },
         ))
         .unwrap();
