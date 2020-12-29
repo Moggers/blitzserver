@@ -427,10 +427,13 @@ impl Dom5Proc {
                 game.newailvl.to_string(),
                 if game.newai { "" } else { "--nonewai" }.to_string(),
             ]);
+            let turns: Vec<Turn> = crate::schema::turns::dsl::turns.filter(crate::schema::turns::dsl::game_id.eq(game.id)).get_results(&db).unwrap();
+            if turns.len() == 0 {
+                arguments.append(&mut vec!["--newgame".to_string()]);
+            }
         }
         arguments.append(&mut vec![
             String::from("-T"),
-            String::from("--newgame"),
             String::from("--mapfile"),
             self.mapname.clone(),
             String::from("-g"),
