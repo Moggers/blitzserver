@@ -22,10 +22,11 @@ use serde::Deserialize;
 use std::env;
 use std::io::Write;
 
-pub mod frontend;
-pub mod game_manager;
 pub mod dom5_proc;
 pub mod dom5_proxy;
+pub mod email_manager;
+pub mod frontend;
+pub mod game_manager;
 pub mod models;
 pub mod schema;
 pub mod statusdump;
@@ -65,7 +66,8 @@ async fn main() -> std::io::Result<()> {
 
     let mut manager = {
         let port_var = env::var("PORT_RANGE").expect("PORT_RANGE must be set (ie. '10000,10999')");
-        let internal_port_var = env::var("INTERNAL_PORT_RANGE").expect("INTERNAL_PORT_RANGE must be set (ie. '11000,11999')");
+        let internal_port_var = env::var("INTERNAL_PORT_RANGE")
+            .expect("INTERNAL_PORT_RANGE must be set (ie. '11000,11999')");
         let range: Vec<&str> = port_var.split(",").collect();
         let internal_range: Vec<&str> = internal_port_var.split(",").collect();
         let cfg = GameManagerConfig {
@@ -88,7 +90,15 @@ async fn main() -> std::io::Result<()> {
     let app_data = AppData {
         pool: pool.clone(),
         manager_notifier: manager.get_sender(),
+        email_manager: crate::email_manager::EmailManager {
+            db_pool: pool.clone(),
+            smtp_user: env::var("SMTP_USER").expect("SMTP_USER must be said to the SMTP user"),
+            smtp_pass: env::var("SMTP_PASS").expect("SMTP_PASS must be said to the SMTP password"),
+            smtp_server: env::var("SMTP_SERVER").expect("SMTP_SERVER must be said to the SMTP server"),
+            hostname: env::var("HOSTNAME").expect("HOSTNAME must be set to accessible address")
+        },
     };
+    app_data.email_manager.monitor();
 
     std::thread::spawn(move || {
         manager.start();
@@ -105,7 +115,10 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(middleware::Logger::default())
             .data(app_data.clone())
-            .app_data(serde_qs::actix::QsQueryConfig::default().qs_config(serde_qs::Config::new(10, false)))
+            .app_data(
+                serde_qs::actix::QsQueryConfig::default()
+                    .qs_config(serde_qs::Config::new(10, false)),
+            )
             .service(
                 actix_files::Files::new("/images/maps", "./images/maps")
                     .show_files_listing()
@@ -177,6 +190,7 @@ async fn main() -> std::io::Result<()> {
             .service(frontend::games::create_post)
             .service(frontend::games::settings_post)
             .service(frontend::games::emails_get)
+            .service(frontend::games::emails_post)
             .service(frontend::mods::list)
             .service(frontend::mods::upload_get)
             .service(frontend::mods::upload_post)

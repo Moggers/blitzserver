@@ -11,5 +11,6 @@ pub mod utils;
 pub struct AppData {
     pub pool: r2d2::Pool<ConnectionManager<PgConnection>>,
     pub manager_notifier: crossbeam_channel::Sender<ManagerMsg>,
+    pub email_manager: crate::email_manager::EmailManager
 }
 

@@ -27,3 +27,4 @@ serde_qs = { git = "https://github.com/Moggers/serde_qs.git", branch = "main", f
 image = "*"
 env_logger = "*"
 log = "*"
+lettre = "0.10.0-alpha.4"

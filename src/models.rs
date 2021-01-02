@@ -1,4 +1,6 @@
-use super::schema::{email_configs, files, game_mods, games, maps, mods, nations, player_turns, players, turns};
+use super::schema::{
+    email_configs, files, game_mods, games, maps, mods, nations, player_turns, players, turns,
+};
 use std::hash::{Hash, Hasher};
 
 pub struct Era;
@@ -306,21 +308,22 @@ pub struct GameMod {
     pub mod_id: i32,
 }
 
-#[derive(Identifiable, Queryable)]
+#[derive(QueryableByName, Debug, Identifiable, Queryable)]
+#[table_name = "email_configs"]
 pub struct EmailConfig {
-        id: i32,
-        nation_id: i32,
-        game_id: i32,
-        hours_before_host: i32,
-        email_address: String,
-        last_turn_notified: Option<i32>
+    pub id: i32,
+    pub nation_id: i32,
+    pub game_id: i32,
+    pub hours_before_host: i32,
+    pub email_address: String,
+    pub last_turn_notified: Option<i32>,
 }
 
 #[derive(Insertable)]
 #[table_name = "email_configs"]
 pub struct NewEmailConfig {
-        pub nation_id: i32,
-        pub game_id: i32,
-        pub hours_before_host: i32,
-        pub email_address: String,
+    pub nation_id: i32,
+    pub game_id: i32,
+    pub hours_before_host: i32,
+    pub email_address: String,
 }
