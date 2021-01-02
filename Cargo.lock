@@ -485,7 +485,7 @@ dependencies = [
 
 [[package]]
 name = "blitzserver"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "actix-files",
  "actix-multipart",
@@ -2098,7 +2098,7 @@ dependencies = [
 [[package]]
 name = "serde_qs"
 version = "0.8.2"
-source = "git+https://github.com/Moggers/serde_qs.git?branch=main#2bb318b4fdc3d8767f9a48e8adab79062447a950"
+source = "git+https://github.com/Moggers/serde_qs.git?branch=main#69b6269893c003911f86563d1e59750b735c2685"
 dependencies = [
  "actix-web",
  "futures",

@@ -1,4 +1,15 @@
 table! {
+    email_configs (id) {
+        id -> Int4,
+        nation_id -> Int4,
+        game_id -> Int4,
+        hours_before_host -> Int4,
+        email_address -> Varchar,
+        last_turn_notified -> Nullable<Int4>,
+    }
+}
+
+table! {
     files (id) {
         id -> Int4,
         filename -> Varchar,
@@ -118,6 +129,7 @@ joinable!(players -> files (file_id));
 joinable!(turns -> files (file_id));
 
 allow_tables_to_appear_in_same_query!(
+    email_configs,
     files,
     game_mods,
     games,

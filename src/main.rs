@@ -1,4 +1,5 @@
 #![feature(try_blocks)]
+#![feature(drain_filter)]
 #![feature(async_closure)]
 #![feature(type_alias_impl_trait)]
 #![feature(get_mut_unchecked)]
@@ -175,6 +176,7 @@ async fn main() -> std::io::Result<()> {
             .service(frontend::games::create_get)
             .service(frontend::games::create_post)
             .service(frontend::games::settings_post)
+            .service(frontend::games::emails_get)
             .service(frontend::mods::list)
             .service(frontend::mods::upload_get)
             .service(frontend::mods::upload_post)

@@ -1,0 +1,46 @@
+<head>
+	<title>Blitzserver - {{ game.name }}</title
+</head>
+<body>
+	<h1>Setup Emails</h1>
+	<form action="/game/{{game.id}}/email">
+			<input type="search" value="{{ form.email }}" name="email" placeholder="Email Address" />
+			<input type="submit" formnovalidate formmethod="GET" value="Fetch" />
+			<br>
+			<table>
+				<tr>
+					<th>Nation</th>
+					<th>Remaining Hours</th>
+					<th></th>
+				</tr>
+				{% for entry in form.entries %}
+					<tr>
+						<td>
+							<select name="entries[{{loop.index0}}][selected_nation]">
+								{% for nation in nations %}
+								<option {% if entry.selected_nation == nation.nation_id %} selected {% endif %} value="{{ nation.nation_id }}">{{ nation.name }}</option>
+								{% endfor %}
+							</select>
+						</td>
+						<td><input name="entries[{{loop.index0}}][remaining_hours]" value="{{entry.remaining_hours.unwrap()}}" type="number"/></td>
+					</tr>
+				{% endfor %}
+				<tr>
+					<td>
+						<select name="entries[{{form.entries.len()}}][selected_nation]">
+							{% for nation in nations %}
+							<option value="{{ nation.nation_id }}">{{ nation.name }}</option>
+							{% endfor %}
+						</select>
+					</td>
+					<td><input name="entries[{{form.entries.len()}}][remaining_hours]" type="number"/></td>
+				</tr>
+			</table>
+			<input type="submit" formmethod="POST" value="Save" />
+		</input>
+		<br>
+		<br>
+		<a href="/game/{{ game.name }}">Return To Game</a>
+	<hr>
+	Blitzserver {{ env!("CARGO_PKG_VERSION") }}
+</body>

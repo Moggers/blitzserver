@@ -76,5 +76,9 @@
 		</form>
 		<br>
 	{% endif %}
+	<a href="/game/{{ self.game.id}}/email">Setup Email Reminders</a>
+	<br>
 	<a href="/games">Return To Game List</a>
+	<hr>
+	Blitzserver {{ env!("CARGO_PKG_VERSION") }}
 </body>

@@ -1,15 +1,17 @@
 use super::AppData;
+use super::utils::{from_str, from_str_seq};
 use crate::diesel::prelude::*;
 use crate::game_manager;
 use crate::models::{
-    Era, Game, GameMod, Map, Mod, Nation, NewGame, NewGameMod, Player, PlayerTurn, Turn,
+    EmailConfig, Era, Game, GameMod, Map, Mod, Nation, NewEmailConfig, NewGame, NewGameMod, Player,
+    PlayerTurn, Turn,
 };
 use crate::StartGame;
 use actix_web::http::header;
 use actix_web::{get, post, web, HttpResponse, Result};
 use askama::Template;
 use futures::StreamExt;
-use serde::{de::Error, Deserialize};
+use serde::{de::Error, Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ops::Add;
 
@@ -33,25 +35,6 @@ fn default_forty() -> i32 {
 }
 fn default_hundred() -> i32 {
     100
-}
-
-fn from_str<'de, D, S>(deserializer: D) -> Result<S, D::Error>
-where
-    D: serde::Deserializer<'de>,
-    S: std::str::FromStr,
-{
-    let s = <&str as serde::Deserialize>::deserialize(deserializer)?;
-    S::from_str(&s).map_err(|_| D::Error::custom("could not parse string"))
-}
-fn from_str_seq<'de, D, S>(deserializer: D) -> Result<Vec<S>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-    S: std::str::FromStr,
-{
-    let s = <Vec<&str> as serde::Deserialize>::deserialize(deserializer)?;
-    s.iter()
-        .map(|s| S::from_str(&s).map_err(|_| D::Error::custom("could not parse string")))
-        .collect()
 }
 
 #[derive(Default, Clone, Debug, Deserialize)]
@@ -229,20 +212,6 @@ struct SetTimer {
 }
 
 #[derive(Template)]
-#[template(path = "games/list.html")]
-struct GamesTemplate<'a> {
-    games: &'a [Game],
-}
-
-#[derive(Template)]
-#[template(path = "games/create.html")]
-struct AddGameTemplate<'a> {
-    params: &'a CreateGame,
-    maps: &'a [Map],
-    mods: &'a [Mod],
-}
-
-#[derive(Template)]
 #[template(path = "games/details.html")]
 struct GameDetailsTemplate<'a> {
     game: Game,
@@ -319,10 +288,10 @@ async fn details(
             .get_result::<(Game, Map)>(&*db)
     } else {
         use crate::schema::games::dsl::*;
-        games
-            .filter(name.ilike(path_id))
-            .inner_join(crate::schema::maps::dsl::maps.on(crate::schema::maps::dsl::id.eq(map_id)))
-            .get_result::<(Game, Map)>(&*db)
+        let game: Game = games.filter(name.ilike(path_id)).get_result(&*db).unwrap();
+        return Ok(HttpResponse::PermanentRedirect()
+            .header(header::LOCATION, format!("/game/{}", game.id))
+            .finish());
     }
     .unwrap();
     let game_players: Vec<(Player, Nation)> = {
@@ -414,6 +383,14 @@ async fn details(
     ))
 }
 
+#[derive(Template)]
+#[template(path = "games/create.html")]
+struct AddGameTemplate<'a> {
+    params: &'a CreateGame,
+    maps: &'a [Map],
+    mods: &'a [Mod],
+}
+
 #[get("/games/create")]
 async fn create_get(
     (app_data, params): (web::Data<AppData>, serde_qs::actix::QsQuery<CreateGame>),
@@ -436,6 +413,46 @@ async fn create_get(
         .render()
         .unwrap(),
     ))
+}
+
+#[post("/game/{id}/launch")]
+async fn launch(
+    (app_data, web::Path(path_id), form): (
+        web::Data<AppData>,
+        web::Path<i32>,
+        web::Form<StartGame>,
+    ),
+) -> Result<HttpResponse> {
+    let db = app_data.pool.get().expect("Unable to connect to database");
+    use crate::schema::games::dsl::*;
+    let game = games
+        .filter(id.eq(path_id))
+        .get_result::<Game>(&*db)
+        .unwrap();
+
+    diesel::update(games)
+        .filter(id.eq(path_id))
+        .set(
+            next_turn
+                .eq(std::time::SystemTime::now()
+                    .add(std::time::Duration::from_secs(form.countdown))),
+        )
+        .execute(&db)
+        .unwrap();
+    app_data
+        .manager_notifier
+        .send(game_manager::ManagerMsg::GameMsg(
+            crate::dom5_proxy::GameMsg {
+                id: game.id,
+                cmd: crate::dom5_proxy::GameMsgType::GameCmd(
+                    crate::dom5_proc::GameCmd::SetTimerCmd,
+                ),
+            },
+        ))
+        .unwrap();
+    Ok(HttpResponse::Found()
+        .header(header::LOCATION, format!("/game/{}", game.id))
+        .finish())
 }
 
 #[post("/games/create")]
@@ -517,6 +534,12 @@ async fn create_post(
         .finish())
 }
 
+#[derive(Template)]
+#[template(path = "games/list.html")]
+struct GamesTemplate<'a> {
+    games: &'a [Game],
+}
+
 #[get("/games")]
 async fn list(app_data: web::Data<AppData>) -> Result<HttpResponse> {
     let db = app_data.pool.get().expect("Unable to connect to database");
@@ -527,44 +550,6 @@ async fn list(app_data: web::Data<AppData>) -> Result<HttpResponse> {
     Ok(HttpResponse::Ok()
         .content_type("text/html")
         .body((GamesTemplate { games: &results }).render().unwrap()))
-}
-
-#[post("/game/{id}/launch")]
-async fn launch(
-    (app_data, web::Path(path_id), form): (
-        web::Data<AppData>,
-        web::Path<i32>,
-        web::Form<StartGame>,
-    ),
-) -> Result<HttpResponse> {
-    let db = app_data.pool.get().expect("Unable to connect to database");
-    use crate::schema::games::dsl::*;
-    let game = games
-        .filter(id.eq(path_id))
-        .get_result::<Game>(&*db)
-        .unwrap();
-
-    diesel::update(games)
-        .filter(id.eq(path_id))
-        .set(
-            next_turn
-                .eq(std::time::SystemTime::now()
-                    .add(std::time::Duration::from_secs(form.countdown))),
-        )
-        .execute(&db)
-        .unwrap();
-    app_data
-        .manager_notifier
-        .send(game_manager::ManagerMsg::GameMsg(
-            crate::dom5_proxy::GameMsg {
-                id: game.id,
-                cmd: crate::dom5_proxy::GameMsgType::GameCmd(crate::dom5_proc::GameCmd::SetTimerCmd)
-            },
-        ))
-        .unwrap();
-    Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}", game.id))
-        .finish())
 }
 
 #[post("/game/{id}/settings")]
@@ -646,4 +631,67 @@ async fn settings_post(
     Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}", game.id))
         .finish())
+}
+
+#[derive(Template)]
+#[template(path = "games/email.html")]
+struct EmailsTemplate<'a> {
+    nations: Vec<Nation>,
+    form: &'a EmailForm,
+    game: Game,
+}
+
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
+struct EmailFormEntry {
+    selected_nation: i32,
+    remaining_hours: Option<i32>,
+}
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
+struct EmailForm {
+    #[serde(default)]
+    email: String,
+    #[serde(default)]
+    entries: Vec<EmailFormEntry>,
+}
+
+#[get("/game/{id}/email")]
+async fn emails_get(
+    (app_data, mut email_form, web::Path((game_id))): (
+        web::Data<AppData>,
+        serde_qs::actix::QsQuery<EmailForm>,
+        web::Path<(i32)>,
+    ),
+) -> Result<HttpResponse> {
+    let db = app_data.pool.get().expect("Unable to connect to database");
+    use crate::schema::email_configs::dsl as emails_dsl;
+    use crate::schema::games::dsl as games_dsl;
+    use crate::schema::nations::dsl as nations_dsl;
+    use crate::schema::players::dsl as players_dsl;
+    let invalid: Vec<EmailFormEntry> = email_form
+        .entries
+        .drain_filter(|e| !e.remaining_hours.is_some())
+        .collect();
+    let game: Game = games_dsl::games
+        .filter(games_dsl::id.eq(game_id))
+        .get_result(&db)
+        .unwrap();
+    let nations: Vec<(Nation, Player)> = nations_dsl::nations
+        .filter(nations_dsl::game_id.eq(game_id))
+        .inner_join(
+            players_dsl::players.on(players_dsl::nationid
+                .eq(nations_dsl::nation_id)
+                .and(players_dsl::game_id.eq(game.id))),
+        )
+        .get_results(&db)
+        .unwrap();
+    // let existing_emails: Vec<EmailConfig> = emails_dsl::email_configs.filter(emails_dsl::email_address.eq(address)).get_results(&db).unwrap();
+    Ok(HttpResponse::Ok().content_type("text/html").body(
+        (EmailsTemplate {
+            form: &email_form,
+            game,
+            nations: nations.into_iter().map(move |(n, _)| n).collect(),
+        })
+        .render()
+        .unwrap(),
+    ))
 }
