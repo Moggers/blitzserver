@@ -1,0 +1,16 @@
+<head>
+	<link rel="stylesheet" href="/styles.css">
+	<meta charset="utf-8" />
+</head>
+<body>
+	<div class="container">
+		<nav>
+			<span class="title">Blitzserver</span>
+			<a href="/games">games</a>
+			<a href="/maps">maps</a>
+			<a href="/mods">mods</a>
+			<span class="version">{{ env!("CARGO_PKG_VERSION") }}</span>
+		</nav>
+		{% block body%}{% endblock %}
+	</div>
+</body>

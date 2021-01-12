@@ -1,84 +1,211 @@
-<head>
-	<meta charset="utf-8" /> 
-		<title>Blitzserver - {{ game.name }}</title
-</head>
-<body>
-	<h1>{{ game.name }}</h1>
-	<br>
-	<span><b>Status:</b> {{ self.status }}</span>
-	<br>
-	{% if self.status == "Active" %}
-	<span><b>Turn:</b> {{ self.turn_number }}</span>
-	<br>
-	<span><b>Next Turn:</b> {{ self.game.next_turn_string() }}</span>
-	<br>
-	{% endif %}
-	{% if self.game.port.is_some() %}
-		<span><b>Address:</b> {{ format!("{}:{}", self.hostname, self.game.port.unwrap()) }} </span>
-	{% else %}
-		<span><b>Address:</b> N/A </span>
-	{% endif %}
-	<br>
-	<hr>
-	<b>Players:</b>
-	<br>
-	{% for player in players %}
-		{% if self.status == "Active" %}
-			{{ player.1 }}:
-			<br>
-			{% match self.turns.get(player.0) %}
-				{% when Some with (turn_vec) %}
-					{% for turn in turn_vec %}
-						{% match turn.twohfile_id %}
-							{% when Some with (_) %}
-								◼
+{% extends "container.html" %}
+{% block body %}
+<div class="tabset">
+	<input name="tabset_1" {% if self.tab=="status" %} checked="checked" {% endif %} hidden=true type="radio" class="css-tab-input" id="css-tab-status" />
+	<input name="tabset_1" {% if self.tab=="schedule" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-schedule" />
+	<input name="tabset_1" {% if self.tab=="settings" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-settings" />
+	<input name="tabset_1" {% if self.tab=="emails" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-emails" />
+	<input name="tabset_1" {% if self.tab=="logs" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-logs" />
+	<nav class="nav tabset_labels tabs css-tab-labels">
+		<h1>{{ game.name }}</h1>
+		<label href="#status" class="tab css-tab-label tab1" for="css-tab-status">status</label>
+		<label class="tab css-tab-label tab2" for="css-tab-schedule">schedule</label>
+		<label class="tab css-tab-label tab3" for="css-tab-settings">settings</label>
+		<label class="tab css-tab-label tab4" for="css-tab-emails">emails</label>
+		<label class="tab css-tab-label tab5" for="css-tab-logs">logs</label>
+	</nav>
+	<div>
+		<section class="tabsection">
+			<div class="game-details">
+				<div>
+					<table class="striped-table">
+						{% for player in players %}
+						<tr>
+							<td class="wide-column">{{ player.name }}</td>
+							<td class="turn-markers row">
+								{% for turn in Self::get_turn_pips(turns.get(player.id).unwrap_or(Vec::new())) %}
+								{% if turn.twohfile_id.is_some() %}
+								<section class="submitted">■</section>
+								{% else %}
+								<section class="unsubmitted">■</section>
+								{% endif %}
+								{% endfor %}
+							</td>
+							{% if player.submitted %}<td class="submitted">submitted</td>{% else %}<td class="unsubmitted">unsubmitted</td>{% endif %}
+						</tr>
+						{% endfor %}
+					</table>
+				</div>
+				<div>
+					<div>
+						<a href="{{format!("/map/{}", self.game.map_id)}}">
+							<img class="map-img" src={{format!("/images/maps/{}.jpg", self.game.map_id)}} />
+						</a>
+					</div>
+					{% include "info.html" %}
+					<div class="pane">
+						<h3>Downloads</h3>
+						<table class="striped-table link-list">
+							{% for cmod in self.get_current_mods() %}
+							<tr>
+								<td>{{cmod.name}}</td>
+								<td><a class="btn" href="{{format!("/mod/{}", cmod.id)}}">Goto</a></td>
+								<td><a download="{{cmod.name}}.zip" class="btn" href="{{format!("/mod/{}/download", cmod.id)}}">Download</a></td>
+							</tr>
+							{% endfor %}
+							{% match self.get_current_map() %}
+							{% when Some with (map) %}
+							<tr>
+								<td>{{map.name}}</td>
+								<td><a class="btn" href="{{format!("/mod/{}", map.id)}}">Goto</a></td>
+								<td><a download="{{map.name}}.zip" class="btn" href="{{format!("/mod/{}/download", map.id)}}">Download</a></td>
+							</tr>
 							{% else %}
-								◻
-						{% endmatch %}
-					{% endfor %}
-				{% else %}
-			{% endmatch %}
-			<br>
-		{% else %}
-			{{ player.1 }}
-			<br>
-		{% endif %}
-	{% endfor %}
-	<hr>
-	{% if self.status == "Active" %}
-		<b>Map:</b>
-		<br>
-		<img width="100px" src="/images/maps/{{ self.map.id }}.jpg" />
-		<br>
-		<hr>
-		<span><b>Era:</b> {{ self.game.era_name() }}</span>
-		<br>
-		<b>Thrones:</b> {{ self.game.thrones_t1 }} / {{ self.game.thrones_t2 }} / {{ self.game.thrones_t3 }} ( {{ self.game.throne_points_required }} )
-		<hr>
-		<form method="POST" action="/game/{{self.game.id}}/timer">
-			<label for="timer">Timer(Minutes):</label>
-			<input required name="timer" type="text" type="number" value="{{self.game.timer_string()}}"></input>
-			<input type="submit" value="Set Timer"></input>
-		</form>
-	{% else %}
-		{% let settings = self.settings.clone() %}
-		<form method="POST" action="/game/{{self.game.id}}/settings">
-			{% include "settings.html" %}
-			<br>
-			<br>
-			<input type="submit" value="Update and Reboot" />
-		</form>
-		<hr>
-		<form method="POST" action="/game/{{self.game.id}}/launch">
-			<label for="countdown">Countdown(secs):</label>
-			<input name="countdown" type="text" format="number" value="60"></input>
-			<input type="submit" value="Launch Game"></input>
-		</form>
-		<br>
-	{% endif %}
-	<a href="/game/{{ self.game.id}}/email">Setup Email Reminders</a>
-	<br>
-	<a href="/games">Return To Game List</a>
-	<hr>
-	Blitzserver {{ env!("CARGO_PKG_VERSION") }}
-</body>
+							{% endmatch %}
+						</table>
+					</div>
+				</div>
+			</div>
+		</section>
+		<section class="tabsection">
+			<div class="schedule-details">
+				<div>
+					<div class="pane">
+						<h3>Turn Log</h3>
+						<table class="turn-log">
+							<thead>
+								<tr>
+									<th></th>
+									{% for player in players %}
+									<th class="rotate"><div><span>{{player.name}}</span></div></th>
+									{% endfor %}
+								</tr>
+							</thead>
+							<tbody>
+								{% for turn in 0..self.turn_number %}
+								<tr>
+									<td>Turn {{turn+1}}</td>
+									{% for player in players %}
+									<td {% if self.get_turn_submitted(player.id, turn) %} class="bg-submitted" {% else %} class="bg-unsubmitted" {% endif %}</td>
+									{% endfor %}
+									<td>
+								</tr>
+								{% endfor %}
+							</tbody>
+						</table>
+					</div>
+				</div>
+				<div>
+					{% include "info.html" %}
+					<div class="pane">
+						<h3>Scheduling</h3>
+						<form method="post" action="/game/{{game.id}}/postpone">
+							<div class="input-row">
+								<input placeholder="1440" name="timer" type="number" />
+								<input type="submit" class="btn btn-block" value="Postpone (Mins)"/>
+							</div>
+						</form>
+						<form method="post" action="/game/{{game.id}}/timer">
+							<div class="input-row">
+								<input placeholder="1440" name="timer" type="number" />
+								<input type="submit" class="btn btn-block" value="Set Timer (Mins)"/>
+							</div>
+						</form>
+						{% if self.turn_number == 0 %}
+						<form method="post" action="/game/{{game.id}}/launch">
+							<div class="input-row">
+								<input placeholder="60" name="countdown" type="number" />
+								<input type="submit" class="btn btn-block" value="Begin Countdown (Secs)"/>
+							</div>
+						</form>
+						{% endif %}
+						<input type="submit" class="btn btn-block btn-danger" value="Jomonhost"/>
+					</div>
+				</div>
+			</div>
+		</section>
+		<section class="tabsection">
+			<div class="pane">
+				<form action="/game/{{game.id}}/settings" method="post">
+					<input type="hidden" name="loaded" value="1" />
+					<fieldset {% if self.turn_number != 0 %}disabled="disabled"{% endif %}>
+						{% include "settings.html" %}
+						<input type="submit" class="btn btn-primary btn-block" value="Save Settings And Reboot Server" />
+					</fieldset>
+				</form>
+			</div>
+		</section>
+		<section class="tabsection">
+			<form>
+				<div class="pane">
+					<div class="input-group">
+						<input required name="email_address" type="text" value="{{self.email_form.email_address}}" placeholder="email@address.com" />
+						<input type="submit" formmethod="get" value="Fetch Alerts" formaction="/game/{{game.id}}/emails"/>
+					</div>
+					<table class="striped-table">
+						{% for email in self.email_configs %}
+						<tr>
+							<td>{{email.email_address}}</td>
+							<td>{{email.subject}}</td>
+							<td>{{self.get_email_config_nation_name(email.id)}}</td>
+							<td><input type="submit" class="btn btn-danger btn-block" formmethod="post" formaction="/game/{{game.id}}/emails/{{email.id}}/delete" value="Delete"/></td>
+						</tr>
+						{% endfor %}
+					</table>
+				</div>
+			</form>
+			<div class="pane">
+				<div class="tabset">
+					<input name="reminder_type" checked="checked" value="newturn" hidden=true type="radio" class="css-tab-newturn" id="css-tab-newturn" />
+					<input name="reminder_type" value="turnreminder" type="radio" class="css-tab-turnreminder" id="css-tab-turnreminder" />
+					<nav class="nav tabset_labels tabs css-tab-labels">
+						<h1></h1>
+						<label class="tab css-tab-label tab1" for="css-tab-newturn">New Turn Notification</label>
+						<label class="tab css-tab-label tab2" for="css-tab-turnreminder">Turn Reminder</label>
+					</nav>
+					<div>
+						<section class="tabsection">
+							<form class="email-setup">
+								<input required name="email_address" class="email-address" placeholder="your@email.com" />
+								<input required name="subject" class="subject" value="{% if self.email_form.subject != "" %}{{self.email_form.subject}}{% else %}New Turn %TURNNUMBER% for %GAMENAME%{% endif %}"/>
+								<input required class="btn btn-primary submit" formmethod="post" formaction="/game/{{game.id}}/email" type="submit" value="Create Notification" />
+								<input required type="hidden" type="number" name="hours_remaining" value="99999"/>
+								<select required name="nation" class="nation">
+									{% for player in self.players %}
+									<option {% if self.email_form.nation == player.id %}selected="selected"{% endif %}value="{{player.id}}">{{player.name}}</option>
+									{% endfor %}
+								</select>
+								<div class="body">
+									<textarea name="body">{% if self.email_form.body != "" %}{{ self.email_form.body }}{% else %}Turn %TURNNUMBER% is ready for %GAMENAME%, you can play it at %GAMEIP%
+The game can be viewed at %GAMEURL%.{% endif %}</textarea>
+								</div>
+							</form>
+						</section>
+						<section class="tabsection">
+							<form class="email-setup reminder">
+								<input required name="email_address" class="email-address" placeholder="your@email.com" />
+								<input required name="subject" class="subject" value="{% if self.email_form.subject != "" %}{{self.email_form.subject}}{% else %}Turn %TURNNUMBER% Reminder for %GAMENAME%{% endif %}"/>
+								<div class="hours-remaining">
+									<input required type="number" name="hours_remaining" value="{% if self.email_form.hours_remaining != 0 %}{{self.email_form.hours_remaining}}{% else %}12{% endif %}"/>
+								</div>
+								<label for="hours_remaining"></label>
+								<input class="btn btn-primary submit" formmethod="post" formaction="/game/{{game.id}}/email" type="submit" value="Create Notification" />
+								<select required name="nation" class="nation">
+									{% for player in self.players %}
+									<option {% if self.email_form.nation == player.id %}selected="selected"{% endif %}value="{{player.id}}">{{player.name}}</option>
+									{% endfor %}
+								</select>
+								<div class="body">
+									<textarea name="body">{% if self.email_form.body != "" %}{{ self.email_form.body }}{% else %}Turn %TURNNUMBER% is due for %GAMENAME% in %HOURSREMAINING%, you can play it at %GAMEIP%
+The game can be viewed at %GAMEURL%.{% endif %}</textarea>
+								</div>
+							</form>
+						</section>
+					</div>
+				</div>
+			</div>
+			</form>
+		</section>
+	</div>
+</div>
+{% endblock %}

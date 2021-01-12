@@ -3,15 +3,15 @@ use super::AppData;
 use crate::diesel::prelude::*;
 use crate::game_manager;
 use crate::models::{
-    EmailConfig, Era, Game, GameMod, Map, Mod, Nation, NewEmailConfig, NewGame, NewGameMod, Player,
-    PlayerTurn, Turn,
+    EmailConfig, Era, Game, GameMod, Map, Mod, Nation, NewGame, NewGameMod, Player, PlayerTurn,
+    Turn,
 };
 use crate::StartGame;
 use actix_web::http::header;
 use actix_web::{get, post, web, HttpResponse, Result};
 use askama::Template;
 use futures::StreamExt;
-use serde::{de::Error, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ops::Add;
 
@@ -37,7 +37,7 @@ struct GameSettings {
     #[serde(deserialize_with = "from_str")]
     research_diff: i32,
     #[serde(default = "default_one")]
-    #[serde(deserialize_with = "de_map_to_scalar")]
+    #[serde(deserialize_with = "from_str")]
     research_rand: i32,
     #[serde(default = "default_ten")]
     #[serde(deserialize_with = "from_str")]
@@ -70,22 +70,22 @@ struct GameSettings {
     #[serde(deserialize_with = "from_str")]
     startprov: i32,
     #[serde(default)]
-    #[serde(deserialize_with = "de_map_to_scalar")]
+    #[serde(deserialize_with = "from_str")]
     renaming: i32,
     #[serde(default = "default_one")]
-    #[serde(deserialize_with = "de_map_to_scalar")]
+    #[serde(deserialize_with = "from_str")]
     scoregraphs: i32,
     #[serde(default = "default_one")]
-    #[serde(deserialize_with = "de_map_to_scalar")]
+    #[serde(deserialize_with = "from_str")]
     nationinfo: i32,
     #[serde(default = "default_one")]
-    #[serde(deserialize_with = "de_map_to_scalar")]
+    #[serde(deserialize_with = "from_str")]
     artrest: i32,
     #[serde(default)]
-    #[serde(deserialize_with = "de_map_to_scalar")]
+    #[serde(deserialize_with = "from_str")]
     teamgame: i32,
     #[serde(default)]
-    #[serde(deserialize_with = "de_map_to_scalar")]
+    #[serde(deserialize_with = "from_str")]
     clustered: i32,
     #[serde(default = "default_one")]
     #[serde(deserialize_with = "from_str")]
@@ -94,7 +94,7 @@ struct GameSettings {
     #[serde(deserialize_with = "from_str")]
     newailvl: i32,
     #[serde(default = "default_one")]
-    #[serde(deserialize_with = "de_map_to_scalar")]
+    #[serde(deserialize_with = "from_str")]
     newai: i32,
     #[serde(deserialize_with = "from_str")]
     #[serde(default = "default_one")]
@@ -146,6 +146,39 @@ impl From<(&Game, &[Mod])> for GameSettings {
         }
     }
 }
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct EmailForm {
+    #[serde(default)]
+    email_address: String,
+    #[serde(default)]
+    #[serde(deserialize_with = "from_str")]
+    nation: i32,
+    #[serde(default)]
+    subject: String,
+    #[serde(default)]
+    body: String,
+    #[serde(default)]
+    #[serde(deserialize_with = "from_str")]
+    hours_remaining: i32,
+}
+impl Default for EmailForm {
+    fn default() -> Self {
+        Self {
+            email_address: "".to_string(),
+            nation: 0,
+            subject: "".to_string(),
+            body: "".to_string(),
+            hours_remaining: 0
+        }
+    }
+}
+#[derive(Default, Clone, Debug, Deserialize)]
+struct GameDetailsPayload {
+    #[serde(flatten)]
+    game_settings: GameSettings,
+    #[serde(flatten)]
+    email_form: EmailForm,
+}
 #[derive(Debug, Deserialize)]
 struct CreateGame {
     #[serde(default)]
@@ -163,28 +196,81 @@ struct EmailFormEntry {
     pub selected_nation: i32,
     pub remaining_hours: Option<i32>,
 }
-#[derive(Default, Clone, Debug, Serialize, Deserialize)]
-struct EmailForm {
-    #[serde(default)]
-    email: String,
-    #[serde(default)]
-    entries: Vec<EmailFormEntry>,
-}
 
 // === Templates ===
+struct PlayerSummary {
+    name: String,
+    id: i32,
+    submitted: bool,
+}
 #[derive(Template)]
 #[template(path = "games/details.html")]
 struct GameDetailsTemplate<'a> {
     game: Game,
     settings: GameSettings,
+    email_form: EmailForm,
+    email_configs: &'a [EmailConfig],
     status: &'a str,
     turn_number: i32,
     turns: HashMap<i32, Vec<PlayerTurn>>,
     hostname: String,
-    players: &'a Vec<(i32, String)>,
+    players: &'a Vec<PlayerSummary>,
     mods: &'a Vec<Mod>,
     maps: &'a Vec<Map>,
-    map: Map,
+    tab: String,
+}
+impl<'a> GameDetailsTemplate<'a> {
+    fn get_email_config_nation_name(&self, id: &i32) -> &str {
+        self.email_configs
+            .iter()
+            .find(|e| e.id == *id)
+            .map_or("", |e| {
+                &self
+                    .players
+                    .iter()
+                    .find(|p| p.id == e.nation_id)
+                    .unwrap()
+                    .name
+            })
+    }
+    fn get_turn_submitted(&self, nation_id: &i32, turn_number: &i32) -> bool {
+        self.turns.get(nation_id).map_or(false, |t| {
+            t.get(*turn_number as usize)
+                .map_or(false, |t| t.twohfile_id.is_some())
+        })
+    }
+    fn get_turn_pips(turns: &[PlayerTurn]) -> Vec<&PlayerTurn> {
+        let len = turns.len();
+        if len > 0 {
+            turns
+                .iter()
+                .rev()
+                .take(10)
+                .rev()
+                .take(if len < 9 { len - 1 } else { 9 })
+                .collect()
+        } else {
+            vec![]
+        }
+    }
+
+    fn get_current_mods(&self) -> Vec<&Mod> {
+        if self.settings.cmods.len() == 0 {
+            vec![]
+        } else {
+            self.mods
+                .iter()
+                .filter(|m| self.settings.cmods.iter().find(|cm| **cm == m.id).is_some())
+                .collect()
+        }
+    }
+    fn get_current_map(&self) -> Option<&Map> {
+        if self.settings.map != 0 {
+            self.maps.iter().find(|m| m.id == self.settings.map)
+        } else {
+            None
+        }
+    }
 }
 #[derive(Template)]
 #[template(path = "games/create.html")]
@@ -193,11 +279,26 @@ struct AddGameTemplate<'a> {
     maps: &'a [Map],
     mods: &'a [Mod],
 }
+struct ActiveGame {
+    id: i32,
+    name: String,
+    address: String,
+    turn_summary: crate::models::TurnSummary,
+    next_turn_string: String,
+}
+struct PendingGame {
+    id: i32,
+    name: String,
+    address: String,
+    players: i32,
+}
 #[derive(Template)]
 #[template(path = "games/list.html")]
 struct GamesTemplate<'a> {
-    games: &'a [Game],
+    pending_games: &'a [PendingGame],
+    active_games: &'a [ActiveGame],
 }
+/*
 #[derive(Template)]
 #[template(path = "games/email.html")]
 struct EmailsTemplate<'a> {
@@ -205,8 +306,50 @@ struct EmailsTemplate<'a> {
     form: &'a EmailForm,
     game: Game,
 }
+*/
 
 // === Routes ====
+#[post("/game/{id}/postpone")]
+async fn postpone(
+    (app_data, web::Path(path_id), timer_form): (
+        web::Data<AppData>,
+        web::Path<i32>,
+        web::Form<SetTimer>,
+    ),
+) -> Result<HttpResponse> {
+    let db = app_data.pool.get().expect("Unable to connect to database");
+    let game: Game = {
+        use crate::schema::games::dsl::*;
+        games
+            .filter(id.eq(path_id))
+            .get_result::<Game>(&db)
+            .unwrap()
+    };
+    {
+        use crate::schema::games::dsl::*;
+        diesel::update(games.filter(id.eq(game.id)))
+            .set((next_turn
+                .eq(Some(std::time::SystemTime::now().add(
+                    std::time::Duration::from_secs(60 * timer_form.timer as u64),
+                ))),))
+            .execute(&db)
+            .unwrap();
+    }
+    app_data
+        .manager_notifier
+        .send(game_manager::ManagerMsg::GameMsg(
+            crate::dom5_proxy::GameMsg {
+                id: game.id,
+                cmd: crate::dom5_proxy::GameMsgType::GameCmd(
+                    crate::dom5_proc::GameCmd::SetTimerCmd,
+                ),
+            },
+        ))
+        .unwrap();
+    Ok(HttpResponse::Found()
+        .header(header::LOCATION, format!("/game/{}/schedule", game.id))
+        .finish())
+}
 #[post("/game/{id}/timer")]
 async fn timer(
     (app_data, web::Path(path_id), timer_form): (
@@ -248,29 +391,29 @@ async fn timer(
         ))
         .unwrap();
     Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}", game.id))
+        .header(header::LOCATION, format!("/game/{}/schedule", game.id))
         .finish())
 }
-#[get("/game/{id}")]
+
+#[get("/game/{id}/{tab}")]
 async fn details(
-    (app_data, web::Path(path_id), game_settings): (
+    (app_data, web::Path((path_id, tab)), payload): (
         web::Data<AppData>,
-        web::Path<String>,
-        serde_qs::actix::QsQuery<GameSettings>,
+        web::Path<(String, String)>,
+        serde_qs::actix::QsQuery<GameDetailsPayload>,
     ),
 ) -> Result<HttpResponse> {
+    let game_settings = &payload.game_settings;
+    let email_form = &payload.email_form;
     let db = app_data.pool.get().expect("Unable to connect to database");
-    let (game, map) = if let Ok(id_i32) = path_id.parse::<i32>() {
+    let game = if let Ok(id_i32) = path_id.parse::<i32>() {
         use crate::schema::games::dsl::*;
-        games
-            .filter(id.eq(id_i32))
-            .inner_join(crate::schema::maps::dsl::maps.on(crate::schema::maps::dsl::id.eq(map_id)))
-            .get_result::<(Game, Map)>(&*db)
+        games.filter(id.eq(id_i32)).get_result::<Game>(&*db)
     } else {
         use crate::schema::games::dsl::*;
         let game: Game = games.filter(name.ilike(path_id)).get_result(&*db).unwrap();
         return Ok(HttpResponse::PermanentRedirect()
-            .header(header::LOCATION, format!("/game/{}", game.id))
+            .header(header::LOCATION, format!("/game/{}/{}", game.id, tab))
             .finish());
     }
     .unwrap();
@@ -303,7 +446,7 @@ async fn details(
     );
     let turns: Vec<Turn> = { Turn::belonging_to(&game).get_results(&db).unwrap() };
     let settings: GameSettings = if let Some(_) = game_settings.loaded {
-        (*game_settings).clone()
+        game_settings.clone()
     } else {
         let mods = {
             &crate::schema::game_mods::dsl::game_mods
@@ -320,42 +463,56 @@ async fn details(
         };
         (&game, &mods[..]).into()
     };
-    let (maps, mods): (Vec<Map>, Vec<Mod>) = if turns.len() == 0 {
-        (
-            {
-                use crate::schema::maps::dsl::*;
-                maps.filter(name.ilike(&format!("%{}%", game_settings.mapfilter)))
-                    .get_results(&db)
-                    .unwrap()
-            },
-            {
-                use crate::schema::mods::dsl::*;
-                mods.filter(name.ilike(&format!("%{}%", game_settings.modfilter)))
-                    .get_results(&db)
-                    .unwrap()
-            },
+    let (maps, mods): (Vec<Map>, Vec<Mod>) = (
+        {
+            use crate::schema::maps::dsl::*;
+            maps.filter(name.ilike(&format!("%{}%", game_settings.mapfilter)))
+                .get_results(&db)
+                .unwrap()
+        },
+        {
+            use crate::schema::mods::dsl::*;
+            mods.filter(name.ilike(&format!("%{}%", game_settings.modfilter)))
+                .get_results(&db)
+                .unwrap()
+        },
+    );
+    use crate::schema::email_configs::dsl as email_dsl;
+    let email_configs: Vec<EmailConfig> = email_dsl::email_configs
+        .filter(
+            email_dsl::email_address
+                .eq(&email_form.email_address)
+                .and(email_dsl::game_id.eq(game.id)),
         )
-    } else {
-        (vec![], vec![])
-    };
+        .get_results(&db)
+        .unwrap();
     Ok(HttpResponse::Ok().content_type("text/html").body(
         (GameDetailsTemplate {
-            map,
             settings: settings,
-            turns: player_turn_map,
+            email_form: (*email_form).clone(),
+            email_configs: &email_configs,
             status: if turns.len() > 0 {
                 "Active"
             } else {
                 "Waiting for players"
             },
+            tab: tab,
             turn_number: turns.len() as i32,
             maps: &maps,
             mods: &mods,
             game,
             players: &game_players
                 .iter()
-                .map(|(_, nation)| (nation.nation_id, nation.name.clone()))
+                .map(|(_, nation)| PlayerSummary {
+                    id: nation.nation_id,
+                    name: nation.name.clone(),
+                    submitted: match player_turn_map.get(&nation.nation_id) {
+                        Some(t) => t.last().map_or(false, |t| t.twohfile_id.is_some()),
+                        None => false,
+                    },
+                })
                 .collect(),
+            turns: player_turn_map,
             hostname: std::env::var("HOSTNAME").unwrap(),
         })
         .render()
@@ -421,7 +578,7 @@ async fn launch(
         ))
         .unwrap();
     Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}", game.id))
+        .header(header::LOCATION, format!("/game/{}/schedule", game.id))
         .finish())
 }
 #[post("/games/create")]
@@ -508,10 +665,55 @@ async fn list(app_data: web::Data<AppData>) -> Result<HttpResponse> {
 
     // Create game
     use crate::schema::games::dsl::games;
-    let results = games.load::<Game>(&db).expect("Error loading games");
-    Ok(HttpResponse::Ok()
-        .content_type("text/html")
-        .body((GamesTemplate { games: &results }).render().unwrap()))
+    let mut results = games.load::<Game>(&db).expect("Error loading games");
+    let player_counts = crate::models::Game::get_player_count(
+        results.iter().map(|g| g.id).collect::<Vec<i32>>(),
+        &db,
+    );
+    let turn_summaries =
+        crate::models::Turn::turn_summary(&results.iter().map(|g| g.id).collect::<Vec<i32>>(), &db);
+    let active_games: Vec<ActiveGame> = results
+        .drain_filter(|g| turn_summaries.iter().find(|t| t.game_id == g.id).is_some())
+        .map(|g| ActiveGame {
+            next_turn_string: g.next_turn_string(),
+            id: g.id,
+            turn_summary: turn_summaries
+                .iter()
+                .find(|t| t.game_id == g.id)
+                .unwrap()
+                .clone(),
+            name: g.name.clone(),
+            address: format!(
+                "{}:{}",
+                std::env::var("HOSTNAME").unwrap(),
+                g.port.unwrap_or(0)
+            ),
+        })
+        .collect();
+    let pending_games: Vec<PendingGame> = results
+        .iter()
+        .map(|g| PendingGame {
+            id: g.id,
+            players: match player_counts.contains_key(&g.id) {
+                true => player_counts[&g.id],
+                false => 0,
+            },
+            address: format!(
+                "{}:{}",
+                std::env::var("HOSTNAME").unwrap(),
+                g.port.unwrap_or(0)
+            ),
+            name: g.name.clone(),
+        })
+        .collect();
+    Ok(HttpResponse::Ok().content_type("text/html").body(
+        (GamesTemplate {
+            active_games: &active_games,
+            pending_games: &pending_games,
+        })
+        .render()
+        .unwrap(),
+    ))
 }
 
 #[post("/game/{id}/settings")]
@@ -591,15 +793,16 @@ async fn settings_post(
         ))
         .unwrap();
     Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}", game.id))
+        .header(header::LOCATION, format!("/game/{}/settings", game.id))
         .finish())
 }
+/*
 #[get("/game/{id}/email")]
 async fn emails_get(
-    (app_data, mut email_form, web::Path((game_id))): (
+    (app_data, mut email_form, web::Path(game_id)): (
         web::Data<AppData>,
         serde_qs::actix::QsQuery<EmailForm>,
-        web::Path<(i32)>,
+        web::Path<i32>,
     ),
 ) -> Result<HttpResponse> {
     let db = app_data.pool.get().expect("Unable to connect to database");
@@ -607,7 +810,7 @@ async fn emails_get(
     use crate::schema::games::dsl as games_dsl;
     use crate::schema::nations::dsl as nations_dsl;
     use crate::schema::players::dsl as players_dsl;
-    let invalid: Vec<EmailFormEntry> = email_form
+    let _invalid: Vec<EmailFormEntry> = email_form
         .entries
         .drain_filter(|e| !e.remaining_hours.is_some())
         .collect();
@@ -652,36 +855,64 @@ async fn emails_get(
         .unwrap(),
     ))
 }
+*/
 
 #[post("/game/{id}/email")]
 async fn emails_post(
-    (app_data, bytes, web::Path((game_id))): (
+    (app_data, bytes, web::Path(game_id)): (
         web::Data<AppData>,
         actix_web::web::Bytes,
-        web::Path<(i32)>,
+        web::Path<i32>,
     ),
 ) -> Result<HttpResponse> {
     let cfg = serde_qs::Config::new(10, false);
     match cfg.deserialize_bytes::<EmailForm>(&bytes) {
         Ok(email_form) => {
-            let db = app_data.pool.get().unwrap();
-            let qs = serde_qs::to_string(&email_form).unwrap();
-            let new_emails = email_form
-                .entries
-                .iter()
-                .filter_map(|e| match e.remaining_hours {
-                    Some(h) => Some(NewEmailConfig {
-                        game_id: game_id,
-                        email_address: email_form.email.clone(),
-                        hours_before_host: h,
-                        nation_id: e.selected_nation,
-                    }),
-                    None => None,
-                })
-                .collect::<Vec<NewEmailConfig>>();
-            app_data.email_manager.update_configs(game_id, email_form.email, &new_emails);
+            app_data.email_manager.create_config(
+                game_id,
+                email_form.email_address.clone(),
+                email_form.subject,
+                email_form.body,
+                email_form.nation,
+                email_form.hours_remaining
+            );
             Ok(HttpResponse::Found()
-                .header(header::LOCATION, format!("/game/{}/email?{}", game_id, qs))
+                .header(
+                    header::LOCATION,
+                    format!(
+                        "/game/{}/emails?email_address={}",
+                        game_id, email_form.email_address
+                    ),
+                )
+                .finish())
+        }
+        Err(_) => Ok(HttpResponse::BadRequest()
+            .header(header::LOCATION, format!("/game/{}/email", game_id))
+            .finish()),
+    }
+}
+#[post("/game/{id}/emails/{emailid}/delete")]
+async fn emails_delete(
+    (app_data, bytes, web::Path((game_id, email_id))): (
+        web::Data<AppData>,
+        actix_web::web::Bytes,
+        web::Path<(i32, i32)>,
+    ),
+) -> Result<HttpResponse> {
+    let cfg = serde_qs::Config::new(10, false);
+    match cfg.deserialize_bytes::<EmailForm>(&bytes) {
+        Ok(email_form) => {
+            app_data
+                .email_manager
+                .delete_config(email_id, email_form.email_address.clone());
+            Ok(HttpResponse::Found()
+                .header(
+                    header::LOCATION,
+                    format!(
+                        "/game/{}/emails?email_address={}",
+                        game_id, email_form.email_address
+                    ),
+                )
                 .finish())
         }
         Err(_) => Ok(HttpResponse::BadRequest()

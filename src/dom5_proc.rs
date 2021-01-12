@@ -22,11 +22,26 @@ pub enum ProcEvent {
 pub struct Dom5ProcHandle {
     pub sender: crossbeam_channel::Sender<GameCmd>,
     pub port: i32,
+    is_dead: std::sync::atomic::AtomicBool,
 }
-
+impl Dom5ProcHandle {
+    pub fn new(sender: crossbeam_channel::Sender<GameCmd>, port: i32) -> Self {
+        Self {
+            sender,
+            port,
+            is_dead: std::sync::atomic::AtomicBool::new(false),
+        }
+    }
+    pub fn shutdown(&self) {
+        if !self.is_dead.load(std::sync::atomic::Ordering::SeqCst) {
+            self.sender.send(GameCmd::Shutdown).unwrap();
+        }
+        self.is_dead.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+}
 impl Drop for Dom5ProcHandle {
     fn drop(&mut self) {
-        self.sender.send(GameCmd::Shutdown).unwrap();
+        self.shutdown();
     }
 }
 
@@ -164,17 +179,6 @@ impl Dom5Proc {
                 .unwrap();
             self.unset_timer();
             self.send_upstream.send(ProcEvent::NewTurn).unwrap();
-        }
-    }
-    fn handle_statusdump_update(&mut self) {
-        let status_dump = match std::fs::File::open(self.savedir.join("statusdump.txt")) {
-            Err(_) => {
-                return;
-            }
-            Ok(f) => super::statusdump::StatusDump::from_file(f),
-        };
-        if status_dump.turn > 0 {
-            self.handle_new_turn();
         }
     }
     fn populate_savegame(&self) {
@@ -427,7 +431,10 @@ impl Dom5Proc {
                 game.newailvl.to_string(),
                 if game.newai { "" } else { "--nonewai" }.to_string(),
             ]);
-            let turns: Vec<Turn> = crate::schema::turns::dsl::turns.filter(crate::schema::turns::dsl::game_id.eq(game.id)).get_results(&db).unwrap();
+            let turns: Vec<Turn> = crate::schema::turns::dsl::turns
+                .filter(crate::schema::turns::dsl::game_id.eq(game.id))
+                .get_results(&db)
+                .unwrap();
             if turns.len() == 0 {
                 arguments.append(&mut vec!["--newgame".to_string()]);
             }
@@ -627,8 +634,8 @@ impl Dom5Proc {
                                 match event.kind {
                                     notify::EventKind::Modify(_) | notify::EventKind::Create(_) => {
                                         for path in event.paths {
-                                            if path.file_name() == Some(std::ffi::OsStr::new("statusdump.txt")) {
-                                                self.handle_statusdump_update();
+                                            if path.file_name() == Some(std::ffi::OsStr::new("ftherlnd")) {
+                                                self.handle_new_turn();
                                             }
                                             if path.extension() == Some(std::ffi::OsStr::new("trn")) {
                                                 self.handle_trn_update(&path);
@@ -647,10 +654,7 @@ impl Dom5Proc {
                 };
             }
         });
-        Dom5ProcHandle {
-            sender: sender,
-            port: new_internal_port,
-        }
+        Dom5ProcHandle::new(sender, new_internal_port)
     }
 
     pub fn populate_maps(&mut self) {

@@ -1,5 +1,5 @@
 use crate::diesel::prelude::*;
-use crate::models::{PlayerTurn, EmailConfig, Game, NewEmailConfig, Turn};
+use crate::models::{EmailConfig, Game, NewEmailConfig, Turn};
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use lettre::{transport::smtp::authentication::Credentials, Transport};
@@ -11,10 +11,45 @@ pub struct EmailManager {
     pub smtp_user: String,
     pub smtp_pass: String,
     pub smtp_server: String,
-    pub hostname: String
+    pub hostname: String,
 }
 
 impl EmailManager {
+    pub fn delete_config(&self, email_id: i32, email_address: String) {
+        let db = self.db_pool.get().unwrap();
+        use crate::schema::email_configs::dsl as emails_dsl;
+        diesel::delete(emails_dsl::email_configs)
+            .filter(
+                emails_dsl::email_address
+                    .eq(email_address)
+                    .and(emails_dsl::id.eq(email_id)),
+            )
+            .execute(&db)
+            .unwrap();
+    }
+    pub fn create_config(
+        &self,
+        game_id: i32,
+        address: String,
+        subject: String,
+        body: String,
+        nation: i32,
+        hours_remaining: i32,
+    ) {
+        let db = self.db_pool.get().unwrap();
+        use crate::schema::email_configs::dsl as emails_dsl;
+        diesel::insert_into(emails_dsl::email_configs)
+            .values(NewEmailConfig {
+                nation_id: nation,
+                game_id,
+                hours_before_host: hours_remaining,
+                email_address: address,
+                body,
+                subject,
+            })
+            .execute(&db)
+            .unwrap();
+    }
     pub fn update_configs(&self, game_id: i32, address: String, emails: &[NewEmailConfig]) {
         let db = self.db_pool.get().unwrap();
         db.build_transaction()
@@ -46,13 +81,36 @@ impl EmailManager {
         use crate::schema::games::dsl as games_dsl;
         use crate::schema::turns::dsl as turns_dsl;
 
-        let game: Game = games_dsl::games.filter(games_dsl::id.eq(email_config.game_id)).get_result(db).unwrap();
-        let turn: Turn = turns_dsl::turns.filter(turns_dsl::game_id.eq(email_config.game_id)).order(turns_dsl::turn_number.desc()).limit(1).get_result(db).unwrap();
+        let game: Game = games_dsl::games
+            .filter(games_dsl::id.eq(email_config.game_id))
+            .get_result(db)
+            .unwrap();
+        let turn: Turn = turns_dsl::turns
+            .filter(turns_dsl::game_id.eq(email_config.game_id))
+            .order(turns_dsl::turn_number.desc())
+            .limit(1)
+            .get_result(db)
+            .unwrap();
+        let hostname = std::env::var("HOSTNAME").unwrap();
+        let subject= email_config
+            .subject
+            .replace("%TURNNUMBER%", &turn.turn_number.to_string())
+            .replace("%GAMEIP%", &format!("{}:{}", hostname, game.port.unwrap_or(0)))
+            .replace("%GAMEURL%", &format!("{}/game/{}/status", hostname, game.id))
+            .replace("%GAMENAME%", &game.name)
+            .replace("%HOURSREMAINING%", &game.next_turn_string());
+        let body = email_config
+            .body
+            .replace("%TURNNUMBER%", &turn.turn_number.to_string())
+            .replace("%GAMEIP%", &format!("{}:{}", hostname, game.port.unwrap_or(0)))
+            .replace("%GAMEURL%", &format!("{}/game/{}/status", hostname, game.id))
+            .replace("%GAMENAME%", &game.name)
+            .replace("%HOURSREMAINING%", &game.next_turn_string());
         let email = lettre::Message::builder()
             .from(format!("Admin <admin@{}>", hostname).parse().unwrap())
             .to(format!("<{}>", email_config.email_address).parse().unwrap())
-            .subject(format!("Game {} Turn Notification", game.name))
-            .body(format!("Turn {} for game {} is required within {}", turn.turn_number, game.name, game.next_turn_string()))
+            .subject(subject)
+            .body(body)
             .unwrap();
         mailer.send(&email).unwrap();
     }

@@ -47,6 +47,12 @@ async fn favicon() -> Result<HttpResponse> {
         .content_type("image/png")
         .body(&include_bytes!("../content/favicon.ico")[..]))
 }
+#[get("/styles.css")]
+async fn styles() -> Result<HttpResponse> {
+    Ok(HttpResponse::Ok()
+        .content_type("text/css")
+        .body(&include_bytes!("../content/styles.css")[..]))
+}
 
 #[derive(Deserialize)]
 struct StartGame {
@@ -176,6 +182,7 @@ async fn main() -> std::io::Result<()> {
             )
             .service(index)
             .service(favicon)
+            .service(styles)
             .service(frontend::maps::details)
             .service(frontend::maps::image)
             .service(frontend::maps::upload_get)
@@ -183,13 +190,14 @@ async fn main() -> std::io::Result<()> {
             .service(frontend::maps::list)
             .service(frontend::maps::download)
             .service(frontend::games::timer)
+            .service(frontend::games::postpone)
             .service(frontend::games::details)
             .service(frontend::games::launch)
             .service(frontend::games::list)
             .service(frontend::games::create_get)
             .service(frontend::games::create_post)
             .service(frontend::games::settings_post)
-            .service(frontend::games::emails_get)
+            .service(frontend::games::emails_delete)
             .service(frontend::games::emails_post)
             .service(frontend::mods::list)
             .service(frontend::mods::upload_get)

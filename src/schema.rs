@@ -6,6 +6,8 @@ table! {
         hours_before_host -> Int4,
         email_address -> Varchar,
         last_turn_notified -> Nullable<Int4>,
+        subject -> Varchar,
+        body -> Varchar,
     }
 }
 

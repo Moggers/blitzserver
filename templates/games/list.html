@@ -1,11 +1,18 @@
-<title>Blitzserver - Games</title>
-{% for game in games %}
-<a href={{format!("game/{}", game.id)}}> {{ game.name }}</a> <br>
-{% endfor %}
-<br>
-
-<a href="./games/create">Create New Game</a><br>
-<a href="./maps">View Maps</a><br>
-<a href="./mods">View Mods</a>
-<hr>
-Blitzserver {{ env!("CARGO_PKG_VERSION") }}
+{% extends "container.html" %}
+{% block body %}
+<div class="row">
+	<div class="col-md-4">
+		<p>
+		<em class="col-active">Active</em> and <em class="col-waiting">Waiting for players</em> games are listed on the right. The button below will take you to the page where you can start a new game.
+		</p>
+		<a class="btn btn-block btn-primary" href="./games/create">Create New Game</a><br>
+	</div>
+	<div class="col-md-8">
+		{% for game in pending_games %}
+			{% include "pending_pane.html" %}
+		{% endfor %}
+		{% for game in active_games %}
+			{% include "active_pane.html" %}
+		{% endfor %}
+	</div>
+{% endblock %}

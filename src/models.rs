@@ -1,6 +1,8 @@
 use super::schema::{
     email_configs, files, game_mods, games, maps, mods, nations, player_turns, players, turns,
 };
+use crate::diesel::RunQueryDsl;
+use serde::Deserialize;
 use std::hash::{Hash, Hasher};
 
 pub struct Era;
@@ -46,6 +48,14 @@ pub struct Game {
     pub next_turn: Option<std::time::SystemTime>,
 }
 
+#[derive(QueryableByName)]
+struct GameNationCount {
+    #[sql_type = "diesel::sql_types::Integer"]
+    pub game_id: i32,
+    #[sql_type = "diesel::sql_types::BigInt"]
+    pub count: i64,
+}
+
 impl Game {
     pub fn next_turn_string(&self) -> String {
         match self.next_turn {
@@ -89,6 +99,21 @@ impl Game {
             Era::LATE => "Late".to_string(),
             _ => "Unknown".to_string(),
         }
+    }
+
+    pub fn get_player_count<D>(games: Vec<i32>, db: &D) -> std::collections::HashMap<i32, i32>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        diesel::sql_query("SELECT game_id, COUNT(*) count FROM players WHERE game_id = ANY($1) GROUP BY game_id")
+            .bind::<diesel::sql_types::Array<diesel::sql_types::Integer>, _>(games)
+            .get_results::<GameNationCount>(db)
+            .unwrap()
+            .iter()
+            .fold(std::collections::HashMap::new(), |mut hm, val| {
+                hm.insert(val.game_id, val.count as i32);
+                hm
+            })
     }
 }
 
@@ -240,14 +265,53 @@ pub struct NewNation {
     pub epithet: String,
 }
 
-#[derive(Associations, Identifiable, Queryable)]
+#[derive(Debug, Associations, Identifiable, Queryable, QueryableByName)]
 #[belongs_to(parent = "Game", foreign_key = "game_id")]
+#[table_name = "turns"]
 pub struct Turn {
     id: i32,
     pub game_id: i32,
     pub turn_number: i32,
     pub file_id: i32,
     pub created_at: std::time::SystemTime,
+}
+
+#[derive(Clone, Deserialize, QueryableByName)]
+pub struct TurnSummary {
+    #[sql_type = "diesel::sql_types::Integer"]
+    pub game_id: i32,
+    #[sql_type = "diesel::sql_types::Integer"]
+    pub turn_number: i32,
+    #[sql_type = "diesel::sql_types::BigInt"]
+    pub submitted: i64,
+    #[sql_type = "diesel::sql_types::BigInt"]
+    pub total: i64,
+}
+
+impl Turn {
+    pub fn current_turn<D>(game_ids: &[i32], db: D) -> Vec<Turn>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        diesel::sql_query(
+            format!("SELECT * FROM turns t INNER JOIN (SELECT game_id,MAX(turn_number) as turn_number FROM turns WHERE game_id IN ({}) GROUP BY game_id ) as mt ON mt.turn_number = t.turn_number AND mt.game_id = t.game_id", game_ids.iter().map(|i| i.to_string()).collect::<Vec<String>>().join(",")),
+        ).get_results(&db).unwrap()
+    }
+    pub fn turn_summary<D>(game_ids: &[i32], db: &D) -> Vec<TurnSummary>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        diesel::sql_query(
+            format!("\
+SELECT t.game_id, t.turn_number, COALESCE(pt.submitted, 0) as submitted, COALESCE(pt.total, 0) as total
+FROM turns t 
+INNER JOIN (SELECT game_id,MAX(turn_number) as turn_number FROM turns WHERE game_id IN ({}) GROUP BY game_id ) as mt 
+    ON mt.turn_number = t.turn_number AND mt.game_id = t.game_id
+LEFT JOIN (SELECT game_id,turn_number,COUNT(twohfile_id) submitted, COUNT(trnfile_id) total FROM player_turns GROUP BY game_id, turn_number) as pt
+    ON pt.turn_number = t.turn_number AND pt.game_id = t.game_id\
+", game_ids.iter().map(|i| i.to_string()).collect::<Vec<String>>().join(",")),
+        ).get_results(db).unwrap()
+    }
 }
 
 #[derive(Insertable)]
@@ -317,6 +381,8 @@ pub struct EmailConfig {
     pub hours_before_host: i32,
     pub email_address: String,
     pub last_turn_notified: Option<i32>,
+    pub subject: String,
+    pub body: String
 }
 
 #[derive(Insertable)]
@@ -326,4 +392,6 @@ pub struct NewEmailConfig {
     pub game_id: i32,
     pub hours_before_host: i32,
     pub email_address: String,
+    pub subject: String,
+    pub body: String
 }

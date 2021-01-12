@@ -277,7 +277,7 @@ impl Dom5Proxy {
                     }
                     GameMsgType::RebootCmd => match base_proc_handle.read().unwrap().upgrade() {
                         Some(d5ph) => {
-                            d5ph.sender.send(GameCmd::Shutdown).unwrap();
+                            d5ph.shutdown();
                         }
                         None => {
                             println!("Attempted to destroy, but already dead");
