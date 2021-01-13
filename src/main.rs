@@ -100,8 +100,9 @@ async fn main() -> std::io::Result<()> {
             db_pool: pool.clone(),
             smtp_user: env::var("SMTP_USER").expect("SMTP_USER must be said to the SMTP user"),
             smtp_pass: env::var("SMTP_PASS").expect("SMTP_PASS must be said to the SMTP password"),
-            smtp_server: env::var("SMTP_SERVER").expect("SMTP_SERVER must be said to the SMTP server"),
-            hostname: env::var("HOSTNAME").expect("HOSTNAME must be set to accessible address")
+            smtp_server: env::var("SMTP_SERVER")
+                .expect("SMTP_SERVER must be said to the SMTP server"),
+            hostname: env::var("HOSTNAME").expect("HOSTNAME must be set to accessible address"),
         },
     };
     app_data.email_manager.monitor();
@@ -121,6 +122,10 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(middleware::Logger::default())
             .data(app_data.clone())
+            .wrap(
+                actix_session::CookieSession::signed(&[0; 32]) // <- create cookie based session middleware
+                    .secure(false),
+            )
             .app_data(
                 serde_qs::actix::QsQueryConfig::default()
                     .qs_config(serde_qs::Config::new(10, false)),
@@ -194,7 +199,6 @@ async fn main() -> std::io::Result<()> {
             .service(frontend::games::details)
             .service(frontend::games::launch)
             .service(frontend::games::list)
-            .service(frontend::games::create_get)
             .service(frontend::games::create_post)
             .service(frontend::games::settings_post)
             .service(frontend::games::emails_delete)

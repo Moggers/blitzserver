@@ -65,7 +65,6 @@ nav .tab:hover {
 	background: var(--col-grey);
 	color: black;
 }
-
 nav h1 {
 	padding-left: 10px;
 	padding-right: 10px;
@@ -73,19 +72,17 @@ nav h1 {
 	font-weight: 400;
 	color: black;
 }
-.row {
-	display: flex;
+.games-list {
+	display: grid;
+	grid-template-columns: 1fr 1fr 1fr;
+	grid-template-areas:
+		"create list list";
 }
-.col-md-4,.col-md-8 {
-	padding-left: 15px;
-	padding-right: 15px;
-	box-sizing: border-box;
+.games-list div:nth-child(1) {
+	grid-area: create;
 }
-.col-md-4 {
-	flex: 0 0 33.33%;
-}
-.col-md-8 {
-	flex: 0 0 66.67%;
+.games-list div:nth-child(2) {
+	grid-area: list;
 }
 .input-row {
 	display: flex;
@@ -113,6 +110,10 @@ input {
 .btn:hover {
 	cursor:pointer;
 	text-decoration: underline;
+}
+.btn:hover:disabled {
+	cursor: initial;
+	text-decoration: initial;
 }
 .btn-primary {
 	background: var(--col-primary);
@@ -339,6 +340,10 @@ h3 {
 	margin-left: 15px;
 	padding: 5px;
 }
+.pane-search {
+	margin-left: auto;
+	width: 300px;
+}
 .link-list td:first-child {
 	width: 100%;
 }
@@ -473,14 +478,14 @@ input:checked + .bg-selector {
 	display: flex;
 	flex-direction: column;
 }
-.game-settings .input-group {
+.input-group {
 	margin-bottom: 10px;
 	display: flex;
 	flex-direction: row;
 	width: 100%;
 	justify-content: space-between;
 }
-.game-settings .input-group input,select {
+.input-group input,select {
 	max-width: 500px;
 	width: 200px;
 }
@@ -541,4 +546,18 @@ fieldset {
 }
 .email-setup .email-address {
 	grid-area: email-address;
+}
+.auth-input {
+	margin-left: auto;
+	margin-top: -5px;
+	padding-right: 10px;
+	float: right;
+	height: 1.5rem;
+	width: 310px;
+}
+.auth-input>div {
+	height: 1.5rem;
+}
+.auth-input input.invalid {
+	border: 1px red solid;
 }

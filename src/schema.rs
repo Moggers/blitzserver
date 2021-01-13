@@ -62,6 +62,7 @@ table! {
         newailvl -> Int4,
         newai -> Bool,
         next_turn -> Nullable<Timestamp>,
+        password -> Varchar,
     }
 }
 

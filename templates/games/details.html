@@ -13,6 +13,14 @@
 		<label class="tab css-tab-label tab3" for="css-tab-settings">settings</label>
 		<label class="tab css-tab-label tab4" for="css-tab-emails">emails</label>
 		<label class="tab css-tab-label tab5" for="css-tab-logs">logs</label>
+		<div class="auth-input">
+			<form action="/game/{{game.id}}/status" method="get">
+				<div class="input-group">
+					<input {% if self.authed == AuthStatus::AuthFail %}class="invalid"{% endif %} name="password" type="password" placeholder="password" {% if self.authed == AuthStatus::AuthSuccess%}value="hello:)"{% endif %}/>
+					<input class="btn btn-block" type="submit" value="admin mode" />
+				</div>
+			</form>
+		</div>
 	</nav>
 	<div>
 		<section class="tabsection">
@@ -22,16 +30,20 @@
 						{% for player in players %}
 						<tr>
 							<td class="wide-column">{{ player.name }}</td>
-							<td class="turn-markers row">
-								{% for turn in Self::get_turn_pips(turns.get(player.id).unwrap_or(Vec::new())) %}
-								{% if turn.twohfile_id.is_some() %}
-								<section class="submitted">■</section>
-								{% else %}
-								<section class="unsubmitted">■</section>
-								{% endif %}
-								{% endfor %}
-							</td>
-							{% if player.submitted %}<td class="submitted">submitted</td>{% else %}<td class="unsubmitted">unsubmitted</td>{% endif %}
+							{% if self.turn_number > 0 %} 
+								<td class="turn-markers row">
+									{% for turn in Self::get_turn_pips(turns.get(player.id).unwrap_or(Vec::new())) %}
+									{% if turn.twohfile_id.is_some() %}
+									<section class="submitted">■</section>
+									{% else %}
+									<section class="unsubmitted">■</section>
+									{% endif %}
+									{% endfor %}
+								</td>
+								{% if player.submitted %}<td class="submitted">submitted</td>{% else %}<td class="unsubmitted">unsubmitted</td>{% endif %}
+							{% else %}
+								<td></td><td></td>
+							{% endif %}
 						</tr>
 						{% endfor %}
 					</table>
@@ -97,30 +109,32 @@
 				</div>
 				<div>
 					{% include "info.html" %}
-					<div class="pane">
-						<h3>Scheduling</h3>
-						<form method="post" action="/game/{{game.id}}/postpone">
-							<div class="input-row">
-								<input placeholder="1440" name="timer" type="number" />
-								<input type="submit" class="btn btn-block" value="Postpone (Mins)"/>
-							</div>
-						</form>
-						<form method="post" action="/game/{{game.id}}/timer">
-							<div class="input-row">
-								<input placeholder="1440" name="timer" type="number" />
-								<input type="submit" class="btn btn-block" value="Set Timer (Mins)"/>
-							</div>
-						</form>
-						{% if self.turn_number == 0 %}
-						<form method="post" action="/game/{{game.id}}/launch">
-							<div class="input-row">
-								<input placeholder="60" name="countdown" type="number" />
-								<input type="submit" class="btn btn-block" value="Begin Countdown (Secs)"/>
-							</div>
-						</form>
-						{% endif %}
-						<input type="submit" class="btn btn-block btn-danger" value="Jomonhost"/>
-					</div>
+					<fieldset {% if self.authed != AuthStatus::AuthSuccess %}disabled{% endif %}>
+						<div class="pane">
+							<h3>Scheduling</h3>
+							<form method="post" action="/game/{{game.id}}/postpone">
+								<div class="input-row">
+									<input placeholder="1440" name="timer" type="number" />
+									<input type="submit" class="btn btn-block" value="Postpone (Mins)"/>
+								</div>
+							</form>
+							<form method="post" action="/game/{{game.id}}/timer">
+								<div class="input-row">
+									<input placeholder="1440" name="timer" type="number" />
+									<input type="submit" class="btn btn-block" value="Set Timer (Mins)"/>
+								</div>
+							</form>
+							{% if self.turn_number == 0 %}
+							<form method="post" action="/game/{{game.id}}/launch">
+								<div class="input-row">
+									<input placeholder="60" name="countdown" type="number" />
+									<input type="submit" class="btn btn-block" value="Begin Countdown (Secs)"/>
+								</div>
+							</form>
+							{% endif %}
+							<input type="submit" class="btn btn-block btn-danger" disabled value="Jomonhost"/>
+						</div>
+					</fieldset>
 				</div>
 			</div>
 		</section>
@@ -128,7 +142,7 @@
 			<div class="pane">
 				<form action="/game/{{game.id}}/settings" method="post">
 					<input type="hidden" name="loaded" value="1" />
-					<fieldset {% if self.turn_number != 0 %}disabled="disabled"{% endif %}>
+					<fieldset {% if self.turn_number != 0 || self.authed != AuthStatus::AuthSuccess %}disabled="disabled"{% endif %}>
 						{% include "settings.html" %}
 						<input type="submit" class="btn btn-primary btn-block" value="Save Settings And Reboot Server" />
 					</fieldset>
@@ -138,9 +152,11 @@
 		<section class="tabsection">
 			<form>
 				<div class="pane">
-					<div class="input-group">
-						<input required name="email_address" type="text" value="{{self.email_form.email_address}}" placeholder="email@address.com" />
-						<input type="submit" formmethod="get" value="Fetch Alerts" formaction="/game/{{game.id}}/emails"/>
+					<div class="pane-search">
+						<div class="input-group">
+							<input required name="email_address" type="text" value="{{self.email_form.email_address}}" placeholder="email@address.com" />
+							<input type="submit" formmethod="get" value="Fetch Alerts" formaction="/game/{{game.id}}/emails"/>
+						</div>
 					</div>
 					<table class="striped-table">
 						{% for email in self.email_configs %}
@@ -166,7 +182,7 @@
 					<div>
 						<section class="tabsection">
 							<form class="email-setup">
-								<input required name="email_address" class="email-address" placeholder="your@email.com" />
+								<input required name="email_address" class="email-address" placeholder="email@address.com" />
 								<input required name="subject" class="subject" value="{% if self.email_form.subject != "" %}{{self.email_form.subject}}{% else %}New Turn %TURNNUMBER% for %GAMENAME%{% endif %}"/>
 								<input required class="btn btn-primary submit" formmethod="post" formaction="/game/{{game.id}}/email" type="submit" value="Create Notification" />
 								<input required type="hidden" type="number" name="hours_remaining" value="99999"/>
@@ -183,13 +199,13 @@ The game can be viewed at %GAMEURL%.{% endif %}</textarea>
 						</section>
 						<section class="tabsection">
 							<form class="email-setup reminder">
-								<input required name="email_address" class="email-address" placeholder="your@email.com" />
+								<input required name="email_address" class="email-address" placeholder="email@address.com" />
 								<input required name="subject" class="subject" value="{% if self.email_form.subject != "" %}{{self.email_form.subject}}{% else %}Turn %TURNNUMBER% Reminder for %GAMENAME%{% endif %}"/>
 								<div class="hours-remaining">
 									<input required type="number" name="hours_remaining" value="{% if self.email_form.hours_remaining != 0 %}{{self.email_form.hours_remaining}}{% else %}12{% endif %}"/>
 								</div>
 								<label for="hours_remaining"></label>
-								<input class="btn btn-primary submit" formmethod="post" formaction="/game/{{game.id}}/email" type="submit" value="Create Notification" />
+								<input class="btn btn-primary submit" formmethod="post" formaction="/game/{{game.id}}/email" type="submit" value="Create Reminder" />
 								<select required name="nation" class="nation">
 									{% for player in self.players %}
 									<option {% if self.email_form.nation == player.id %}selected="selected"{% endif %}value="{{player.id}}">{{player.name}}</option>

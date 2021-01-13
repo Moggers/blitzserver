@@ -3,8 +3,7 @@ use super::AppData;
 use crate::diesel::prelude::*;
 use crate::game_manager;
 use crate::models::{
-    EmailConfig, Era, Game, GameMod, Map, Mod, Nation, NewGame, NewGameMod, Player, PlayerTurn,
-    Turn,
+    EmailConfig, Game, GameMod, Map, Mod, Nation, NewGame, NewGameMod, Player, PlayerTurn, Turn,
 };
 use crate::StartGame;
 use actix_web::http::header;
@@ -16,7 +15,7 @@ use std::collections::HashMap;
 use std::ops::Add;
 
 // === Payloads ===
-#[derive(Default, Clone, Debug, Deserialize)]
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
 struct GameSettings {
     #[serde(default = "default_one")]
     #[serde(deserialize_with = "from_str")]
@@ -168,24 +167,28 @@ impl Default for EmailForm {
             nation: 0,
             subject: "".to_string(),
             body: "".to_string(),
-            hours_remaining: 0
+            hours_remaining: 0,
         }
     }
 }
-#[derive(Default, Clone, Debug, Deserialize)]
+#[derive(PartialEq, Debug, Serialize, Deserialize)]
+enum AuthStatus {
+    Unauthed = 0,
+    AuthSuccess = 1,
+    AuthFail = 2,
+}
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
 struct GameDetailsPayload {
     #[serde(flatten)]
     game_settings: GameSettings,
     #[serde(flatten)]
     email_form: EmailForm,
+    password: Option<String>,
 }
 #[derive(Debug, Deserialize)]
 struct CreateGame {
-    #[serde(default)]
     name: String,
-    #[serde(default)]
-    #[serde(flatten)]
-    settings: GameSettings,
+    password: String,
 }
 #[derive(Debug, Deserialize)]
 struct SetTimer {
@@ -218,6 +221,7 @@ struct GameDetailsTemplate<'a> {
     mods: &'a Vec<Mod>,
     maps: &'a Vec<Map>,
     tab: String,
+    authed: AuthStatus,
 }
 impl<'a> GameDetailsTemplate<'a> {
     fn get_email_config_nation_name(&self, id: &i32) -> &str {
@@ -272,13 +276,6 @@ impl<'a> GameDetailsTemplate<'a> {
         }
     }
 }
-#[derive(Template)]
-#[template(path = "games/create.html")]
-struct AddGameTemplate<'a> {
-    params: &'a CreateGame,
-    maps: &'a [Map],
-    mods: &'a [Mod],
-}
 struct ActiveGame {
     id: i32,
     name: String,
@@ -298,15 +295,6 @@ struct GamesTemplate<'a> {
     pending_games: &'a [PendingGame],
     active_games: &'a [ActiveGame],
 }
-/*
-#[derive(Template)]
-#[template(path = "games/email.html")]
-struct EmailsTemplate<'a> {
-    nations: Vec<Nation>,
-    form: &'a EmailForm,
-    game: Game,
-}
-*/
 
 // === Routes ====
 #[post("/game/{id}/postpone")]
@@ -394,12 +382,12 @@ async fn timer(
         .header(header::LOCATION, format!("/game/{}/schedule", game.id))
         .finish())
 }
-
 #[get("/game/{id}/{tab}")]
 async fn details(
-    (app_data, web::Path((path_id, tab)), payload): (
+    (app_data, web::Path((path_id, tab)), session, payload): (
         web::Data<AppData>,
         web::Path<(String, String)>,
+        actix_session::Session,
         serde_qs::actix::QsQuery<GameDetailsPayload>,
     ),
 ) -> Result<HttpResponse> {
@@ -408,15 +396,35 @@ async fn details(
     let db = app_data.pool.get().expect("Unable to connect to database");
     let game = if let Ok(id_i32) = path_id.parse::<i32>() {
         use crate::schema::games::dsl::*;
-        games.filter(id.eq(id_i32)).get_result::<Game>(&*db)
+        games
+            .filter(id.eq(id_i32))
+            .get_result::<Game>(&*db)
+            .unwrap()
     } else {
         use crate::schema::games::dsl::*;
         let game: Game = games.filter(name.ilike(path_id)).get_result(&*db).unwrap();
         return Ok(HttpResponse::PermanentRedirect()
             .header(header::LOCATION, format!("/game/{}/{}", game.id, tab))
             .finish());
+    };
+    if let Some(p) = &payload.password {
+        if *p == game.password {
+            session.set(&format!("auth_{}", game.id), AuthStatus::AuthSuccess).unwrap();
+            return Ok(HttpResponse::PermanentRedirect()
+                .header(header::LOCATION, format!("/game/{}/{}", game.id, tab))
+                .finish());
+        } else {
+            session.set(&format!("auth_{}", game.id), AuthStatus::AuthFail).unwrap();
+            return Ok(HttpResponse::PermanentRedirect()
+                .header(header::LOCATION, format!("/game/{}/{}", game.id, tab))
+                .finish());
+        }
     }
-    .unwrap();
+    let authed: AuthStatus = session
+        .get(&format!("auth_{}", game.id))
+        .unwrap_or(Some(AuthStatus::Unauthed))
+        .unwrap_or(AuthStatus::Unauthed);
+    log::debug!("Auth status: {:?}", authed);
     let game_players: Vec<(Player, Nation)> = {
         use crate::schema::players::dsl::*;
         Player::belonging_to(&game)
@@ -489,6 +497,7 @@ async fn details(
     Ok(HttpResponse::Ok().content_type("text/html").body(
         (GameDetailsTemplate {
             settings: settings,
+            authed: authed,
             email_form: (*email_form).clone(),
             email_configs: &email_configs,
             status: if turns.len() > 0 {
@@ -514,29 +523,6 @@ async fn details(
                 .collect(),
             turns: player_turn_map,
             hostname: std::env::var("HOSTNAME").unwrap(),
-        })
-        .render()
-        .unwrap(),
-    ))
-}
-#[get("/games/create")]
-async fn create_get(
-    (app_data, params): (web::Data<AppData>, serde_qs::actix::QsQuery<CreateGame>),
-) -> Result<HttpResponse> {
-    let db = app_data.pool.get().expect("Unable to connect to database");
-    let result_maps = {
-        use crate::schema::maps::dsl::*;
-        maps.load::<Map>(&db).unwrap()
-    };
-    let result_mods = {
-        use crate::schema::mods::dsl::*;
-        mods.load::<Mod>(&db).unwrap()
-    };
-    Ok(HttpResponse::Ok().content_type("text/html").body(
-        (AddGameTemplate {
-            params: &params,
-            maps: &result_maps,
-            mods: &result_mods,
         })
         .render()
         .unwrap(),
@@ -593,70 +579,25 @@ async fn create_post(
     let config = serde_qs::Config::new(10, false);
     let params: CreateGame = config.deserialize_bytes(&*bytes).unwrap();
 
-    let era = match params.settings.era {
-        Era::EARLY => Era::EARLY,
-        Era::MIDDLE => Era::MIDDLE,
-        Era::LATE => Era::LATE,
-        _ => Era::EARLY,
-    };
-
-    let new_game = NewGame {
-        name: &params.name,
-        era,
-        map_id: params.settings.map,
-        thrones_t1: params.settings.thrones_t1,
-        thrones_t2: params.settings.thrones_t2,
-        thrones_t3: params.settings.thrones_t3,
-        throne_points_required: params.settings.throne_points_required,
-        research_diff: params.settings.research_diff,
-        research_rand: params.settings.research_rand > 0,
-        hof_size: params.settings.hof_size,
-        global_size: params.settings.global_size,
-        indepstr: params.settings.indepstr,
-        magicsites: params.settings.magicsites,
-        eventrarity: params.settings.eventrarity,
-        richness: params.settings.richness,
-        resources: params.settings.resources,
-        recruitment: params.settings.recruitment,
-        supplies: params.settings.supplies,
-        startprov: params.settings.startprov,
-        renaming: params.settings.renaming > 0,
-        scoregraphs: params.settings.scoregraphs > 0,
-        nationinfo: params.settings.nationinfo > 0,
-        artrest: params.settings.artrest > 0,
-        teamgame: params.settings.teamgame > 0,
-        clustered: params.settings.clustered > 0,
-        storyevents: params.settings.storyevents,
-        newailvl: params.settings.newailvl,
-        newai: params.settings.newai > 0,
-    };
+    let mut new_game = NewGame::default();
+    new_game.name = params.name;
+    new_game.password = params.password;
 
     let game: Game = diesel::insert_into(crate::schema::games::table)
         .values(&new_game)
         .get_result(&db)
         .expect("Error saving new game");
 
-    diesel::insert_into(crate::schema::game_mods::table)
-        .values(
-            params
-                .settings
-                .cmods
-                .iter()
-                .map(|m| NewGameMod {
-                    game_id: game.id,
-                    mod_id: *m,
-                })
-                .collect::<Vec<NewGameMod>>(),
-        )
-        .get_results::<GameMod>(&db)
-        .unwrap();
     app_data
         .manager_notifier
         .send(game_manager::ManagerMsg::Start(game.id))
         .unwrap();
 
     Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}", game.id))
+        .header(
+            header::LOCATION,
+            format!("/game/{}/settings?password={}", game.id, new_game.password),
+        )
         .finish())
 }
 #[get("/games")]
@@ -715,7 +656,6 @@ async fn list(app_data: web::Data<AppData>) -> Result<HttpResponse> {
         .unwrap(),
     ))
 }
-
 #[post("/game/{id}/settings")]
 async fn settings_post(
     (app_data, path_id, mut body): (web::Data<AppData>, web::Path<i32>, web::Payload),
@@ -796,67 +736,6 @@ async fn settings_post(
         .header(header::LOCATION, format!("/game/{}/settings", game.id))
         .finish())
 }
-/*
-#[get("/game/{id}/email")]
-async fn emails_get(
-    (app_data, mut email_form, web::Path(game_id)): (
-        web::Data<AppData>,
-        serde_qs::actix::QsQuery<EmailForm>,
-        web::Path<i32>,
-    ),
-) -> Result<HttpResponse> {
-    let db = app_data.pool.get().expect("Unable to connect to database");
-    use crate::schema::email_configs::dsl as emails_dsl;
-    use crate::schema::games::dsl as games_dsl;
-    use crate::schema::nations::dsl as nations_dsl;
-    use crate::schema::players::dsl as players_dsl;
-    let _invalid: Vec<EmailFormEntry> = email_form
-        .entries
-        .drain_filter(|e| !e.remaining_hours.is_some())
-        .collect();
-    let game: Game = games_dsl::games
-        .filter(games_dsl::id.eq(game_id))
-        .get_result(&db)
-        .unwrap();
-    let nations: Vec<(Nation, Player)> = nations_dsl::nations
-        .filter(nations_dsl::game_id.eq(game_id))
-        .inner_join(
-            players_dsl::players.on(players_dsl::nationid
-                .eq(nations_dsl::nation_id)
-                .and(players_dsl::game_id.eq(game.id))),
-        )
-        .get_results(&db)
-        .unwrap();
-    if email_form.email.len() > 0 {
-        let emails: Vec<EmailConfig> = emails_dsl::email_configs
-            .filter(
-                emails_dsl::email_address
-                    .eq(email_form.email.clone())
-                    .and(emails_dsl::game_id.eq(game_id)),
-            )
-            .get_results::<EmailConfig>(&db)
-            .unwrap();
-        email_form.entries = emails
-            .iter()
-            .map(|e: &EmailConfig| EmailFormEntry {
-                selected_nation: e.nation_id,
-                remaining_hours: Some(e.hours_before_host),
-            })
-            .collect::<Vec<EmailFormEntry>>();
-    }
-    // let existing_emails: Vec<EmailConfig> = emails_dsl::email_configs.filter(emails_dsl::email_address.eq(address)).get_results(&db).unwrap();
-    Ok(HttpResponse::Ok().content_type("text/html").body(
-        (EmailsTemplate {
-            form: &email_form,
-            game,
-            nations: nations.into_iter().map(move |(n, _)| n).collect(),
-        })
-        .render()
-        .unwrap(),
-    ))
-}
-*/
-
 #[post("/game/{id}/email")]
 async fn emails_post(
     (app_data, bytes, web::Path(game_id)): (
@@ -874,7 +753,7 @@ async fn emails_post(
                 email_form.subject,
                 email_form.body,
                 email_form.nation,
-                email_form.hours_remaining
+                email_form.hours_remaining,
             );
             Ok(HttpResponse::Found()
                 .header(

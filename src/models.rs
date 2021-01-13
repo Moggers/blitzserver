@@ -46,6 +46,7 @@ pub struct Game {
     pub newailvl: i32,
     pub newai: bool,
     pub next_turn: Option<std::time::SystemTime>,
+    pub password: String,
 }
 
 #[derive(QueryableByName)]
@@ -105,22 +106,24 @@ impl Game {
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
-        diesel::sql_query("SELECT game_id, COUNT(*) count FROM players WHERE game_id = ANY($1) GROUP BY game_id")
-            .bind::<diesel::sql_types::Array<diesel::sql_types::Integer>, _>(games)
-            .get_results::<GameNationCount>(db)
-            .unwrap()
-            .iter()
-            .fold(std::collections::HashMap::new(), |mut hm, val| {
-                hm.insert(val.game_id, val.count as i32);
-                hm
-            })
+        diesel::sql_query(
+            "SELECT game_id, COUNT(*) count FROM players WHERE game_id = ANY($1) GROUP BY game_id",
+        )
+        .bind::<diesel::sql_types::Array<diesel::sql_types::Integer>, _>(games)
+        .get_results::<GameNationCount>(db)
+        .unwrap()
+        .iter()
+        .fold(std::collections::HashMap::new(), |mut hm, val| {
+            hm.insert(val.game_id, val.count as i32);
+            hm
+        })
     }
 }
 
 #[derive(Insertable)]
 #[table_name = "games"]
-pub struct NewGame<'a> {
-    pub name: &'a str,
+pub struct NewGame {
+    pub name: String,
     pub era: i32,
     pub map_id: i32,
     pub thrones_t1: i32,
@@ -148,6 +151,42 @@ pub struct NewGame<'a> {
     pub storyevents: i32,
     pub newailvl: i32,
     pub newai: bool,
+    pub password: String
+}
+impl Default for NewGame {
+    fn default() -> Self {
+        Self {
+            name: "".to_string(),
+            era: 1,
+            map_id: 1,
+            thrones_t1: 5,
+            thrones_t2: 0,
+            thrones_t3: 0,
+            throne_points_required: 5,
+            research_diff: 2,
+            research_rand: true,
+            hof_size: 10,
+            global_size: 5,
+            indepstr: 5,
+            magicsites: 55,
+            eventrarity: 1,
+            richness: 100,
+            resources: 100,
+            recruitment: 100,
+            supplies: 100,
+            startprov: 1,
+            renaming: true,
+            scoregraphs: false,
+            nationinfo: true,
+            artrest: false,
+            teamgame: false,
+            clustered: false,
+            storyevents: 1,
+            newailvl: 2,
+            newai: true,
+            password: "password".to_string()
+        }
+    }
 }
 
 #[derive(Debug, Queryable)]
@@ -382,7 +421,7 @@ pub struct EmailConfig {
     pub email_address: String,
     pub last_turn_notified: Option<i32>,
     pub subject: String,
-    pub body: String
+    pub body: String,
 }
 
 #[derive(Insertable)]
@@ -393,5 +432,5 @@ pub struct NewEmailConfig {
     pub hours_before_host: i32,
     pub email_address: String,
     pub subject: String,
-    pub body: String
+    pub body: String,
 }

@@ -72,8 +72,8 @@ impl EmailManager {
 
     pub fn send_notice_email<D>(
         db: &D,
-        hostname: &str,
         email_config: &EmailConfig,
+        hostname: &str,
         mailer: &lettre::transport::smtp::SmtpTransport,
     ) where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
@@ -91,7 +91,6 @@ impl EmailManager {
             .limit(1)
             .get_result(db)
             .unwrap();
-        let hostname = std::env::var("HOSTNAME").unwrap();
         let subject= email_config
             .subject
             .replace("%TURNNUMBER%", &turn.turn_number.to_string())
@@ -161,7 +160,7 @@ SELECT ec.* FROM email_configs ec LEFT OUTER JOIN (SELECT game_id,MAX(turn_numbe
                             new_turn_number
                         );
 
-                        Self::send_notice_email(&db, &hostname, &email_config, &mailer);
+                        Self::send_notice_email(&db, &email_config, &hostname, &mailer);
                         diesel::update(emails_dsl::email_configs)
                             .filter(emails_dsl::id.eq(email_config.id))
                             .set(emails_dsl::last_turn_notified.eq(new_turn_number))

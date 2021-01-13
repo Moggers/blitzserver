@@ -72,8 +72,8 @@
 			<div class="input-group">
 				<label for="research_rand">Starting Research Distribution</label>
 				<select name="research_rand">
-					<option value="0">Evenly Spread</option>
-					<option value="1">Randomly Allcoated</option>
+					<option {% if settings.research_rand==0 %} selected {% endif %} value="0">Evenly Spread</option>
+					<option {% if settings.research_rand==1 %} selected {% endif %} value="1">Randomly Allcoated</option>
 				</select>
 			</div>
 		</div>
@@ -151,15 +151,15 @@
 			<div class="input-group">
 				<label for="scoregraphs">Score Graphs</label>
 				<select name="scoregraphs">
-					<option value="0">Hidden</option>
-					<option value="1">Visible</option>
+					<option {% if settings.scoregraphs == 0 %} selected {% endif %} value="0">Hidden</option>
+					<option {% if settings.scoregraphs == 1 %} selected {% endif %} value="1">Visible</option>
 				</select>
 			</div>
 			<div class="input-group">
 				<label for="nationinfo">Nation Info</label>
 				<select name="nationinfo" Info</option>
-					<option value="1">Visible</option>
-					<option value="0">Hidden</option>
+					<option {% if settings.nationinfo == 0 %} selected {% endif %} value="0">Hidden</option>
+					<option {% if settings.nationinfo == 1 %} selected {% endif %} value="1">Visible</option>
 				</select>
 			</div>
 		</div>
@@ -170,15 +170,15 @@
 			<div class="input-group">
 				<label for="teamgame">Game Mode</label>
 				<select name="teamgame">
-					<option value="0">Free For All</option>
-					<option value="1">Disciples</option>
+					<option {% if settings.teamgame == 1 %} selected {% endif %} value="1">Disciples</option>
+					<option {% if settings.teamgame == 0 %} selected {% endif %} value="0">Free For All</option>
 				</select>
 			</div>
 			<div class="input-group">
 				<label for="clustered">Disciple Start Locations</label>
 				<select name="clustered">
-					<option value="1">Clustered</option>
-					<option value="0">Distributed</option>
+					<option {% if settings.clustered == 0 %} selected {% endif %} value="0">Distributed</option>
+					<option {% if settings.clustered == 1 %} selected {% endif %} value="1">Clustered</option>
 				</select>
 			</div>
 		</div>
@@ -189,8 +189,8 @@
 			<div class="input-group">
 				<label for="eventrarity">Event Rarity</label>
 				<select name="eventrarity">
-					<option value="1">Common</option>
-					<option value="2">Rare</option>
+					<option {% if settings.eventrarity == 1 %} selected {% endif %} value="1">Common</option>
+					<option {% if settings.eventrarity == 2 %} selected {% endif %} value="2">Rare</option>
 				</select>
 			</div>
 			<div class="input-group">
@@ -209,13 +209,14 @@
 			<div class="input-group">
 				<label for="renaming">Commander Renaming</label>
 				<select name="renaming">
-					<option value="1">Allowed</option>
-					<option value="0">Not Allowed</option>
+					<option {% if settings.renaming == 0 %} selected="selected" {% endif %} value="0">Not Allowed</option>
+					<option {% if settings.renaming == 1 %} selected="selected" {% endif %} value="1">Allowed</option>
 				</select>
 			</div>
 			<div class="input-group">
 				<label for="newailvl">"Become Computer Controlled" Difficulty</label>
 				<select name="newailvl" id="newailvl" type="number">
+					/*
 					<option {% if settings.newailvl==1 %} selected {% endif %} value="1">Easy Diff.</option>
 					<option {% if settings.newailvl==2 %} selected {% endif %} value="2">Normal Diff.</option>
 					<option {% if settings.newailvl==3 %} selected {% endif %} value="3">Difficult Diff.</option>
@@ -227,8 +228,8 @@
 			<div class="input-group">
 				<label for="newai">Allow Going AI</label>
 				<select name="newai">
-					<option value="0">Not Allowed</option>
-					<option selected="selected" value="0">Allowed</option>
+					<option {% if settings.newai == 0 %} selected="selected" {% endif %} value="0">Not Allowed</option>
+					<option {% if settings.newai == 1 %} selected="selected" {% endif %} value="1">Allowed</option>
 				</select>
 			</div>
 		</div>
