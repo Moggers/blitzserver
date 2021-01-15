@@ -39,40 +39,43 @@ pub async fn image(
     (app_data, web::Path(path_id)): (web::Data<AppData>, web::Path<i32>),
 ) -> Result<HttpResponse> {
     let db = app_data.pool.get().unwrap();
-    use crate::schema::mods::dsl as mods_dsl;
     use crate::schema::files::dsl as files_dsl;
-    let (map, file): (Mod, File) = mods_dsl::mods
+    use crate::schema::mods::dsl as mods_dsl;
+    if let Ok((map, file)) = mods_dsl::mods
         .filter(mods_dsl::id.eq(path_id))
         .inner_join(
             crate::schema::files::dsl::files
                 .on(files_dsl::id.nullable().eq(mods_dsl::icon_file_id)),
         )
         .get_result::<(Mod, File)>(&db)
-        .unwrap();
-    let reader = crate::image::io::Reader::with_format(
-        std::io::Cursor::new(file.filebinary),
-        crate::image::ImageFormat::Tga,
-    )
-    .decode()
-    .unwrap();
-    let maps_dir = std::path::PathBuf::from("./images/maps");
-    if !maps_dir.exists() {
-        std::fs::create_dir_all(&maps_dir).unwrap();
-    }
-    let mut file = std::fs::File::create(maps_dir.join(format!("{}.jpg", map.id))).unwrap();
-    reader
-        .write_to(&mut file, crate::image::ImageFormat::Jpeg)
-        .unwrap();
-    let mut jpg_bytes: Vec<u8> = Vec::new();
-    reader
-        .write_to(
-            &mut std::io::Cursor::new(&mut jpg_bytes),
-            crate::image::ImageFormat::Jpeg,
+    {
+        let reader = crate::image::io::Reader::with_format(
+            std::io::Cursor::new(file.filebinary),
+            crate::image::ImageFormat::Tga,
         )
+        .decode()
         .unwrap();
-    Ok(HttpResponse::Ok()
-        .content_type("application/jpg")
-        .body(jpg_bytes))
+        let maps_dir = std::path::PathBuf::from("./images/maps");
+        if !maps_dir.exists() {
+            std::fs::create_dir_all(&maps_dir).unwrap();
+        }
+        let mut file = std::fs::File::create(maps_dir.join(format!("{}.jpg", map.id))).unwrap();
+        reader
+            .write_to(&mut file, crate::image::ImageFormat::Jpeg)
+            .unwrap();
+        let mut jpg_bytes: Vec<u8> = Vec::new();
+        reader
+            .write_to(
+                &mut std::io::Cursor::new(&mut jpg_bytes),
+                crate::image::ImageFormat::Jpeg,
+            )
+            .unwrap();
+        Ok(HttpResponse::Ok()
+            .content_type("application/jpg")
+            .body(jpg_bytes))
+    } else {
+        Ok(HttpResponse::NotFound().finish())
+    }
 }
 
 #[post("/mods/upload")]
