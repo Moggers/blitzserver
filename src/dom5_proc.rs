@@ -371,6 +371,7 @@ impl Dom5Proc {
             use crate::schema::games::dsl::*;
             let game: Game = games.filter(id.eq(self.game_id)).get_result(&db).unwrap();
             arguments.append(&mut vec![
+                "--noclientstart".to_string(),
                 "--thrones".to_string(),
                 game.thrones_t1.to_string(),
                 game.thrones_t2.to_string(),
@@ -504,6 +505,7 @@ impl Dom5Proc {
             use crate::schema::games::dsl::*;
             let game: Game = games.filter(id.eq(self.game_id)).get_result(&db).unwrap();
             arguments.append(&mut vec![
+                "--noclientstart".to_string(),
                 "--thrones".to_string(),
                 game.thrones_t1.to_string(),
                 game.thrones_t2.to_string(),
