@@ -72,22 +72,24 @@ pub async fn image(
 #[template(path = "maps/list.html")]
 struct ListMapsTemplate<'a> {
     maps: &'a [Map],
-}
-
-#[derive(Template)]
-#[template(path = "maps/upload.html")]
-struct UploadMapTemplate<'a> {
-    map_err: &'a str,
-    tga_err: &'a str,
-    winter_err: &'a str,
+    errors: &'a [String],
 }
 
 #[get("/map/{id}/download")]
 async fn download((app_data, mapid): (web::Data<AppData>, web::Path<i32>)) -> Result<HttpResponse> {
     let db = app_data.pool.get().expect("Unable to connect to database");
-    let (_map,zipfile) = crate::schema::maps::dsl::maps.filter(crate::schema::maps::dsl::id.eq(mapid.0)).inner_join(crate::schema::files::dsl::files.on(crate::schema::files::dsl::id.eq(crate::schema::maps::dsl::archive_id))).get_result::<(Map, File)>(&db).unwrap();
+    let (_map, zipfile) = crate::schema::maps::dsl::maps
+        .filter(crate::schema::maps::dsl::id.eq(mapid.0))
+        .inner_join(
+            crate::schema::files::dsl::files
+                .on(crate::schema::files::dsl::id.eq(crate::schema::maps::dsl::archive_id)),
+        )
+        .get_result::<(Map, File)>(&db)
+        .unwrap();
 
-    Ok(HttpResponse::Ok().content_type("application/zip").body(zipfile.filebinary))
+    Ok(HttpResponse::Ok()
+        .content_type("application/zip")
+        .body(zipfile.filebinary))
 }
 
 #[get("/maps")]
@@ -95,24 +97,15 @@ async fn list(app_data: web::Data<AppData>) -> Result<HttpResponse> {
     let db = app_data.pool.get().expect("Unable to connect to database");
     use crate::schema::maps::dsl::*;
     let result_maps = maps.load::<Map>(&db).expect("Error loading games");
-    Ok(HttpResponse::Ok()
-        .content_type("text/html")
-        .body((ListMapsTemplate { maps: &result_maps }).render().unwrap()))
-}
-
-#[get("/maps/upload")]
-async fn upload_get() -> Result<HttpResponse> {
     Ok(HttpResponse::Ok().content_type("text/html").body(
-        (UploadMapTemplate {
-            map_err: "",
-            tga_err: "",
-            winter_err: "",
+        (ListMapsTemplate {
+            errors: &vec![],
+            maps: &result_maps,
         })
         .render()
         .unwrap(),
     ))
 }
-
 #[post("/maps/upload")]
 async fn upload_post(
     (app_data, mut payload): (web::Data<AppData>, Multipart),
@@ -121,17 +114,19 @@ async fn upload_post(
         name: String::new(),
         mapfile_id: 0,
         tgafile_id: 0,
-        winterfile_id: 0,
+        winterfile_id: None,
         archive_id: 0,
     };
-    let mut badbody: Option<UploadMapTemplate> = None;
     let db = app_data.pool.get().expect("Unable to connect to database");
+    let mut tga_name: Option<String> = None;
+    let mut winter_name: Option<String> = None;
 
+    let mut errors: Vec<String> = vec![];
     let mut bytes: Vec<u8> = vec![];
     {
         let mut map_archive = zip::ZipWriter::new(std::io::Cursor::new(&mut bytes));
         while let Ok(Some(mut field)) = payload.try_next().await {
-            if let Some(_) = badbody {
+            if errors.len() > 0 {
                 continue;
             }
             let content_type = field.content_disposition().unwrap();
@@ -142,6 +137,7 @@ async fn upload_post(
                         contents.extend_from_slice(&bytes.unwrap());
                     }
                     let new_file = NewFile::new(content_type.get_filename().unwrap(), &contents);
+                    // == DETERMINE NAME
                     let name: Result<String> = try {
                         let re = regex::bytes::Regex::new(r#"#dom2title ("?[^"\n]+"?)"#)
                             .map_err(|_| ())?;
@@ -152,13 +148,54 @@ async fn upload_post(
                     match name {
                         Ok(name) => new_map.name = name,
                         Err(_) => {
-                            badbody = Some(UploadMapTemplate {
-                                map_err: "Unable to find #dom2title, is this a valid .map file?",
-                                tga_err: "",
-                                winter_err: "",
-                            })
+                            errors.push("Unable to find #dom2title, is this a valid .map file?\n".to_string());
                         }
                     }
+                    // == DETERMINE (and check) TGA FILENAME
+                    let new_tga_name: Result<String> = try {
+                        let re = regex::bytes::Regex::new(r#"#imagefile ("?[^"\n]+"?)"#)
+                            .map_err(|_| ())?;
+                        let caps = re.captures(&contents).ok_or(())?;
+                        String::from_utf8(caps.get(1).ok_or(())?.as_bytes().to_vec())
+                            .map_err(|_| ())?
+                    };
+                    match new_tga_name {
+                        Ok(ntn) => match tga_name {
+                            None => tga_name = Some(ntn),
+                            Some(ref mut tn) => {
+                                if *tn != ntn {
+                                    errors.push(format!(
+                                        "TGA file is {}, but map specifies {}",
+                                        tn, ntn
+                                    ));
+                                }
+                            }
+                        },
+                        Err(_) => errors.push("Failed to parse image name from map file".to_string()),
+                    }
+                    // == DETERMINE (and check) WINTER TGA FILENAME
+                    let new_winter_name: Result<String> = try {
+                        let re = regex::bytes::Regex::new(r#"#winterimagefile ("?[^"\n]+"?)"#)
+                            .map_err(|_| ())?;
+                        let caps = re.captures(&contents).ok_or(())?;
+                        String::from_utf8(caps.get(1).ok_or(())?.as_bytes().to_vec())
+                            .map_err(|_| ())?
+                    };
+                    match new_winter_name {
+                        Ok(nwn) => match winter_name {
+                            None => winter_name = Some(nwn),
+                            Some(ref mut wn) => {
+                                if *wn != nwn {
+                                    errors.push(format!(
+                                        "Winter TGA file is {}, but map specifies {}",
+                                        wn, nwn
+                                    ));
+                                }
+                            }
+                        },
+                        Err(_) => {} // Lacking a winter image is not fatal
+                    }
+                    // == DONE
                     map_archive
                         .start_file(
                             content_type.get_filename().unwrap(),
@@ -185,9 +222,21 @@ async fn upload_post(
                     while let Some(bytes) = field.next().await {
                         contents.extend_from_slice(&bytes.unwrap());
                     }
+                    let filename = content_type.get_filename().unwrap();
+                    match tga_name {
+                        None => tga_name = Some(filename.to_string()),
+                        Some(ref mut wn) => {
+                            if *wn != filename {
+                                errors.push(format!(
+                                    "Map #magefile is {}, but winter TGA filename is {}",
+                                    wn, filename
+                                ));
+                            }
+                        }
+                    }
                     map_archive
                         .start_file(
-                            content_type.get_filename().unwrap(),
+                            filename,
                             zip::write::FileOptions::default()
                                 .compression_method(zip::CompressionMethod::Stored)
                                 .unix_permissions(0o755),
@@ -212,6 +261,18 @@ async fn upload_post(
                     while let Some(bytes) = field.next().await {
                         contents.extend_from_slice(&bytes.unwrap());
                     }
+                    let filename = content_type.get_filename().unwrap();
+                    match winter_name {
+                        None => winter_name = Some(filename.to_string()),
+                        Some(ref mut wn) => {
+                            if *wn != filename {
+                                errors.push(format!(
+                                    "Map #winterimagefile is {}, but TGA filename is {}",
+                                    wn, filename
+                                ));
+                            }
+                        }
+                    }
                     map_archive
                         .start_file(
                             content_type.get_filename().unwrap(),
@@ -221,7 +282,7 @@ async fn upload_post(
                         )
                         .unwrap();
                     map_archive.write_all(&contents).unwrap();
-                    let new_file = NewFile::new(content_type.get_filename().unwrap(), &contents);
+                    let new_file = NewFile::new(filename, &contents);
                     let file: File = diesel::insert_into(crate::schema::files::table)
                         .values(&new_file)
                         .on_conflict(crate::schema::files::dsl::hash)
@@ -232,33 +293,18 @@ async fn upload_post(
                         ) // Bogus update so return row gets populated with existing stuff
                         .get_result(&db)
                         .unwrap();
-                    new_map.winterfile_id = file.id;
+                    new_map.winterfile_id = Some(file.id);
                 }
                 _ => {}
             };
         }
-        if let None = badbody {
-            if new_map.winterfile_id == 0 || new_map.mapfile_id == 0 || new_map.tgafile_id == 0 {
-                badbody = Some(UploadMapTemplate {
-                    map_err: if new_map.mapfile_id == 0 {
-                        "No map file"
-                    } else {
-                        ""
-                    },
-                    tga_err: if new_map.tgafile_id == 0 {
-                        "No tga file"
-                    } else {
-                        ""
-                    },
-                    winter_err: if new_map.winterfile_id == 0 {
-                        "No winter file"
-                    } else {
-                        ""
-                    },
-                });
-            }
-        }
         map_archive.finish().unwrap();
+    }
+    if new_map.mapfile_id == 0 {
+        errors.push("Missing map file\n".to_string());
+    }
+    if new_map.tgafile_id == 0 {
+        errors.push("Missing tga file\n".to_string());
     }
     let zip_name = format!("{}.zip", &new_map.name);
     let new_file = NewFile::new(&zip_name, &bytes);
@@ -271,15 +317,36 @@ async fn upload_post(
         .unwrap();
     new_map.archive_id = file.id;
 
-    if let Some(badbody) = badbody {
-        Ok(HttpResponse::BadRequest()
-            .content_type("text/html")
-            .body(badbody.render().unwrap()))
+    if errors.len() > 0 {
+        let db = app_data.pool.get().expect("Unable to connect to database");
+        use crate::schema::maps::dsl::*;
+        let result_maps = maps.load::<Map>(&db).expect("Error loading games");
+        Ok(HttpResponse::Ok().content_type("text/html").body(
+            (ListMapsTemplate {
+                errors: &errors,
+                maps: &result_maps,
+            })
+            .render()
+            .unwrap(),
+        ))
     } else {
-        diesel::insert_into(crate::schema::maps::table)
-            .values(&new_map)
-            .get_result::<Map>(&db)
-            .expect("Error saving file");
+        use crate::schema::maps::dsl as maps_dsl;
+        let existing: Vec<Map> = maps_dsl::maps
+            .filter(
+                maps_dsl::mapfile_id.eq(new_map.mapfile_id).and(
+                    maps_dsl::tgafile_id
+                        .eq(new_map.tgafile_id)
+                        .and(maps_dsl::winterfile_id.eq(new_map.winterfile_id)),
+                ),
+            )
+            .get_results(&db)
+            .unwrap();
+        if existing.len() == 0 {
+            diesel::insert_into(maps_dsl::maps)
+                .values(&new_map)
+                .get_result::<Map>(&db)
+                .expect("Error saving file");
+        }
         Ok(HttpResponse::Found()
             .header(header::LOCATION, "/maps")
             .finish())

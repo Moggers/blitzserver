@@ -253,7 +253,7 @@ pub struct Map {
     pub name: String,
     pub mapfile_id: i32,
     pub tgafile_id: i32,
-    pub winterfile_id: i32,
+    pub winterfile_id: Option<i32>,
     pub archive_id: i32,
 }
 
@@ -263,7 +263,7 @@ pub struct NewMap {
     pub name: String,
     pub mapfile_id: i32,
     pub tgafile_id: i32,
-    pub winterfile_id: i32,
+    pub winterfile_id: Option<i32>,
     pub archive_id: i32,
 }
 
@@ -387,6 +387,7 @@ pub struct NewMod<'a> {
     pub dm_filename: &'a str,
     pub name: &'a str,
     pub file_id: i32,
+    pub icon_file_id: Option<i32>,
 }
 
 #[derive(Clone, Identifiable, Queryable, Associations)]
@@ -395,6 +396,13 @@ pub struct Mod {
     pub dm_filename: String,
     pub name: String,
     pub file_id: i32,
+    pub icon_file_id: Option<i32>,
+}
+#[derive(Clone)]
+pub struct ModDefinition {
+    pub dm_filename: String,
+    pub icon_filename: String,
+    pub name: String
 }
 
 #[derive(Insertable)]

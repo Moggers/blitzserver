@@ -72,7 +72,7 @@ table! {
         name -> Varchar,
         mapfile_id -> Int4,
         tgafile_id -> Int4,
-        winterfile_id -> Int4,
+        winterfile_id -> Nullable<Int4>,
         archive_id -> Int4,
     }
 }
@@ -83,6 +83,7 @@ table! {
         dm_filename -> Varchar,
         name -> Varchar,
         file_id -> Int4,
+        icon_file_id -> Nullable<Int4>,
     }
 }
 

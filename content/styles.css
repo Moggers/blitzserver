@@ -436,12 +436,9 @@ th.rotate > div > span {
 	grid-template-columns: 1fr 1fr 1fr 1fr;
 	display: grid;
 }
-label.bg-selector {
+.bg-selector {
 	width: 100%;
-	cursor: pointer;
 	transition: line-height 0.5s, height 0.5s;
-	float: left;
-	padding-left: 10px;
 	color: white;
 	width: 100%;
 	height: 1.5rem;
@@ -451,21 +448,27 @@ label.bg-selector {
 	background-size: cover;
 	box-sizing: border-box;
 	border: 1px solid black;
+	display: flex;
+	flex-direction: row;
+}
+.bg-selector :first-child {
+	padding-left: 10px;
+	color: inherit;
+	flex-grow: 2;
+	cursor: pointer;
 }
 input[type="checkbox"].bg-selector,input[type="radio"].bg-selector {
 	display: none;
 }
-label.bg-selector > a {
+.bg-selector :not(:first-child) {
 	text-shadow: initial;
 	height: 100%;
 	border-top: 0px;
 	border-bottom: 0px;
-	float: right;
 }
-label.bg-selector:hover {
+.bg-selector:hover {
 	height: 3rem;
 	line-height: 3.2rem;
-	z-index: 2;
 }
 input:checked + .bg-selector {
 	border: 1px solid var(--col-primary);

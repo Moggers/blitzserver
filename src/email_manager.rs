@@ -153,13 +153,6 @@ SELECT ec.* FROM email_configs ec LEFT OUTER JOIN (SELECT game_id,MAX(turn_numbe
                             0 => 0,
                             _ => last_turns[0].turn_number,
                         };
-                        log::debug!(
-                            "Sending turn email to {} for game {} turn {}",
-                            email_config.email_address,
-                            email_config.game_id,
-                            new_turn_number
-                        );
-
                         Self::send_notice_email(&db, &email_config, &hostname, &mailer);
                         diesel::update(emails_dsl::email_configs)
                             .filter(emails_dsl::id.eq(email_config.id))

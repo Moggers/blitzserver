@@ -424,7 +424,6 @@ async fn details(
         .get(&format!("auth_{}", game.id))
         .unwrap_or(Some(AuthStatus::Unauthed))
         .unwrap_or(AuthStatus::Unauthed);
-    log::debug!("Auth status: {:?}", authed);
     let game_players: Vec<(Player, Nation)> = {
         use crate::schema::players::dsl::*;
         Player::belonging_to(&game)

@@ -1,6 +1,6 @@
 use super::AppData;
 use crate::diesel::prelude::*;
-use crate::models::{File, Mod, NewFile, NewMod};
+use crate::models::{File, Mod, ModDefinition, NewFile, NewMod};
 use actix_multipart::Multipart;
 use actix_web::{get, http::header, post, web, HttpResponse, Result};
 use askama::Template;
@@ -10,14 +10,9 @@ use std::io::Read;
 
 #[derive(Template)]
 #[template(path = "mods/list.html")]
-pub struct ListModsTemplate {
+pub struct ListModsTemplate<'a> {
+    errors: &'a [String],
     mods: Vec<Mod>,
-}
-
-#[derive(Template)]
-#[template(path = "mods/upload.html")]
-pub struct UploadModTemplate<'a> {
-    err: Option<&'a str>,
 }
 
 #[derive(Template)]
@@ -31,6 +26,7 @@ pub async fn list(app_data: web::Data<AppData>) -> Result<HttpResponse> {
     let db = app_data.pool.get().expect("Unable to connect to database");
     Ok(HttpResponse::Ok().content_type("text/html").body(
         (ListModsTemplate {
+            errors: &vec![],
             mods: crate::schema::mods::dsl::mods.load::<Mod>(&db).unwrap(),
         })
         .render()
@@ -38,11 +34,45 @@ pub async fn list(app_data: web::Data<AppData>) -> Result<HttpResponse> {
     ))
 }
 
-#[get("/mods/upload")]
-pub async fn upload_get(_app_data: web::Data<AppData>) -> Result<HttpResponse> {
+#[get("/images/mods/{id}.jpg")]
+pub async fn image(
+    (app_data, web::Path(path_id)): (web::Data<AppData>, web::Path<i32>),
+) -> Result<HttpResponse> {
+    let db = app_data.pool.get().unwrap();
+    use crate::schema::mods::dsl as mods_dsl;
+    use crate::schema::files::dsl as files_dsl;
+    let (map, file): (Mod, File) = mods_dsl::mods
+        .filter(mods_dsl::id.eq(path_id))
+        .inner_join(
+            crate::schema::files::dsl::files
+                .on(files_dsl::id.nullable().eq(mods_dsl::icon_file_id)),
+        )
+        .get_result::<(Mod, File)>(&db)
+        .unwrap();
+    let reader = crate::image::io::Reader::with_format(
+        std::io::Cursor::new(file.filebinary),
+        crate::image::ImageFormat::Tga,
+    )
+    .decode()
+    .unwrap();
+    let maps_dir = std::path::PathBuf::from("./images/maps");
+    if !maps_dir.exists() {
+        std::fs::create_dir_all(&maps_dir).unwrap();
+    }
+    let mut file = std::fs::File::create(maps_dir.join(format!("{}.jpg", map.id))).unwrap();
+    reader
+        .write_to(&mut file, crate::image::ImageFormat::Jpeg)
+        .unwrap();
+    let mut jpg_bytes: Vec<u8> = Vec::new();
+    reader
+        .write_to(
+            &mut std::io::Cursor::new(&mut jpg_bytes),
+            crate::image::ImageFormat::Jpeg,
+        )
+        .unwrap();
     Ok(HttpResponse::Ok()
-        .content_type("text/html")
-        .body((UploadModTemplate { err: None }).render().unwrap()))
+        .content_type("application/jpg")
+        .body(jpg_bytes))
 }
 
 #[post("/mods/upload")]
@@ -51,7 +81,7 @@ pub async fn upload_post(
 ) -> Result<HttpResponse> {
     let db = app_data.pool.get().expect("Unable to connect to database");
     while let Ok(Some(mut field)) = payload.try_next().await {
-        let mut mod_name: Option<(String, String)> = None;
+        let mut mod_name: Option<ModDefinition> = None;
         let content_type = field.content_disposition().unwrap();
         match content_type.get_name() {
             Some("archive") => {
@@ -69,20 +99,61 @@ pub async fn upload_post(
                             {
                                 let mut contents: String = String::new();
                                 archive_file.read_to_string(&mut contents).unwrap();
-                                if let Some(captures) =
+                                let icon_filename_captures =
+                                    regex::Regex::new(r#"#icon +"?(.+?)"?\r?\n"#)
+                                        .unwrap()
+                                        .captures(&contents);
+                                if let Some(modname_captures) =
                                     regex::Regex::new(r#"#modname +"?(.+?)"?\r?\n"#)
                                         .unwrap()
                                         .captures(&contents)
                                 {
-                                    mod_name = Some((
-                                        captures.get(1).unwrap().as_str().to_owned(),
-                                        archive_file.name().to_owned(),
-                                    ));
+                                    mod_name = Some(ModDefinition {
+                                        name: modname_captures.get(1).unwrap().as_str().to_owned(),
+                                        icon_filename: icon_filename_captures.map_or(
+                                            "".to_string(),
+                                            |c| {
+                                                c.get(1).map_or("".to_string(), |c| {
+                                                    c.as_str().to_owned()
+                                                })
+                                            },
+                                        ),
+                                        dm_filename: archive_file.name().to_owned(),
+                                    });
                                 }
                             }
                         }
                         match mod_name {
-                            Some((mod_name, dm_name)) => {
+                            Some(ModDefinition {
+                                name,
+                                dm_filename,
+                                icon_filename,
+                            }) => {
+                                let banner_file = if icon_filename == "" {
+                                    None
+                                } else {
+                                    let path = std::path::PathBuf::from(&icon_filename);
+                                    let cleaned = path.strip_prefix("./").unwrap_or(&path);
+                                    let contents: Vec<u8> = archive
+                                        .by_name(cleaned.to_str().unwrap())
+                                        .unwrap()
+                                        .bytes()
+                                        .collect::<std::io::Result<Vec<u8>>>()
+                                        .unwrap();
+                                    let new_banner_file = NewFile::new(&icon_filename, &contents);
+                                    let banner_file: File =
+                                        diesel::insert_into(crate::schema::files::table)
+                                            .values(&new_banner_file)
+                                            .on_conflict(crate::schema::files::dsl::hash)
+                                            .do_update()
+                                            .set(
+                                                crate::schema::files::dsl::filename
+                                                    .eq(crate::schema::files::dsl::filename),
+                                            ) // Bogus update so return row gets populated with existing stuff
+                                            .get_result(&db)
+                                            .unwrap();
+                                    Some(banner_file)
+                                };
                                 let new_file =
                                     NewFile::new(content_type.get_filename().unwrap(), &contents);
                                 let file: File = diesel::insert_into(crate::schema::files::table)
@@ -98,9 +169,11 @@ pub async fn upload_post(
                                 let _inserted_mod: Mod =
                                     diesel::insert_into(crate::schema::mods::table)
                                         .values(NewMod {
-                                            name: &mod_name,
-                                            dm_filename: &dm_name,
+                                            name: &name,
+                                            dm_filename: &dm_filename,
                                             file_id: file.id,
+                                            icon_file_id: banner_file
+                                                .map_or(None, |bf| Some(bf.id)),
                                         })
                                         .on_conflict(crate::schema::mods::file_id)
                                         .do_update()
@@ -116,30 +189,39 @@ pub async fn upload_post(
                             }
                             _ => {
                                 return Ok(HttpResponse::Ok().content_type("text/html").body(
-                                    (UploadModTemplate {
-                                        err: Some("Unable to find mod in zip"),
+                                    (ListModsTemplate {
+                                        errors: &vec!["Unable to find mod in zip".to_string()],
+                                        mods: crate::schema::mods::dsl::mods.load(&db).unwrap(),
                                     })
                                     .render()
                                     .unwrap(),
-                                ))
+                                ));
                             }
                         }
                     }
                     _ => {
                         return Ok(HttpResponse::Ok().content_type("text/html").body(
-                            (UploadModTemplate {
-                                err: Some("File is not a zip"),
+                            (ListModsTemplate {
+                                mods: crate::schema::mods::dsl::mods.load(&db).unwrap(),
+                                errors: &vec!["File is not a zip".to_string()],
                             })
                             .render()
                             .unwrap(),
-                        ))
+                        ));
                     }
                 }
             }
             _ => {}
         }
     }
-    panic!("Havent implemented bad body stuff yet");
+    Ok(HttpResponse::Ok().content_type("text/html").body(
+        (ListModsTemplate {
+            mods: crate::schema::mods::dsl::mods.load(&db).unwrap(),
+            errors: &vec!["Form post is complete garbage".to_string()],
+        })
+        .render()
+        .unwrap(),
+    ))
 }
 
 #[get("/mod/{id}")]

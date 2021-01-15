@@ -36,7 +36,8 @@ impl Dom5ProcHandle {
         if !self.is_dead.load(std::sync::atomic::Ordering::SeqCst) {
             self.sender.send(GameCmd::Shutdown).unwrap();
         }
-        self.is_dead.store(true, std::sync::atomic::Ordering::SeqCst);
+        self.is_dead
+            .store(true, std::sync::atomic::Ordering::SeqCst);
     }
 }
 impl Drop for Dom5ProcHandle {
@@ -679,10 +680,9 @@ impl Dom5Proc {
                     .filter(id.eq(map.tgafile_id))
                     .get_result::<File>(&db)
                     .unwrap(),
-                files
-                    .filter(id.eq(map.winterfile_id))
-                    .get_result::<File>(&db)
-                    .unwrap(),
+                map.winterfile_id.map_or(None, |wfid| {
+                    Some(files.filter(id.eq(wfid)).get_result::<File>(&db).unwrap())
+                }),
             )
         };
         std::fs::write(
@@ -699,12 +699,14 @@ impl Dom5Proc {
             tgafile.filebinary,
         )
         .unwrap();
-        std::fs::write(
-            std::path::PathBuf::from(&self.datadir)
-                .join("maps")
-                .join(&winterfile.filename),
-            winterfile.filebinary,
-        )
-        .unwrap();
+        winterfile.map(|wf| {
+            std::fs::write(
+                std::path::PathBuf::from(&self.datadir)
+                    .join("maps")
+                    .join(&wf.filename),
+                wf.filebinary,
+            )
+            .unwrap();
+        });
     }
 }

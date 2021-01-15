@@ -51,7 +51,12 @@ async fn favicon() -> Result<HttpResponse> {
 async fn styles() -> Result<HttpResponse> {
     Ok(HttpResponse::Ok()
         .content_type("text/css")
-        .body(&include_bytes!("../content/styles.css")[..]))
+        .body(
+            &concat!(
+                include_str!("../content/map-list.css"),
+                include_str!("../content/mod-list.css"),
+                include_str!("../content/styles.css")
+            )[..]))
 }
 
 #[derive(Deserialize)]
@@ -190,7 +195,6 @@ async fn main() -> std::io::Result<()> {
             .service(styles)
             .service(frontend::maps::details)
             .service(frontend::maps::image)
-            .service(frontend::maps::upload_get)
             .service(frontend::maps::upload_post)
             .service(frontend::maps::list)
             .service(frontend::maps::download)
@@ -204,10 +208,10 @@ async fn main() -> std::io::Result<()> {
             .service(frontend::games::emails_delete)
             .service(frontend::games::emails_post)
             .service(frontend::mods::list)
-            .service(frontend::mods::upload_get)
             .service(frontend::mods::upload_post)
             .service(frontend::mods::details)
             .service(frontend::mods::download)
+            .service(frontend::mods::image)
     })
     .bind("0.0.0.0:8080")?
     .run()
