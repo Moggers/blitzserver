@@ -127,6 +127,7 @@ table! {
     }
 }
 
+joinable!(email_configs -> games (game_id));
 joinable!(game_mods -> mods (mod_id));
 joinable!(games -> maps (map_id));
 joinable!(players -> files (file_id));

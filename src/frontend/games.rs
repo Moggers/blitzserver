@@ -571,6 +571,7 @@ async fn create_post(
     (app_data, mut body): (web::Data<AppData>, web::Payload),
 ) -> Result<HttpResponse> {
     let db = app_data.pool.get().expect("Unable to connect to database");
+    use crate::schema::maps::dsl as maps_dsl;
     let mut bytes = web::BytesMut::new();
     while let Some(item) = body.next().await {
         bytes.extend_from_slice(&item?);
@@ -581,6 +582,7 @@ async fn create_post(
     let mut new_game = NewGame::default();
     new_game.name = params.name;
     new_game.password = params.password;
+    new_game.map_id = maps_dsl::maps.order(maps_dsl::id.desc()).limit(1).get_result::<Map>(&db).unwrap().id;
 
     let game: Game = diesel::insert_into(crate::schema::games::table)
         .values(&new_game)

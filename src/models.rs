@@ -151,7 +151,7 @@ pub struct NewGame {
     pub storyevents: i32,
     pub newailvl: i32,
     pub newai: bool,
-    pub password: String
+    pub password: String,
 }
 impl Default for NewGame {
     fn default() -> Self {
@@ -184,7 +184,7 @@ impl Default for NewGame {
             storyevents: 1,
             newailvl: 2,
             newai: true,
-            password: "password".to_string()
+            password: "password".to_string(),
         }
     }
 }
@@ -257,7 +257,7 @@ pub struct Map {
     pub archive_id: i32,
 }
 
-#[derive(Insertable)]
+#[derive(Debug, Insertable)]
 #[table_name = "maps"]
 pub struct NewMap {
     pub name: String,
@@ -340,7 +340,10 @@ impl Turn {
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
-        diesel::sql_query(
+        if game_ids.len() == 0 {
+            vec![]
+        } else {
+            diesel::sql_query(
             format!("\
 SELECT t.game_id, t.turn_number, COALESCE(pt.submitted, 0) as submitted, COALESCE(pt.total, 0) as total
 FROM turns t 
@@ -350,6 +353,7 @@ LEFT JOIN (SELECT game_id,turn_number,COUNT(twohfile_id) submitted, COUNT(trnfil
     ON pt.turn_number = t.turn_number AND pt.game_id = t.game_id\
 ", game_ids.iter().map(|i| i.to_string()).collect::<Vec<String>>().join(",")),
         ).get_results(db).unwrap()
+        }
     }
 }
 
@@ -402,7 +406,7 @@ pub struct Mod {
 pub struct ModDefinition {
     pub dm_filename: String,
     pub icon_filename: String,
-    pub name: String
+    pub name: String,
 }
 
 #[derive(Insertable)]

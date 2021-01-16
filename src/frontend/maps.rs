@@ -148,7 +148,10 @@ async fn upload_post(
                     match name {
                         Ok(name) => new_map.name = name,
                         Err(_) => {
-                            errors.push("Unable to find #dom2title, is this a valid .map file?\n".to_string());
+                            errors.push(
+                                "Unable to find #dom2title, is this a valid .map file?\n"
+                                    .to_string(),
+                            );
                         }
                     }
                     // == DETERMINE (and check) TGA FILENAME
@@ -171,7 +174,9 @@ async fn upload_post(
                                 }
                             }
                         },
-                        Err(_) => errors.push("Failed to parse image name from map file".to_string()),
+                        Err(_) => {
+                            errors.push("Failed to parse image name from map file".to_string())
+                        }
                     }
                     // == DETERMINE (and check) WINTER TGA FILENAME
                     let new_winter_name: Result<String> = try {
@@ -262,38 +267,40 @@ async fn upload_post(
                         contents.extend_from_slice(&bytes.unwrap());
                     }
                     let filename = content_type.get_filename().unwrap();
-                    match winter_name {
-                        None => winter_name = Some(filename.to_string()),
-                        Some(ref mut wn) => {
-                            if *wn != filename {
-                                errors.push(format!(
-                                    "Map #winterimagefile is {}, but TGA filename is {}",
-                                    wn, filename
-                                ));
+                    if filename != "" {
+                        match winter_name {
+                            None => winter_name = Some(filename.to_string()),
+                            Some(ref mut wn) => {
+                                if *wn != filename {
+                                    errors.push(format!(
+                                        "Map #winterimagefile is {}, but TGA filename is {}",
+                                        wn, filename
+                                    ));
+                                }
                             }
                         }
+                        map_archive
+                            .start_file(
+                                content_type.get_filename().unwrap(),
+                                zip::write::FileOptions::default()
+                                    .compression_method(zip::CompressionMethod::Stored)
+                                    .unix_permissions(0o755),
+                            )
+                            .unwrap();
+                        map_archive.write_all(&contents).unwrap();
+                        let new_file = NewFile::new(filename, &contents);
+                        let file: File = diesel::insert_into(crate::schema::files::table)
+                            .values(&new_file)
+                            .on_conflict(crate::schema::files::dsl::hash)
+                            .do_update()
+                            .set(
+                                crate::schema::files::dsl::filename
+                                    .eq(crate::schema::files::dsl::filename),
+                            ) // Bogus update so return row gets populated with existing stuff
+                            .get_result(&db)
+                            .unwrap();
+                        new_map.winterfile_id = Some(file.id);
                     }
-                    map_archive
-                        .start_file(
-                            content_type.get_filename().unwrap(),
-                            zip::write::FileOptions::default()
-                                .compression_method(zip::CompressionMethod::Stored)
-                                .unix_permissions(0o755),
-                        )
-                        .unwrap();
-                    map_archive.write_all(&contents).unwrap();
-                    let new_file = NewFile::new(filename, &contents);
-                    let file: File = diesel::insert_into(crate::schema::files::table)
-                        .values(&new_file)
-                        .on_conflict(crate::schema::files::dsl::hash)
-                        .do_update()
-                        .set(
-                            crate::schema::files::dsl::filename
-                                .eq(crate::schema::files::dsl::filename),
-                        ) // Bogus update so return row gets populated with existing stuff
-                        .get_result(&db)
-                        .unwrap();
-                    new_map.winterfile_id = Some(file.id);
                 }
                 _ => {}
             };
@@ -330,6 +337,7 @@ async fn upload_post(
             .unwrap(),
         ))
     } else {
+        log::debug!("Map {:?}", new_map);
         use crate::schema::maps::dsl as maps_dsl;
         let existing: Vec<Map> = maps_dsl::maps
             .filter(
