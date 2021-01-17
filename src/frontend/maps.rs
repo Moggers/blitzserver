@@ -77,19 +77,63 @@ struct ListMapsTemplate<'a> {
 
 #[get("/map/{id}/download")]
 async fn download((app_data, mapid): (web::Data<AppData>, web::Path<i32>)) -> Result<HttpResponse> {
+    let mut bytes: Vec<u8> = vec![];
+    let mut map_archive = zip::ZipWriter::new(std::io::Cursor::new(&mut bytes));
+
     let db = app_data.pool.get().expect("Unable to connect to database");
-    let (_map, zipfile) = crate::schema::maps::dsl::maps
-        .filter(crate::schema::maps::dsl::id.eq(mapid.0))
-        .inner_join(
-            crate::schema::files::dsl::files
-                .on(crate::schema::files::dsl::id.eq(crate::schema::maps::dsl::archive_id)),
-        )
-        .get_result::<(Map, File)>(&db)
+    use crate::schema::files::dsl as files_dsl;
+    use crate::schema::maps::dsl as maps_dsl;
+    let map: Map = maps_dsl::maps
+        .filter(maps_dsl::id.eq(mapid.0))
+        .get_result(&db)
         .unwrap();
+
+    let mapfile: File = files_dsl::files
+        .filter(files_dsl::id.eq(map.mapfile_id))
+        .get_result(&db)
+        .unwrap();
+    map_archive
+        .start_file(
+            mapfile.filename,
+            zip::write::FileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored)
+                .unix_permissions(0o755),
+        )
+        .unwrap();
+    map_archive.write_all(&mapfile.filebinary).unwrap();
+    let tgafile: File = files_dsl::files
+        .filter(files_dsl::id.eq(map.tgafile_id))
+        .get_result(&db)
+        .unwrap();
+    map_archive
+        .start_file(
+            tgafile.filename,
+            zip::write::FileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored)
+                .unix_permissions(0o755),
+        )
+        .unwrap();
+    map_archive.write_all(&tgafile.filebinary).unwrap();
+    if let Some(winterfile_id) = map.winterfile_id {
+        let winterfile: File = files_dsl::files
+            .filter(files_dsl::id.eq(winterfile_id))
+            .get_result(&db)
+            .unwrap();
+        map_archive
+            .start_file(
+                &winterfile.filename,
+                zip::write::FileOptions::default()
+                    .compression_method(zip::CompressionMethod::Stored)
+                    .unix_permissions(0o755),
+            )
+            .unwrap();
+        map_archive.write_all(&winterfile.filebinary).unwrap();
+    }
+    drop(map_archive);
 
     Ok(HttpResponse::Ok()
         .content_type("application/zip")
-        .body(zipfile.filebinary))
+        .body(bytes))
 }
 
 #[get("/maps")]
@@ -115,16 +159,13 @@ async fn upload_post(
         mapfile_id: 0,
         tgafile_id: 0,
         winterfile_id: None,
-        archive_id: 0,
     };
     let db = app_data.pool.get().expect("Unable to connect to database");
     let mut tga_name: Option<String> = None;
     let mut winter_name: Option<String> = None;
 
     let mut errors: Vec<String> = vec![];
-    let mut bytes: Vec<u8> = vec![];
     {
-        let mut map_archive = zip::ZipWriter::new(std::io::Cursor::new(&mut bytes));
         while let Ok(Some(mut field)) = payload.try_next().await {
             if errors.len() > 0 {
                 continue;
@@ -201,15 +242,6 @@ async fn upload_post(
                         Err(_) => {} // Lacking a winter image is not fatal
                     }
                     // == DONE
-                    map_archive
-                        .start_file(
-                            content_type.get_filename().unwrap(),
-                            zip::write::FileOptions::default()
-                                .compression_method(zip::CompressionMethod::Stored)
-                                .unix_permissions(0o755),
-                        )
-                        .unwrap();
-                    map_archive.write_all(&contents).unwrap();
                     let file: File = diesel::insert_into(crate::schema::files::table)
                         .values(&new_file)
                         .on_conflict(crate::schema::files::dsl::hash)
@@ -229,25 +261,19 @@ async fn upload_post(
                     }
                     let filename = content_type.get_filename().unwrap();
                     match tga_name {
-                        None => tga_name = Some(filename.to_string()),
+                        None => {
+                            tga_name = Some(filename.to_string());
+                        }
                         Some(ref mut wn) => {
-                            if *wn != filename {
+                            if wn.trim() != filename.trim() {
                                 errors.push(format!(
-                                    "Map #magefile is {}, but winter TGA filename is {}",
+                                    "Map #imagefile is {}, but winter TGA filename is {}",
                                     wn, filename
                                 ));
+                                continue;
                             }
                         }
                     }
-                    map_archive
-                        .start_file(
-                            filename,
-                            zip::write::FileOptions::default()
-                                .compression_method(zip::CompressionMethod::Stored)
-                                .unix_permissions(0o755),
-                        )
-                        .unwrap();
-                    map_archive.write_all(&contents).unwrap();
                     let new_file = NewFile::new(content_type.get_filename().unwrap(), &contents);
                     let file: File = diesel::insert_into(crate::schema::files::table)
                         .values(&new_file)
@@ -271,23 +297,15 @@ async fn upload_post(
                         match winter_name {
                             None => winter_name = Some(filename.to_string()),
                             Some(ref mut wn) => {
-                                if *wn != filename {
+                                if wn.trim() != filename.trim() {
                                     errors.push(format!(
                                         "Map #winterimagefile is {}, but TGA filename is {}",
                                         wn, filename
                                     ));
+                                    continue;
                                 }
                             }
                         }
-                        map_archive
-                            .start_file(
-                                content_type.get_filename().unwrap(),
-                                zip::write::FileOptions::default()
-                                    .compression_method(zip::CompressionMethod::Stored)
-                                    .unix_permissions(0o755),
-                            )
-                            .unwrap();
-                        map_archive.write_all(&contents).unwrap();
                         let new_file = NewFile::new(filename, &contents);
                         let file: File = diesel::insert_into(crate::schema::files::table)
                             .values(&new_file)
@@ -305,7 +323,6 @@ async fn upload_post(
                 _ => {}
             };
         }
-        map_archive.finish().unwrap();
     }
     if new_map.mapfile_id == 0 {
         errors.push("Missing map file\n".to_string());
@@ -313,17 +330,6 @@ async fn upload_post(
     if new_map.tgafile_id == 0 {
         errors.push("Missing tga file\n".to_string());
     }
-    let zip_name = format!("{}.zip", &new_map.name);
-    let new_file = NewFile::new(&zip_name, &bytes);
-    let file: File = diesel::insert_into(crate::schema::files::table)
-        .values(&new_file)
-        .on_conflict(crate::schema::files::dsl::hash)
-        .do_update()
-        .set(crate::schema::files::dsl::filename.eq(crate::schema::files::dsl::filename)) // Bogus update so return row gets populated with existing stuff
-        .get_result(&db)
-        .unwrap();
-    new_map.archive_id = file.id;
-
     if errors.len() > 0 {
         let db = app_data.pool.get().expect("Unable to connect to database");
         use crate::schema::maps::dsl::*;
@@ -337,24 +343,22 @@ async fn upload_post(
             .unwrap(),
         ))
     } else {
-        log::debug!("Map {:?}", new_map);
         use crate::schema::maps::dsl as maps_dsl;
-        let existing: Vec<Map> = maps_dsl::maps
-            .filter(
-                maps_dsl::mapfile_id.eq(new_map.mapfile_id).and(
-                    maps_dsl::tgafile_id
-                        .eq(new_map.tgafile_id)
-                        .and(maps_dsl::winterfile_id.eq(new_map.winterfile_id)),
-                ),
-            )
-            .get_results(&db)
-            .unwrap();
-        if existing.len() == 0 {
-            diesel::insert_into(maps_dsl::maps)
-                .values(&new_map)
-                .get_result::<Map>(&db)
-                .expect("Error saving file");
-        }
+        diesel::insert_into(maps_dsl::maps)
+            .values(&new_map)
+            .on_conflict((
+                maps_dsl::mapfile_id,
+                maps_dsl::tgafile_id,
+                maps_dsl::winterfile_id,
+            ))
+            .do_update()
+            .set((
+                maps_dsl::mapfile_id.eq(new_map.mapfile_id),
+                maps_dsl::tgafile_id.eq(new_map.tgafile_id),
+                maps_dsl::winterfile_id.eq(new_map.winterfile_id),
+            ))
+            .get_result::<Map>(&db)
+            .expect("Error saving file");
         Ok(HttpResponse::Found()
             .header(header::LOCATION, "/maps")
             .finish())
