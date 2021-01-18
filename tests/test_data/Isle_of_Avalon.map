@@ -1,0 +1,278 @@
+-- 
+-- Map file for Dominions 4
+-- 
+-- Illwinter Game Design
+-- www.illwinter.com
+-- 
+
+-- Title and image file
+#dom2title Isle of Avalon
+#imagefile Isle of Avalon.tga
+#domversion 350
+#vwraparound
+#description "A small 3 player map with the main battle ground in the centre and an underground cavern network to by-pass the main armies.
+
+The isle itself is magical as is the large central cavern under the isle. There are hidden sites here!
+
+Select 7 thrones to populate the battlefields in the middle of the map."
+
+-- Province names/terrains
+#landname 1 "Midas Conclave"
+#terrain 1 4608
+#landname 2 "Arthurs Folly"
+#terrain 2 4608
+#landname 3 "The Crystal Cave"
+#terrain 3 5632
+#landname 4 "Fraenirs Haunt"
+#terrain 4 4608
+#landname 5 "The Bleached Sands"
+#terrain 5 64
+#landname 6 "Autumn Carpet"
+#terrain 6 640
+#landname 7 "Nottingam"
+#terrain 7 768
+#landname 8 "Lofty Point"
+#terrain 8 528
+#landname 9 "Akilon Waste"
+#terrain 9 576
+#landname 10 "Sherwood Forest"
+#terrain 10 640
+#landname 11 "Bogs of Muck"
+#terrain 11 16777248
+#landname 12 "Devil Ponds"
+#terrain 12 16777760
+#landname 13 "Locksley Manor"
+#terrain 13 768
+#landname 14 "Ploughmans Field"
+#terrain 14 768
+#landname 15 "The Nook"
+#terrain 15 512
+#landname 16 "Pans Meadows"
+#terrain 16 512
+#landname 17 "Lost Lake"
+#terrain 17 2054
+#landname 18 "Isle of Avalon"
+#terrain 18 16778880
+#landname 19 "Golden Sea"
+#terrain 19 2566
+#landname 20 "Dark Fields"
+#terrain 20 768
+#landname 21 "Goblin Hole"
+#terrain 21 4608
+#landname 22 "Hall of the Fisher King"
+#terrain 22 33554434
+#landname 23 "Dragon Hall"
+#terrain 23 4608
+#landname 24 "Field of Light"
+#terrain 24 512
+#landname 25 "Castle Wyvern"
+#terrain 25 33554434
+#landname 26 "Grail Abbey"
+#terrain 26 514
+#landname 27 "Plain of Shadows"
+#terrain 27 514
+#landname 28 "Crystal Deep"
+#terrain 28 2566
+#landname 29 "Elf Glades"
+#terrain 29 16777856
+#landname 30 "Lands of Woe"
+#terrain 30 16777792
+#landname 31 "Barley Corner"
+#terrain 31 512
+#landname 32 "Windy Reach"
+#terrain 32 512
+#landname 33 "Gnome Velt"
+#terrain 33 512
+#landname 34 "Crossroads"
+#terrain 34 512
+#landname 35 "Treacherous Woods"
+#terrain 35 16777856
+#landname 36 "Broken Thornwood"
+#terrain 36 640
+#landname 37 "Goron Mountains"
+#terrain 37 16777744
+#landname 38 "Griffon Ridge"
+#terrain 38 528
+#landname 39 "Lonely Pines"
+#terrain 39 640
+#landname 40 "Saxon Fields"
+#terrain 40 768
+#landname 41 "Pendragon Ways"
+#terrain 41 768
+#landname 42 "Millers Corner"
+#terrain 42 768
+#landname 43 "Fields of Plenty"
+#terrain 43 768
+#landname 44 "Iron Mountains"
+#terrain 44 528
+#landname 45 "Dragon Watch"
+#terrain 45 528
+#landname 46 "Uthers Road"
+#terrain 46 514
+#landname 47 "Green Belt"
+#terrain 47 256
+#landname 48 "Woods of Despair"
+#terrain 48 640
+#landname 49 "Broad Acres"
+#terrain 49 512
+#landname 50 "Rotten Bogs"
+#terrain 50 544
+#landname 51 "Uthers Vaults"
+#terrain 51 33554434
+#landname 52 "Grassy Hollow"
+#terrain 52 512
+#landname 53 "Bracewell Plain"
+#terrain 53 512
+#landname 54 "Rune Mountains"
+#terrain 54 528
+#landname 55 "Paimpont Woodlands"
+#terrain 55 640
+#landname 56 "The Golden Halls"
+#terrain 56 4608
+
+-- Province neighbours
+#neighbour 1 3
+#neighbour 1 56
+#neighbour 2 3
+#neighbour 2 21
+#neighbour 3 4
+#neighbour 4 23
+#neighbour 5 6
+#neighbour 5 9
+#neighbour 5 14
+#neighbour 6 14
+#neighbour 6 15
+#neighbour 7 8
+#neighbourspec 7 8 1
+#neighbour 7 10
+#neighbour 7 13
+#neighbour 8 13
+#neighbour 8 16
+#neighbour 9 11
+#neighbour 9 14
+#neighbour 9 20
+#neighbour 10 12
+#neighbourspec 10 12 2
+#neighbour 10 13
+#neighbour 10 24
+#neighbour 11 17
+#neighbour 11 20
+#neighbour 11 29
+#neighbour 11 12
+#neighbour 12 19
+#neighbour 12 24
+#neighbourspec 12 24 2
+#neighbour 12 30
+#neighbour 13 16
+#neighbour 13 22
+#neighbour 13 26
+#neighbour 14 15
+#neighbour 14 25
+#neighbour 14 27
+#neighbour 15 25
+#neighbour 16 22
+#neighbour 17 18
+#neighbour 17 19
+#neighbour 17 28
+#neighbour 17 29
+#neighbour 18 19
+#neighbour 18 28
+#neighbour 19 28
+#neighbour 19 30
+#neighbour 20 27
+#neighbour 20 29
+#neighbour 20 36
+#neighbour 21 25
+#neighbour 22 23
+#neighbour 22 26
+#neighbour 22 31
+#neighbour 22 33
+#neighbour 24 26
+#neighbour 24 30
+#neighbour 24 38
+#neighbour 25 27
+#neighbour 25 32
+#neighbour 25 34
+#neighbour 26 33
+#neighbour 27 34
+#neighbour 28 35
+#neighbour 28 37
+#neighbour 29 36
+#neighbour 29 37
+#neighbour 30 35
+#neighbour 30 38
+#neighbourspec 30 38 1
+#neighbour 31 39
+#neighbour 31 33
+#neighbour 32 34
+#neighbour 32 44
+#neighbour 33 38
+#neighbour 33 39
+#neighbour 33 40
+#neighbour 34 42
+#neighbour 34 44
+#neighbour 34 36
+#neighbour 35 37
+#neighbour 35 41
+#neighbour 35 43
+#neighbour 36 42
+#neighbour 37 41
+#neighbour 37 45
+#neighbourspec 37 45 1
+#neighbour 38 40
+#neighbourspec 38 40 1
+#neighbour 39 40
+#neighbour 41 43
+#neighbour 41 45
+#neighbourspec 41 45 1
+#neighbour 41 46
+#neighbour 42 44
+#neighbour 43 48
+#neighbour 43 50
+#neighbour 45 47
+#neighbour 45 49
+#neighbourspec 45 49 1
+#neighbour 46 49
+#neighbour 46 50
+#neighbour 46 51
+#neighbour 47 49
+#neighbour 47 54
+#neighbour 48 50
+#neighbour 48 55
+#neighbour 49 51
+#neighbour 49 53
+#neighbour 49 54
+#neighbour 50 51
+#neighbour 50 52
+#neighbour 50 55
+#neighbour 51 52
+#neighbour 51 53
+#neighbour 51 56
+#neighbour 52 55
+#neighbour 53 54
+
+-- Special per province commands
+#setland 3
+#poptype 40
+#commander "Adept of the Silver Order"
+#comname "Merlin"
+#mag_astral 5
+#randomequip 2
+#bodyguards 6 348
+#units 20 348
+#commander "Crystal Sorceress"
+#comname "Nimue"
+#bodyguards 6 348
+#units 30 348
+#commander "Crystal Priestess"
+#bodyguards 2 348
+#units 15 "Pegasus Rider"
+
+#setland 18
+#poptype 47
+#commander "Fire Lord"
+#comname "King Arthur"
+#additem "Sun Sword"
+#bodyguards 8 "Warden of Avalon"
+#units 20 "Knight of Avalon"
+--
