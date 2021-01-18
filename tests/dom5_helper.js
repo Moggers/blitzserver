@@ -20,7 +20,7 @@ class Dom5 extends Helper {
 	// add custom methods here
 	// If you need to access other helpers
 	// use: this.helpers['helperName']
-	async seeServerName(ip, port, name) {
+	async connectToServer(ip, port, name) {
 		const util = require('util');
 		const exec = util.promisify(require('child_process').exec);
 		let {stdout} = await exec(this.config.binpath + " -C --tcpquery --ipadr " + ip + " --port " + port);

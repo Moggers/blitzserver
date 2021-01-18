@@ -1,7 +1,7 @@
 Feature('games');
 const faker = require('faker');
 
-Scenario('create game', async ({I}) => {
+Scenario('upload new map and create game', async ({I}) => {
 	await I.clearDatabase();
 	await I.launchBlitzserver();
 
@@ -25,5 +25,5 @@ Scenario('create game', async ({I}) => {
 	// Connect to game
 	I.amOnPage("/game/" + game_name + "/status");
 	let address = await I.grabTextFrom(".pane.status tr:first-child td:nth-child(2)");
-	I.seeServerName(address.split(":")[0], address.split(":")[1], game_name);
+	I.connectToServer(address.split(":")[0], address.split(":")[1], game_name);
 });

@@ -15,7 +15,9 @@ class Blitzserver extends Helper {
    * @protected
    */
 	_after() {
-		this.proc.kill();
+		if (this.proc) {
+			this.proc.kill();
+		}
 	}
 
 	// add custom methods here
@@ -24,7 +26,6 @@ class Blitzserver extends Helper {
 
 
 	async launchBlitzserver() {
-		const util = require('util');
 		const spawn = require('child_process').spawn;
 		this.proc = spawn("target/debug/blitzserver", {cwd: ".."});
 		async function sleep(ms) {
