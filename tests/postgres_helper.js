@@ -1,26 +1,36 @@
 const Helper = require('@codeceptjs/helper');
+const {Client} = require('pg');
 
 class Postgres extends Helper {
 
-  // before/after hooks
+	pgClient
+
+	// before/after hooks
   /**
    * @protected
    */
-  _before() {
-    // remove if not used
-  }
+	async _before() {
+		this.pgClient = new Client(this.config.connectionString);
+		await this.pgClient.connect();
+	}
 
   /**
    * @protected
    */
-  _after() {
-    // remove if not used
-  }
+	async _after() {
+		// remove if not used
+		await this.pgClient.end();
+	}
 
-  // add custom methods here
-  // If you need to access other helpers
-  // use: this.helpers['helperName']
-
+	async clearDatabase() {
+		await this.pgClient.query(`
+			TRUNCATE games CASCADE;
+			TRUNCATE maps CASCADE;
+			TRUNCATE email_configs CASCADE;
+			TRUNCATE players CASCADE;
+			TRUNCATE nations CASCADE;
+			`);
+	}
 }
 
 module.exports = Postgres;
