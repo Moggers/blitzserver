@@ -18,7 +18,6 @@ class Postgres extends Helper {
    * @protected
    */
 	async _after() {
-		// remove if not used
 		await this.pgClient.end();
 	}
 
@@ -29,6 +28,7 @@ class Postgres extends Helper {
 			TRUNCATE email_configs CASCADE;
 			TRUNCATE players CASCADE;
 			TRUNCATE nations CASCADE;
+			TRUNCATE mods CASCADE;
 			`);
 	}
 }

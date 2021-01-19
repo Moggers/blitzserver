@@ -26,6 +26,9 @@ class Blitzserver extends Helper {
 
 
 	async launchBlitzserver() {
+		if(this.proc) {
+			this.proc.kill();
+		}
 		const spawn = require('child_process').spawn;
 		this.proc = spawn("target/debug/blitzserver", {cwd: ".."});
 		async function sleep(ms) {
