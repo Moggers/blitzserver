@@ -20,8 +20,12 @@ impl TwoH {
         return magic_string.to_string();
     }
 
-    pub fn read_file(filepath: &std::path::Path) -> Self {
-        let mut file = std::fs::File::open(filepath).unwrap();
+    pub fn read_file(filepath: &std::path::Path) -> Option<Self> {
+        let mut file = if let Ok(file) = std::fs::File::open(filepath) {
+            file
+        } else {
+            return None;
+        };
 
         let _unk = file.read_u24::<LittleEndian>().unwrap();
         Self::read_magic_marker(&mut file);
@@ -37,12 +41,12 @@ impl TwoH {
             .read_to_end(&mut contents)
             .unwrap();
 
-        Self {
+        Some(Self {
             gamename: "".to_string(),
             turnnumber,
             cdkey,
             nationid,
             file_contents: contents,
-        }
+        })
     }
 }

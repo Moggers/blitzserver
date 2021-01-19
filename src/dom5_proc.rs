@@ -151,7 +151,11 @@ impl Dom5Proc {
     }
     fn handle_new_turn(&self) {
         let db = self.db_pool.get().unwrap();
-        let ftherlnd = TwoH::read_file(&self.savedir.join("ftherlnd"));
+        let ftherlnd = if let Some(file) = TwoH::read_file(&self.savedir.join("ftherlnd")) {
+            file
+        } else {
+            return;
+        };
         let new_file: File = NewFile::new("ftherlnd", &ftherlnd.file_contents).insert(&db);
         use super::schema::turns::dsl::*;
         let existing_turn = turns
@@ -288,7 +292,11 @@ impl Dom5Proc {
 
     fn handle_2h_update(&mut self, path: &std::path::PathBuf) {
         let db = self.db_pool.get().unwrap();
-        let twoh = TwoH::read_file(&path);
+        let twoh = if let Some(file) = TwoH::read_file(&path) {
+            file
+        } else {
+            return;
+        };
         let file: File = NewFile::new(
             path.file_name().unwrap().to_str().unwrap(),
             &twoh.file_contents,
@@ -325,7 +333,11 @@ impl Dom5Proc {
 
     fn handle_trn_update(&mut self, path: &std::path::PathBuf) {
         let db = self.db_pool.get().unwrap();
-        let trn = TwoH::read_file(&path);
+        let trn = if let Some(file) = TwoH::read_file(&path) {
+            file
+        } else {
+            return;
+        };
         let file: File = NewFile::new(
             path.file_name().unwrap().to_str().unwrap(),
             &trn.file_contents,
