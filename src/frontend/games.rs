@@ -631,6 +631,10 @@ async fn list(app_data: web::Data<AppData>) -> Result<HttpResponse> {
     );
     let turn_summaries =
         crate::models::Turn::turn_summary(&results.iter().map(|g| g.id).collect::<Vec<i32>>(), &db);
+    let archived_games: Vec<ArchivedGame> = results
+        .drain_filter(|g| g.archived)
+        .map(|g| ArchivedGame { id: g.id })
+        .collect();
     let active_games: Vec<ActiveGame> = results
         .drain_filter(|g| turn_summaries.iter().find(|t| t.game_id == g.id).is_some())
         .map(|g| ActiveGame {
@@ -648,10 +652,6 @@ async fn list(app_data: web::Data<AppData>) -> Result<HttpResponse> {
                 g.port.unwrap_or(0)
             ),
         })
-        .collect();
-    let archived_games: Vec<ArchivedGame> = results
-        .drain_filter(|g| g.archived)
-        .map(|g| ArchivedGame { id: g.id })
         .collect();
     let pending_games: Vec<PendingGame> = results
         .iter()
