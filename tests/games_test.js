@@ -58,6 +58,7 @@ Scenario("set countdown", async ({I}) => {
 	I.click("Create");
 	I.seeInCurrentUrl("settings");
 
+	// Schedule game
 	I.click("schedule");
 	I.fillField("countdown", 60);
 	I.click("Begin Countdown");
@@ -66,4 +67,46 @@ Scenario("set countdown", async ({I}) => {
 	I.amOnPage("/game/" + game_name + "/status");
 	let address = await I.grabTextFrom(".pane.status tr:first-child td:nth-child(2)");
 	I.connectToServer(address.split(":")[0], address.split(":")[1], game_name);
+});
+Scenario("archive game", async ({I}) => {
+	await I.clearDatabase();
+	await I.launchBlitzserver();
+
+	// Upload Map
+	I.amOnPage("/maps");
+	I.see("Upload Map");
+	I.attachFile("map", "./test_data/Isle_of_Avalon.map");
+	I.attachFile("tga", "./test_data/Isle of Avalon.tga");
+	I.click("Upload");
+	I.see("Isle of Avalon");
+
+	// Create Game
+	let game_name = faker.name.firstName();
+	I.amOnPage("/games");
+	I.see("Create New Game");
+	I.fillField("name", game_name);
+	I.fillField("password", "password");
+	I.click("Create");
+	I.seeInCurrentUrl("settings");
+
+	// Connect to game
+	I.amOnPage("/game/" + game_name + "/status");
+	let address = await I.grabTextFrom(".pane.status tr:first-child td:nth-child(2)");
+	I.connectToServer(address.split(":")[0], address.split(":")[1], game_name);
+
+	// Archive game
+	I.amOnPage("/game/" + game_name + "/schedule");
+	I.click("Archive Game");
+	I.cannotConnectToServer(address.split(":")[0], address.split(":")[1]);
+
+	// Create another game and check it has the same port
+	let new_game_name = faker.name.firstName();
+	I.amOnPage("/games");
+	I.see("Create New Game");
+	I.fillField("name", new_game_name);
+	I.fillField("password", "password");
+	I.click("Create");
+	I.seeInCurrentUrl("settings");
+	I.amOnPage("/game/" + new_game_name + "/status");
+	I.see(address.split(":")[1]);
 });

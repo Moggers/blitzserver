@@ -47,6 +47,7 @@ pub struct Game {
     pub newai: bool,
     pub next_turn: Option<std::time::SystemTime>,
     pub password: String,
+    pub archived: bool,
 }
 
 #[derive(QueryableByName)]
@@ -59,6 +60,9 @@ struct GameNationCount {
 
 impl Game {
     pub fn next_turn_string(&self) -> String {
+        if self.archived {
+            return "Never".to_string();
+        }
         match self.next_turn {
             None => "When these shazbots submit their turns".to_string(),
             Some(next_turn) => {

@@ -15,6 +15,7 @@ pub struct GameMsg {
 pub enum GameMsgType {
     GameCmd(GameCmd),
     RebootCmd,
+    Shutdown,
     HostTurn,
 }
 
@@ -135,6 +136,7 @@ impl Dom5Proxy {
         }
 
         // Proxy listener
+        let (ttd_s, ttd_r) = crossbeam_channel::unbounded::<bool>();
         let db_pool = self.db_pool.clone();
         let binpath = self.dom5_bin.clone();
         let ipr = self.internal_port_range.clone();
@@ -150,73 +152,89 @@ impl Dom5Proxy {
         std::thread::spawn(move || {
             let listener =
                 std::net::TcpListener::bind(format!("0.0.0.0:{}", game.port.unwrap())).unwrap();
-            while let Ok((client_sock, _)) = listener.accept() {
-                let our_proc_handle = {
-                    let mut locked_handle = proc_handle.write().expect("D5Proc RWLock poisoned");
-                    match locked_handle.upgrade() {
-                        Some(proc_handle) => proc_handle,
-                        None => {
-                            let handle = std::sync::Arc::new(
-                                Dom5Proc {
-                                    game_id: game.id,
-                                    send_upstream: proc_sender_clone.clone(),
-                                    savedir: std::path::PathBuf::from(&game_dir)
-                                        .join("savedgames")
-                                        .join(&game.name),
-                                    name: game.name.clone(),
-                                    era: game.era,
-                                    mapname: mapname.clone(),
-                                    datadir: game_dir
-                                        .clone()
-                                        .into_os_string()
-                                        .into_string()
-                                        .unwrap(),
-                                    db_pool: db_pool.clone(),
-                                    internal_port_range: ipr,
+            listener.set_nonblocking(true).unwrap();
+            loop {
+                match listener.accept() {
+                    Ok((client_sock, _)) => {
+                        let our_proc_handle = {
+                            let mut locked_handle =
+                                proc_handle.write().expect("D5Proc RWLock poisoned");
+                            match locked_handle.upgrade() {
+                                Some(proc_handle) => proc_handle,
+                                None => {
+                                    let handle = std::sync::Arc::new(
+                                        Dom5Proc {
+                                            game_id: game.id,
+                                            send_upstream: proc_sender_clone.clone(),
+                                            savedir: std::path::PathBuf::from(&game_dir)
+                                                .join("savedgames")
+                                                .join(&game.name),
+                                            name: game.name.clone(),
+                                            era: game.era,
+                                            mapname: mapname.clone(),
+                                            datadir: game_dir
+                                                .clone()
+                                                .into_os_string()
+                                                .into_string()
+                                                .unwrap(),
+                                            db_pool: db_pool.clone(),
+                                            internal_port_range: ipr,
+                                        }
+                                        .launch(&binpath),
+                                    );
+                                    std::thread::sleep(std::time::Duration::from_millis(500)); // Wait for Dom5 to bind its port
+                                    *locked_handle = std::sync::Arc::downgrade(&handle);
+                                    handle
                                 }
-                                .launch(&binpath),
-                            );
-                            std::thread::sleep(std::time::Duration::from_millis(500)); // Wait for Dom5 to bind its port
-                            *locked_handle = std::sync::Arc::downgrade(&handle);
-                            handle
-                        }
-                    }
-                };
-                std::thread::spawn(move || {
-                    let serv_sock =
-                        std::net::TcpStream::connect(format!("0.0.0.0:{}", our_proc_handle.port))
+                            }
+                        };
+                        std::thread::spawn(move || {
+                            let serv_sock = std::net::TcpStream::connect(format!(
+                                "0.0.0.0:{}",
+                                our_proc_handle.port
+                            ))
                             .unwrap();
-                    let mut client_write = client_sock.try_clone().unwrap();
-                    let mut serv_write = serv_sock.try_clone().unwrap();
-                    let mut client_read = client_sock.try_clone().unwrap();
-                    let mut serv_read = serv_sock.try_clone().unwrap();
-                    let (exit_s, exit_r) = crossbeam_channel::unbounded::<bool>();
-                    let ces = exit_s.clone();
-                    let ses = exit_s.clone();
-                    let client_handle = std::thread::spawn(move || {
-                        match std::io::copy(&mut client_read, &mut serv_write) {
-                            _ => {}
-                        }
-                        ces.send(true).unwrap();
-                    });
-                    let serv_handle = std::thread::spawn(move || {
-                        match std::io::copy(&mut serv_read, &mut client_write) {
-                            _ => {}
-                        }
-                        ses.send(true).unwrap();
-                    });
-                    exit_r.recv().unwrap();
-                    match (
-                        serv_sock.shutdown(std::net::Shutdown::Both),
-                        client_sock.shutdown(std::net::Shutdown::Both),
-                    ) {
-                        _ => {}
+                            let mut client_write = client_sock.try_clone().unwrap();
+                            let mut serv_write = serv_sock.try_clone().unwrap();
+                            let mut client_read = client_sock.try_clone().unwrap();
+                            let mut serv_read = serv_sock.try_clone().unwrap();
+                            let (exit_s, exit_r) = crossbeam_channel::unbounded::<bool>();
+                            let ces = exit_s.clone();
+                            let ses = exit_s.clone();
+                            let client_handle = std::thread::spawn(move || {
+                                match std::io::copy(&mut client_read, &mut serv_write) {
+                                    _ => {}
+                                }
+                                ces.send(true).unwrap();
+                            });
+                            let serv_handle = std::thread::spawn(move || {
+                                match std::io::copy(&mut serv_read, &mut client_write) {
+                                    _ => {}
+                                }
+                                ses.send(true).unwrap();
+                            });
+                            exit_r.recv().unwrap();
+                            match (
+                                serv_sock.shutdown(std::net::Shutdown::Both),
+                                client_sock.shutdown(std::net::Shutdown::Both),
+                            ) {
+                                _ => {}
+                            }
+                            exit_r.recv().unwrap();
+                            serv_handle.join().unwrap();
+                            client_handle.join().unwrap();
+                            drop(our_proc_handle);
+                        });
                     }
-                    exit_r.recv().unwrap();
-                    serv_handle.join().unwrap();
-                    client_handle.join().unwrap();
-                    drop(our_proc_handle);
-                });
+                    Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                        if let Ok(true) = ttd_r.try_recv() {
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        break;
+                    }
+                }
             }
         });
 
@@ -243,6 +261,13 @@ impl Dom5Proxy {
                     }
                 }
                 recv(receiver) -> msg => match msg.unwrap().cmd {
+                    GameMsgType::Shutdown => {
+                        if let Some(d5ph) = base_proc_handle.read().unwrap().upgrade() {
+                            d5ph.shutdown();
+                        }
+                        ttd_s.send(true).unwrap();
+                        break;
+                    }
                     GameMsgType::HostTurn => {
                         if let None = base_proc_handle.read().unwrap().upgrade() {
                             info!("Game {}: Dormant turn host required", game_id);

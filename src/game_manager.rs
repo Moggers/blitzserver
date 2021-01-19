@@ -19,8 +19,8 @@ pub struct GameManager {
 
 pub enum ManagerMsg {
     Start(i32),
-    Stop(i32),
     GameMsg(GameMsg),
+    Archive(i32),
 }
 
 pub struct GameManagerConfig<'a> {
@@ -86,9 +86,23 @@ impl GameManager {
                             None => {}
                         }
                     }
-                    _ => {}
+                    ManagerMsg::Archive(id) => {
+                        self.kill_game(id);
+                    }
                 }
             }
+        }
+    }
+    fn kill_game(&mut self, game_id: i32) {
+        match self.proxies.get(&game_id) {
+            Some(proxy) => proxy
+                .manager_sender
+                .send(GameMsg {
+                    id: game_id,
+                    cmd: crate::dom5_proxy::GameMsgType::Shutdown,
+                })
+                .unwrap(),
+            None => {}
         }
     }
     fn launch_game(&mut self, launch_id: i32) {
@@ -111,10 +125,13 @@ impl GameManager {
     }
 
     fn launch_games(&mut self) {
-        let current_games = {
+        let current_games: Vec<Game> = {
             let db = self.db_pool.get().expect("Unable to connect to database");
-            use super::schema::games::dsl::*;
-            games.load::<Game>(&db).expect("Error loading games")
+            use super::schema::games::dsl as games_dsl;
+            games_dsl::games
+                .filter(games_dsl::archived.eq(false))
+                .get_results(&db)
+                .expect("Error loading games")
         };
 
         for game in current_games {

@@ -109,7 +109,7 @@
 				</div>
 				<div>
 					{% include "info.html" %}
-					<fieldset {% if self.authed != AuthStatus::AuthSuccess %}disabled{% endif %}>
+					<fieldset {% if self.game.archived || self.authed != AuthStatus::AuthSuccess %}disabled{% endif %}>
 						<div class="pane">
 							<h3>Scheduling</h3>
 							<form method="post" action="/game/{{game.id}}/postpone">
@@ -133,6 +133,9 @@
 							</form>
 							{% endif %}
 							<input type="submit" class="btn btn-block btn-danger" disabled value="Jomonhost"/>
+							<form action="/game/{{game.id}}/archive" method="POST">
+								<input {% if self.game.archived %} value="Archived"{% else %}value="Archive Game"{% endif %} type="submit" class="btn btn-block btn-danger"/>
+							</form>
 						</div>
 					</fieldset>
 				</div>
@@ -142,7 +145,7 @@
 			<div class="pane">
 				<form action="/game/{{game.id}}/settings" method="post">
 					<input type="hidden" name="loaded" value="1" />
-					<fieldset {% if self.turn_number != 0 || self.authed != AuthStatus::AuthSuccess %}disabled="disabled"{% endif %}>
+					<fieldset {% if self.game.archived || self.turn_number != 0 || self.authed != AuthStatus::AuthSuccess %}disabled="disabled"{% endif %}>
 						{% include "settings.html" %}
 						<input type="submit" class="btn btn-primary btn-block" value="Save Settings And Reboot Server" />
 					</fieldset>
@@ -150,7 +153,9 @@
 			</div>
 		</section>
 		<section class="tabsection">
-			{% include "email.html" %}
+			<fieldset {% if game.archived %} disabled {% endif %}>
+				{% include "email.html" %}
+			</fieldset>
 		</section>
 	</div>
 </div>

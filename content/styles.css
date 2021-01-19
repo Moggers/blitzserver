@@ -12,6 +12,10 @@
 	--col-faint: #0003;
 	--col-very-faint: #0001;
 }
+fieldset {
+	padding: 0;
+	margin: 0;
+}
 select {
 	border: 1px solid black;
 	background: white;

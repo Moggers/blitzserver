@@ -63,6 +63,7 @@ table! {
         newai -> Bool,
         next_turn -> Nullable<Timestamp>,
         password -> Varchar,
+        archived -> Bool,
     }
 }
 

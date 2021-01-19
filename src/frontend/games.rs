@@ -213,7 +213,6 @@ struct GameDetailsTemplate<'a> {
     settings: GameSettings,
     email_form: EmailForm,
     email_configs: &'a [EmailConfig],
-    status: &'a str,
     turn_number: i32,
     turns: HashMap<i32, Vec<PlayerTurn>>,
     hostname: String,
@@ -257,7 +256,6 @@ impl<'a> GameDetailsTemplate<'a> {
             vec![]
         }
     }
-
     fn get_current_mods(&self) -> Vec<&Mod> {
         if self.settings.cmods.len() == 0 {
             vec![]
@@ -266,6 +264,17 @@ impl<'a> GameDetailsTemplate<'a> {
                 .iter()
                 .filter(|m| self.settings.cmods.iter().find(|cm| **cm == m.id).is_some())
                 .collect()
+        }
+    }
+    fn get_status_string(&self) -> String {
+        if self.game.archived {
+            "Archived".to_string()
+        } else {
+            if self.turn_number == 0 {
+                "Waiting for pretenders".to_string()
+            } else {
+                format!("Turn {}", self.turn_number)
+            }
         }
     }
     fn get_current_map(&self) -> Option<&Map> {
@@ -289,11 +298,15 @@ struct PendingGame {
     address: String,
     players: i32,
 }
+struct ArchivedGame {
+    id: i32,
+}
 #[derive(Template)]
 #[template(path = "games/list.html")]
 struct GamesTemplate<'a> {
     pending_games: &'a [PendingGame],
     active_games: &'a [ActiveGame],
+    archived_games: &'a [ArchivedGame],
 }
 
 // === Routes ====
@@ -409,12 +422,16 @@ async fn details(
     };
     if let Some(p) = &payload.password {
         if *p == game.password {
-            session.set(&format!("auth_{}", game.id), AuthStatus::AuthSuccess).unwrap();
+            session
+                .set(&format!("auth_{}", game.id), AuthStatus::AuthSuccess)
+                .unwrap();
             return Ok(HttpResponse::PermanentRedirect()
                 .header(header::LOCATION, format!("/game/{}/{}", game.id, tab))
                 .finish());
         } else {
-            session.set(&format!("auth_{}", game.id), AuthStatus::AuthFail).unwrap();
+            session
+                .set(&format!("auth_{}", game.id), AuthStatus::AuthFail)
+                .unwrap();
             return Ok(HttpResponse::PermanentRedirect()
                 .header(header::LOCATION, format!("/game/{}/{}", game.id, tab))
                 .finish());
@@ -499,11 +516,6 @@ async fn details(
             authed: authed,
             email_form: (*email_form).clone(),
             email_configs: &email_configs,
-            status: if turns.len() > 0 {
-                "Active"
-            } else {
-                "Waiting for players"
-            },
             tab: tab,
             turn_number: turns.len() as i32,
             maps: &maps,
@@ -582,7 +594,12 @@ async fn create_post(
     let mut new_game = NewGame::default();
     new_game.name = params.name;
     new_game.password = params.password;
-    new_game.map_id = maps_dsl::maps.order(maps_dsl::id.desc()).limit(1).get_result::<Map>(&db).unwrap().id;
+    new_game.map_id = maps_dsl::maps
+        .order(maps_dsl::id.desc())
+        .limit(1)
+        .get_result::<Map>(&db)
+        .unwrap()
+        .id;
 
     let game: Game = diesel::insert_into(crate::schema::games::table)
         .values(&new_game)
@@ -632,6 +649,10 @@ async fn list(app_data: web::Data<AppData>) -> Result<HttpResponse> {
             ),
         })
         .collect();
+    let archived_games: Vec<ArchivedGame> = results
+        .drain_filter(|g| g.archived)
+        .map(|g| ArchivedGame { id: g.id })
+        .collect();
     let pending_games: Vec<PendingGame> = results
         .iter()
         .map(|g| PendingGame {
@@ -652,6 +673,7 @@ async fn list(app_data: web::Data<AppData>) -> Result<HttpResponse> {
         (GamesTemplate {
             active_games: &active_games,
             pending_games: &pending_games,
+            archived_games: &archived_games,
         })
         .render()
         .unwrap(),
@@ -659,7 +681,12 @@ async fn list(app_data: web::Data<AppData>) -> Result<HttpResponse> {
 }
 #[post("/game/{id}/settings")]
 async fn settings_post(
-    (app_data, path_id, mut body): (web::Data<AppData>, web::Path<i32>, web::Payload),
+    (app_data, path_id, mut body, session): (
+        web::Data<AppData>,
+        web::Path<i32>,
+        web::Payload,
+        actix_session::Session,
+    ),
 ) -> Result<HttpResponse> {
     let db = app_data.pool.get().unwrap();
     let mut bytes = web::BytesMut::new();
@@ -668,6 +695,16 @@ async fn settings_post(
     }
     let config = serde_qs::Config::new(10, false);
     let body: GameSettings = config.deserialize_bytes(&*bytes).unwrap();
+    if session
+        .get(&format!("auth_{}", path_id))
+        .unwrap_or(Some(AuthStatus::Unauthed))
+        .unwrap_or(AuthStatus::Unauthed)
+        == AuthStatus::Unauthed
+    {
+        return Ok(HttpResponse::Unauthorized()
+            .header(header::LOCATION, format!("/game/{}/settings", path_id))
+            .finish());
+    }
     let game: Game = db
         .transaction::<_, diesel::result::Error, _>(|| {
             let game: Game = {
@@ -799,4 +836,33 @@ async fn emails_delete(
             .header(header::LOCATION, format!("/game/{}/email", game_id))
             .finish()),
     }
+}
+
+#[post("/game/{id}/archive")]
+pub async fn archive_post(
+    (app_data, path_id, session): (web::Data<AppData>, web::Path<i32>, actix_session::Session),
+) -> Result<HttpResponse> {
+    if session
+        .get(&format!("auth_{}", path_id))
+        .unwrap_or(Some(AuthStatus::Unauthed))
+        .unwrap_or(AuthStatus::Unauthed)
+        == AuthStatus::Unauthed
+    {
+        return Ok(HttpResponse::Unauthorized()
+            .header(header::LOCATION, format!("/game/{}/schedule", path_id))
+            .finish());
+    }
+    let db = app_data.pool.get().expect("Unable to connect to database");
+    use crate::schema::games::dsl as games_dsl;
+    diesel::update(games_dsl::games.filter(games_dsl::id.eq(*path_id)))
+        .set((games_dsl::archived.eq(true), games_dsl::port.eq::<Option<i32>>(None)))
+        .execute(&db)
+        .unwrap();
+    app_data
+        .manager_notifier
+        .send(game_manager::ManagerMsg::Archive(*path_id))
+        .unwrap();
+    return Ok(HttpResponse::Found()
+        .header(header::LOCATION, format!("/game/{}/schedule", path_id))
+        .finish());
 }
