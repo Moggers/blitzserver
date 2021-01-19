@@ -34,6 +34,7 @@ body {
 	font-family: sans-serif;
 }
 nav {
+	display: flex;
 	line-height: 50px;
 	padding-bottom: 20px;
 }
@@ -53,7 +54,7 @@ nav.tabs {
 	vertical-align: middle;
 }
 nav .version {
-	float: right;
+	margin-left: auto;
 }
 nav .title {
 	font-weight: 500;
@@ -209,6 +210,10 @@ h1 {
 }
 .row .tail {
 	margin-left: auto;
+}
+.turn-markers {
+	display: flex;
+	justify-content: flex-end;
 }
 .turn-markers > :last-child() {
 	width: 150px;
@@ -558,13 +563,16 @@ fieldset {
 	margin-left: auto;
 	margin-top: -5px;
 	padding-right: 10px;
-	float: right;
 	height: 1.5rem;
-	width: 310px;
+	min-width: 1px;
 }
 .auth-input>div {
 	height: 1.5rem;
 }
 .auth-input input.invalid {
 	border: 1px red solid;
+}
+.auth-input input {
+	min-width: 1px;
+	max-width: 150px;
 }
