@@ -31,6 +31,7 @@ pub mod models;
 pub mod schema;
 pub mod statusdump;
 pub mod twoh;
+pub mod map_file;
 
 use frontend::AppData;
 

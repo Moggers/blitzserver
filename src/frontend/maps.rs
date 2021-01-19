@@ -7,6 +7,7 @@ use actix_web::{get, post, web, HttpResponse, Result};
 use askama::Template;
 use diesel::RunQueryDsl;
 use futures::{StreamExt, TryStreamExt};
+use std::convert::TryFrom;
 use std::io::Write;
 
 #[derive(Template)]
@@ -163,6 +164,7 @@ async fn upload_post(
     let db = app_data.pool.get().expect("Unable to connect to database");
     let mut tga_name: Option<String> = None;
     let mut winter_name: Option<String> = None;
+    let mut map_file_data: Option<crate::map_file::MapFile> = None;
 
     let mut errors: Vec<String> = vec![];
     {
@@ -178,68 +180,27 @@ async fn upload_post(
                         contents.extend_from_slice(&bytes.unwrap());
                     }
                     let new_file = NewFile::new(content_type.get_filename().unwrap(), &contents);
-                    // == DETERMINE NAME
-                    let name: Result<String> = try {
-                        let re = regex::bytes::Regex::new(r#"#dom2title ("?[^"\n]+"?)"#)
-                            .map_err(|_| ())?;
-                        let caps = re.captures(&contents).ok_or(())?;
-                        String::from_utf8(caps.get(1).ok_or(())?.as_bytes().to_vec())
-                            .map_err(|_| ())?
-                    };
-                    match name {
-                        Ok(name) => new_map.name = name,
-                        Err(_) => {
-                            errors.push(
-                                "Unable to find #dom2title, is this a valid .map file?\n"
-                                    .to_string(),
-                            );
-                        }
-                    }
-                    // == DETERMINE (and check) TGA FILENAME
-                    let new_tga_name: Result<String> = try {
-                        let re = regex::bytes::Regex::new(r#"#imagefile ("?[^"\n]+"?)"#)
-                            .map_err(|_| ())?;
-                        let caps = re.captures(&contents).ok_or(())?;
-                        String::from_utf8(caps.get(1).ok_or(())?.as_bytes().to_vec())
-                            .map_err(|_| ())?
-                    };
-                    match new_tga_name {
-                        Ok(ntn) => match tga_name {
-                            None => tga_name = Some(ntn),
-                            Some(ref mut tn) => {
-                                if *tn != ntn {
-                                    errors.push(format!(
-                                        "TGA file is {}, but map specifies {}",
-                                        tn, ntn
-                                    ));
-                                }
+                    match crate::map_file::MapFile::try_from(&contents[..]) {
+                        Ok(mfd) => {
+                            if tga_name.is_some() && *tga_name.as_ref().unwrap() != mfd.tga_filename
+                            {
+                                errors.push(
+                                    "#imagefile in .map does not match filename of uploaded image"
+                                        .to_owned(),
+                                );
+                            } else if winter_name.is_some() == mfd.winter_filename.is_some()
+                                && mfd.winter_filename != mfd.winter_filename
+                            {
+                                errors.push("#winterimagefile in .map does not match filename of uploaded winter image".to_owned());
+                            } else {
+                                new_map.name = mfd.map_name.clone();
+                                map_file_data = Some(mfd);
                             }
-                        },
-                        Err(_) => {
-                            errors.push("Failed to parse image name from map file".to_string())
                         }
-                    }
-                    // == DETERMINE (and check) WINTER TGA FILENAME
-                    let new_winter_name: Result<String> = try {
-                        let re = regex::bytes::Regex::new(r#"#winterimagefile ("?[^"\n]+"?)"#)
-                            .map_err(|_| ())?;
-                        let caps = re.captures(&contents).ok_or(())?;
-                        String::from_utf8(caps.get(1).ok_or(())?.as_bytes().to_vec())
-                            .map_err(|_| ())?
-                    };
-                    match new_winter_name {
-                        Ok(nwn) => match winter_name {
-                            None => winter_name = Some(nwn),
-                            Some(ref mut wn) => {
-                                if *wn != nwn {
-                                    errors.push(format!(
-                                        "Winter TGA file is {}, but map specifies {}",
-                                        wn, nwn
-                                    ));
-                                }
-                            }
-                        },
-                        Err(_) => {} // Lacking a winter image is not fatal
+                        Err(e) => {
+                            errors.push(e.to_string());
+                            break;
+                        }
                     }
                     // == DONE
                     let file: File = diesel::insert_into(crate::schema::files::table)
@@ -260,17 +221,17 @@ async fn upload_post(
                         contents.extend_from_slice(&bytes.unwrap());
                     }
                     let filename = content_type.get_filename().unwrap();
-                    match tga_name {
+                    match map_file_data {
                         None => {
                             tga_name = Some(filename.to_string());
                         }
-                        Some(ref mut wn) => {
-                            if wn.trim() != filename.trim() {
+                        Some(ref mut mfd) => {
+                            if mfd.tga_filename.trim() != filename.trim() {
                                 errors.push(format!(
-                                    "Map #imagefile is {}, but winter TGA filename is {}",
-                                    wn, filename
+                                    "Map #imagefile is {}, but TGA filename is {}",
+                                    mfd.tga_filename, filename
                                 ));
-                                continue;
+                                break;
                             }
                         }
                     }
@@ -294,17 +255,23 @@ async fn upload_post(
                     }
                     let filename = content_type.get_filename().unwrap();
                     if filename != "" {
-                        match winter_name {
+                        match map_file_data {
                             None => winter_name = Some(filename.to_string()),
-                            Some(ref mut wn) => {
-                                if wn.trim() != filename.trim() {
-                                    errors.push(format!(
-                                        "Map #winterimagefile is {}, but TGA filename is {}",
-                                        wn, filename
-                                    ));
-                                    continue;
+                            Some(ref mfd) => match mfd.winter_filename {
+                                None => {
+                                    errors.push(format!("Map does not contain a #winterimagefile, but {} has been uploaded as one", filename));
+                                    break;
                                 }
-                            }
+                                Some(ref winter_filename) => {
+                                    if winter_filename.trim() != filename.trim() {
+                                        errors.push(format!(
+                                            "Map #winterimagefile is {}, but TGA filename is {}",
+                                            winter_filename, filename
+                                        ));
+                                        break;
+                                    }
+                                }
+                            },
                         }
                         let new_file = NewFile::new(filename, &contents);
                         let file: File = diesel::insert_into(crate::schema::files::table)
@@ -324,11 +291,13 @@ async fn upload_post(
             };
         }
     }
-    if new_map.mapfile_id == 0 {
-        errors.push("Missing map file\n".to_string());
-    }
-    if new_map.tgafile_id == 0 {
-        errors.push("Missing tga file\n".to_string());
+    if errors.len() == 0 {
+        if new_map.mapfile_id == 0 {
+            errors.push("Missing map file\n".to_string());
+        }
+        if new_map.tgafile_id == 0 {
+            errors.push("Missing tga file\n".to_string());
+        }
     }
     if errors.len() > 0 {
         let db = app_data.pool.get().expect("Unable to connect to database");

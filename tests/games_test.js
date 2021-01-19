@@ -33,7 +33,7 @@ Scenario("upload new map, new mod, and create game", async ({I}) => {
 
 	// Connect to game
 	I.amOnPage("/game/" + game_name + "/status");
-	let address = await I.grabTextFrom(".pane.status tr:first-child td:nth-child(2)");
+	let address = await I.grabTextFrom(".pane.status tr:nth-child(2) td:nth-child(2)");
 	I.connectToServer(address.split(":")[0], address.split(":")[1], game_name);
 });
 
@@ -65,7 +65,7 @@ Scenario("set countdown", async ({I}) => {
 
 	// Connect to game
 	I.amOnPage("/game/" + game_name + "/status");
-	let address = await I.grabTextFrom(".pane.status tr:first-child td:nth-child(2)");
+	let address = await I.grabTextFrom(".pane.status tr:nth-child(2) td:nth-child(2)");
 	I.connectToServer(address.split(":")[0], address.split(":")[1], game_name);
 });
 Scenario("archive game", async ({I}) => {
@@ -91,7 +91,7 @@ Scenario("archive game", async ({I}) => {
 
 	// Connect to game
 	I.amOnPage("/game/" + game_name + "/status");
-	let address = await I.grabTextFrom(".pane.status tr:first-child td:nth-child(2)");
+	let address = await I.grabTextFrom(".pane.status tr:nth-child(2) td:nth-child(2)");
 	I.connectToServer(address.split(":")[0], address.split(":")[1], game_name);
 
 	// Archive game
@@ -109,4 +109,43 @@ Scenario("archive game", async ({I}) => {
 	I.seeInCurrentUrl("settings");
 	I.amOnPage("/game/" + new_game_name + "/status");
 	I.see(address.split(":")[1]);
+});
+
+Scenario("validate map upload", async ({I}) => {
+	await I.clearDatabase();
+	await I.launchBlitzserver();
+
+	// Upload Map
+	I.amOnPage("/maps");
+	I.see("Upload Map");
+	I.attachFile("map", "./test_data/Isle_of_Avalon.map");
+	I.attachFile("tga", "./test_data/Isle of Avalon.tga");
+	I.click("Upload");
+	I.see("Isle of Avalon");
+
+	// Upload Map
+	I.amOnPage("/maps");
+	I.see("Upload Map");
+	I.attachFile("map", "./test_data/Isle_of_Avalon.map");
+	I.attachFile("tga", "./test_data/islandsofgoodandevil.tga");
+	I.click("Upload");
+	I.see("Map #imagefile is Isle of Avalon.tga, but TGA filename is");
+
+	// Upload Map
+	I.amOnPage("/maps");
+	I.see("Upload Map");
+	I.attachFile("map", "./test_data/Isle_of_Avalon.map");
+	I.attachFile("tga", "./test_data/Isle of Avalon.tga");
+	I.attachFile("tga_winter", "./test_data/islandsofgoodandevil_winter.tga");
+	I.click("Upload");
+	I.see("Map does not contain a #winterimagefile, but islandsofgoodandevil_winter.tga has been uploaded as one");
+	//
+	// Upload Map
+	I.amOnPage("/maps");
+	I.see("Upload Map");
+	I.attachFile("map", "./test_data/islandsofgoodandevil.map");
+	I.attachFile("tga", "./test_data/islandsofgoodandevil.tga");
+	I.attachFile("tga_winter", "./test_data/islandsofgoodandevil_winter.tga");
+	I.click("Upload");
+	I.see("Islands of Good and Evil");
 });
