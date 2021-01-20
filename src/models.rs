@@ -247,7 +247,7 @@ pub struct MapFile(pub File);
 pub struct TgaFile(pub File);
 pub struct WinterFile(pub File);
 
-#[derive(Debug, Queryable, Associations)]
+#[derive(Debug, Clone, Queryable, Associations)]
 #[belongs_to(parent = "MapFile", foreign_key = "mapfile_id")]
 #[belongs_to(parent = "TgaFile", foreign_key = "tgafile_id")]
 #[belongs_to(parent = "WinterFile", foreign_key = "winterfile_id")]
@@ -258,6 +258,8 @@ pub struct Map {
     pub mapfile_id: i32,
     pub tgafile_id: i32,
     pub winterfile_id: Option<i32>,
+    pub province_count: i32,
+    pub uw_count: i32
 }
 
 #[derive(Debug, Insertable)]
@@ -267,6 +269,8 @@ pub struct NewMap {
     pub mapfile_id: i32,
     pub tgafile_id: i32,
     pub winterfile_id: Option<i32>,
+    pub province_count: i32,
+    pub uw_count: i32
 }
 
 #[derive(Identifiable, Queryable, Associations, PartialEq, Debug)]

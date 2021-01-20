@@ -35,6 +35,24 @@ Scenario("upload new map, new mod, and create game", async ({I}) => {
 	I.amOnPage("/game/" + game_name + "/status");
 	let address = await I.grabTextFrom(".pane.status tr:nth-child(2) td:nth-child(2)");
 	I.connectToServer(address.split(":")[0], address.split(":")[1], game_name);
+
+	// Upload map with winter file
+	I.amOnPage("/maps");
+	I.see("Upload Map");
+	I.attachFile("map", "./test_data/islandsofgoodandevil.map");
+	I.attachFile("tga", "./test_data/islandsofgoodandevil.tga");
+	I.attachFile("tga_winter", "./test_data/islandsofgoodandevil_winter.tga");
+	I.click("Upload");
+	I.see("Islands of Good and Evil");
+
+	// Set new map
+	I.amOnPage("/game/" + game_name + "/settings");
+	I.click("Islands of Good and Evil");
+	I.click("Save Settings");
+	I.click("status");
+	I.see("Islands of Good and Evil");
+	address = await I.grabTextFrom(".pane.status tr:nth-child(2) td:nth-child(2)");
+	I.connectToServer(address.split(":")[0], address.split(":")[1], game_name);
 });
 
 Scenario("set countdown", async ({I}) => {
@@ -117,32 +135,35 @@ Scenario("validate map upload", async ({I}) => {
 
 	// Upload Map
 	I.amOnPage("/maps");
-	I.see("Upload Map");
 	I.attachFile("map", "./test_data/Isle_of_Avalon.map");
 	I.attachFile("tga", "./test_data/Isle of Avalon.tga");
 	I.click("Upload");
 	I.see("Isle of Avalon");
 
-	// Upload Map
+	// Check TGA filename validation
 	I.amOnPage("/maps");
-	I.see("Upload Map");
 	I.attachFile("map", "./test_data/Isle_of_Avalon.map");
 	I.attachFile("tga", "./test_data/islandsofgoodandevil.tga");
 	I.click("Upload");
 	I.see("Map #imagefile is Isle of Avalon.tga, but TGA filename is");
 
-	// Upload Map
+	// Check winter TGA filename validation
 	I.amOnPage("/maps");
-	I.see("Upload Map");
 	I.attachFile("map", "./test_data/Isle_of_Avalon.map");
 	I.attachFile("tga", "./test_data/Isle of Avalon.tga");
 	I.attachFile("tga_winter", "./test_data/islandsofgoodandevil_winter.tga");
 	I.click("Upload");
 	I.see("Map does not contain a #winterimagefile, but islandsofgoodandevil_winter.tga has been uploaded as one");
-	//
-	// Upload Map
+
+	// Check map expecting winter TGA, without uploading winter TGA
 	I.amOnPage("/maps");
-	I.see("Upload Map");
+	I.attachFile("map", "./test_data/islandsofgoodandevil.map");
+	I.attachFile("tga", "./test_data/islandsofgoodandevil.tga");
+	I.click("Upload");
+	I.see("Map contains #winterimagefile islandsofgoodandevil_winter.tga, but none has been provided");
+
+	// Upload map with winter TGA
+	I.amOnPage("/maps");
 	I.attachFile("map", "./test_data/islandsofgoodandevil.map");
 	I.attachFile("tga", "./test_data/islandsofgoodandevil.tga");
 	I.attachFile("tga_winter", "./test_data/islandsofgoodandevil_winter.tga");

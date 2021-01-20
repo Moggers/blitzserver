@@ -140,8 +140,32 @@ async fn download((app_data, mapid): (web::Data<AppData>, web::Path<i32>)) -> Re
 #[get("/maps")]
 async fn list(app_data: web::Data<AppData>) -> Result<HttpResponse> {
     let db = app_data.pool.get().expect("Unable to connect to database");
-    use crate::schema::maps::dsl::*;
-    let result_maps = maps.load::<Map>(&db).expect("Error loading games");
+    use crate::schema::files::dsl as files_dsl;
+    use crate::schema::maps::dsl as maps_dsl;
+    let result_maps = maps_dsl::maps
+        .load::<Map>(&db)
+        .expect("Error loading games")
+        .iter()
+        .map(|m| {
+            if m.province_count == 0 && m.uw_count == 0 {
+                let map_file: File = files_dsl::files
+                    .filter(files_dsl::id.eq(m.mapfile_id))
+                    .get_result(&db)
+                    .unwrap();
+                let map_definition =
+                    crate::map_file::MapFile::try_from(&map_file.filebinary[..]).unwrap();
+                diesel::update(maps_dsl::maps.filter(maps_dsl::id.eq(m.id)))
+                    .set((
+                        maps_dsl::province_count.eq(map_definition.prov_count),
+                        maps_dsl::uw_count.eq(map_definition.uwprov_count),
+                    ))
+                    .get_result::<Map>(&db)
+                    .unwrap()
+            } else {
+                m.clone()
+            }
+        })
+        .collect::<Vec<Map>>();
     Ok(HttpResponse::Ok().content_type("text/html").body(
         (ListMapsTemplate {
             errors: &vec![],
@@ -160,6 +184,8 @@ async fn upload_post(
         mapfile_id: 0,
         tgafile_id: 0,
         winterfile_id: None,
+        province_count: 0,
+        uw_count: 0,
     };
     let db = app_data.pool.get().expect("Unable to connect to database");
     let mut tga_name: Option<String> = None;
@@ -194,6 +220,8 @@ async fn upload_post(
                                 errors.push("#winterimagefile in .map does not match filename of uploaded winter image".to_owned());
                             } else {
                                 new_map.name = mfd.map_name.clone();
+                                new_map.province_count = mfd.prov_count;
+                                new_map.uw_count = mfd.uwprov_count;
                                 map_file_data = Some(mfd);
                             }
                         }
@@ -298,19 +326,33 @@ async fn upload_post(
         if new_map.tgafile_id == 0 {
             errors.push("Missing tga file\n".to_string());
         }
+        if map_file_data.as_ref().unwrap().winter_filename.is_some()
+            && !new_map.winterfile_id.is_some()
+        {
+            errors.push(format!(
+                "Map contains #winterimagefile {}, but none has been provided",
+                map_file_data
+                    .as_ref()
+                    .unwrap()
+                    .winter_filename
+                    .as_ref()
+                    .unwrap()
+                    .clone()
+            ));
+        }
     }
     if errors.len() > 0 {
         let db = app_data.pool.get().expect("Unable to connect to database");
         use crate::schema::maps::dsl::*;
         let result_maps = maps.load::<Map>(&db).expect("Error loading games");
-        Ok(HttpResponse::Ok().content_type("text/html").body(
+        return Ok(HttpResponse::Ok().content_type("text/html").body(
             (ListMapsTemplate {
                 errors: &errors,
                 maps: &result_maps,
             })
             .render()
             .unwrap(),
-        ))
+        ));
     } else {
         use crate::schema::maps::dsl as maps_dsl;
         diesel::insert_into(maps_dsl::maps)
@@ -328,8 +370,8 @@ async fn upload_post(
             ))
             .get_result::<Map>(&db)
             .expect("Error saving file");
-        Ok(HttpResponse::Found()
+        return Ok(HttpResponse::Found()
             .header(header::LOCATION, "/maps")
-            .finish())
+            .finish());
     }
 }

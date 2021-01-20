@@ -57,33 +57,31 @@ enum TerrainFlags {
 impl std::convert::TryFrom<&[u8]> for MapFile {
     type Error = Box<dyn std::error::Error>;
     fn try_from(contents: &[u8]) -> Result<Self, Self::Error> {
-        let commented_regex = regex::Regex::new(r#"^ *--"#).unwrap();
-        let nocomment_lines = contents.lines().filter_map(Result::ok).filter(|l| !commented_regex.is_match(l)).collect::<Vec<String>>().join("\n");
-        let tga_name = regex::Regex::new(r#"#imagefile ("?[^"\n]+"?)"#)
+        let tga_name = regex::bytes::Regex::new(r#"/^#imagefile ("?[^"\n]+"?)/m"#)
             .ok()
-            .and_then(|c| c.captures(&nocomment_lines))
+            .and_then(|c| c.captures(&contents))
             .and_then(|m| m.get(1))
-            .and_then(|d| Some(d.as_str().to_owned()))
+            .and_then(|d| String::from_utf8(d.as_bytes().to_vec()).ok())
             .ok_or(MapFileReadError {
                 err_type: MapFileReadErrorType::NoImageFile,
             })?;
-        let name = regex::Regex::new(r#"#dom2title ("?[^"\n]+"?)"#)
+        let name = regex::bytes::Regex::new(r#"/^#dom2title ("?[^"\n]+"?)/m"#)
             .ok()
-            .and_then(|c| c.captures(&nocomment_lines))
+            .and_then(|c| c.captures(&contents))
             .and_then(|m| m.get(1))
-            .and_then(|d| Some(d.as_str().to_owned()))
+            .and_then(|d| String::from_utf8(d.as_bytes().to_vec()).ok())
             .ok_or(MapFileReadError {
                 err_type: MapFileReadErrorType::NoName,
             })?;
-        let winter_filename = regex::Regex::new(r#"#winterimagefile ("?[^"\n]+"?)"#)
+        let winter_filename = regex::bytes::Regex::new(r#"/^#winterimagefile ("?[^"\n]+"?)/m"#)
             .ok()
-            .and_then(|c| c.captures(&nocomment_lines))
+            .and_then(|c| c.captures(&contents))
             .and_then(|m| m.get(1))
-            .and_then(|d| Some(d.as_str().to_owned()));
+            .and_then(|d| String::from_utf8(d.as_bytes().to_vec()).ok());
 
         let mut province_count = 0;
         let mut uw_count = 0;
-        let capture_terrain = regex::Regex::new("#terrain ([0-9]+) ([0-9]+)").unwrap();
+        let capture_terrain = regex::Regex::new("/^#terrain ([0-9]+) ([0-9]+)/m").unwrap();
         for (_, terrain_type) in contents.lines().filter_map(Result::ok).filter_map(|l| {
             capture_terrain.captures(&l).and_then(|c| {
                 Some((

@@ -360,23 +360,30 @@ async fn timer(
     ),
 ) -> Result<HttpResponse> {
     let db = app_data.pool.get().expect("Unable to connect to database");
-    let game: Game = {
-        use crate::schema::games::dsl::*;
-        games
-            .filter(id.eq(path_id))
-            .get_result::<Game>(&db)
-            .unwrap()
-    };
-    {
-        use crate::schema::games::dsl::*;
-        diesel::update(games.filter(id.eq(game.id)))
+    use crate::schema::games::dsl as games_dsl;
+    use crate::schema::turns::dsl as turns_dsl;
+    let game: Game = games_dsl::games
+        .filter(games_dsl::id.eq(path_id))
+        .get_result::<Game>(&db)
+        .unwrap();
+    let turns: Vec<Turn> = turns_dsl::turns
+        .filter(turns_dsl::game_id.eq(game.id))
+        .get_results(&db)
+        .unwrap();
+    if turns.len() > 0 {
+        diesel::update(games_dsl::games.filter(games_dsl::id.eq(game.id)))
             .set((
-                timer.eq(Some(timer_form.timer)),
-                next_turn
+                games_dsl::timer.eq(Some(timer_form.timer)),
+                games_dsl::next_turn
                     .eq(Some(std::time::SystemTime::now().add(
                         std::time::Duration::from_secs(60 * timer_form.timer as u64),
                     ))),
             ))
+            .execute(&db)
+            .unwrap();
+    } else {
+        diesel::update(games_dsl::games.filter(games_dsl::id.eq(game.id)))
+            .set(games_dsl::timer.eq(Some(timer_form.timer)))
             .execute(&db)
             .unwrap();
     }
@@ -855,7 +862,10 @@ pub async fn archive_post(
     let db = app_data.pool.get().expect("Unable to connect to database");
     use crate::schema::games::dsl as games_dsl;
     diesel::update(games_dsl::games.filter(games_dsl::id.eq(*path_id)))
-        .set((games_dsl::archived.eq(true), games_dsl::port.eq::<Option<i32>>(None)))
+        .set((
+            games_dsl::archived.eq(true),
+            games_dsl::port.eq::<Option<i32>>(None),
+        ))
         .execute(&db)
         .unwrap();
     app_data

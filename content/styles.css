@@ -27,7 +27,7 @@ a {
 	text-decoration: none;
 }
 a:hover {
-	text-decoration: underline;
+	 text-decoration: underline;
 }
 body {
 	line-height: 1.5;
@@ -451,7 +451,7 @@ th.rotate > div > span {
 	color: white;
 	width: 100%;
 	height: 1.5rem;
-	line-height: 1.7rem;
+	line-height: 1.5rem;
 	text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
 	background-position: center center; 
 	background-size: cover;
@@ -459,25 +459,29 @@ th.rotate > div > span {
 	border: 1px solid black;
 	display: flex;
 	flex-direction: row;
+	overflow: hidden;
 }
 .bg-selector :first-child {
-	padding-left: 10px;
-	color: inherit;
 	flex-grow: 2;
 	cursor: pointer;
+	padding-left: 10px;
+	color: inherit;
+	display: flex;
+	flex-direction: column;
 }
+
 input[type="checkbox"].bg-selector,input[type="radio"].bg-selector {
 	display: none;
 }
-.bg-selector :not(:first-child) {
+.bg-selector>:not(:first-child) {
 	text-shadow: initial;
 	height: 100%;
 	border-top: 0px;
 	border-bottom: 0px;
 }
 .bg-selector:hover {
+	line-height: 3rem;
 	height: 3rem;
-	line-height: 3.2rem;
 }
 input:checked + .bg-selector {
 	border: 1px solid var(--col-primary);

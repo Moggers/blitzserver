@@ -10,7 +10,7 @@
 			<div 
 				{% if !map.name.contains(settings.mapfilter) %} hidden {% endif %} class="bg-selector"
 				style="background-image: url('/images/maps/{{map.id}}.jpg')">
-				<label for="map-{{map.id}}"> {{map.name}}</label>
+				<label for="map-{{map.id}}"> {{map.name}} ({{map.province_count}}+{{map.uw_count}})</label>
 				<a class="btn" href="/map/{{map.id}}">Goto</a>
 			</div>
 			{% endfor %}

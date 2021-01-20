@@ -86,16 +86,14 @@ impl Dom5Proc {
             if turns.len() > 0 {
                 if next_turn >= std::time::SystemTime::now() {
                     self.add_string_to_domcmd(&format!(
-                        "setinterval {}",
+                        "settimeleft {}",
                         (next_turn
                             .duration_since(std::time::SystemTime::now())
                             .unwrap()
-                            .as_secs() as f32
-                            / 60.0)
-                            .ceil()
+                            .as_secs())
                     ));
                 } else {
-                    self.add_string_to_domcmd("setinterval 1");
+                    self.add_string_to_domcmd("settimeleft 1");
                 }
             } else {
                 if next_turn >= std::time::SystemTime::now() {

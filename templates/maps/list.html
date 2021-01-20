@@ -36,7 +36,9 @@
 			<div class="striped-table">
 				{% for map in maps %}
 				<div class="bg-selector" style="background-image: url('/images/maps/{{map.id}}.jpg')">
-					<a href="/map/{{map.id}}">{{map.name}}</a>
+					<div>
+						<a href="/map/{{map.id}}">{{map.name}} ({{map.province_count}}+{{map.uw_count}})</a>
+					</div>
 					<a download="{{map.name}}.zip" class="btn" href="/map/{{map.id}}/download">Download</a>
 				</div>
 				{% endfor %}

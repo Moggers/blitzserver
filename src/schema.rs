@@ -74,6 +74,8 @@ table! {
         mapfile_id -> Int4,
         tgafile_id -> Int4,
         winterfile_id -> Nullable<Int4>,
+        province_count -> Int4,
+        uw_count -> Int4,
     }
 }
 
