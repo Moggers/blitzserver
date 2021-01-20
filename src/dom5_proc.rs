@@ -519,14 +519,11 @@ impl Dom5Proc {
         use crate::schema::files::dsl as files_dsl;
         use crate::schema::games::dsl::*;
         use crate::schema::maps::dsl as maps_dsl;
-        let (game, map) = games
+        let (game, map, file) = games
             .filter(id.eq(self.game_id))
-            .inner_join(maps_dsl::maps.on(maps_dsl::id.eq(id)))
-            .get_result::<(Game, Map)>(&db)
-            .unwrap();
-        let file: File = files_dsl::files
-            .filter(files_dsl::id.eq(map.mapfile_id))
-            .get_result(&db)
+            .inner_join(maps_dsl::maps.on(maps_dsl::id.eq(map_id)))
+            .inner_join(files_dsl::files.on(files_dsl::id.eq(maps_dsl::mapfile_id)))
+            .get_result::<(Game, Map, File)>(&db)
             .unwrap();
         arguments.append(&mut vec![
             "--noclientstart".to_string(),
