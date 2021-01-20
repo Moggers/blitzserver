@@ -525,7 +525,7 @@ impl Dom5Proc {
             .get_result::<(Game, Map)>(&db)
             .unwrap();
         let file: File = files_dsl::files
-            .filter(files_dsl::id.eq(map.id))
+            .filter(files_dsl::id.eq(map.mapfile_id))
             .get_result(&db)
             .unwrap();
         arguments.append(&mut vec![
