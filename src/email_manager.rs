@@ -144,7 +144,16 @@ impl EmailManager {
             use crate::schema::games::dsl as games_dsl;
             use crate::schema::turns::dsl as turns_dsl;
             let email_configs: Vec<EmailConfig> = diesel::sql_query("\
-SELECT ec.* FROM email_configs ec LEFT OUTER JOIN (SELECT game_id,MAX(turn_number) as turn_number FROM turns GROUP BY game_id) t ON t.game_id=ec.game_id LEFT OUTER JOIN (SELECT nation_id, game_id, MAX(turn_number) as turn_number FROM player_turns pt WHERE twohfile_id IS NOT NULL GROUP BY game_id,nation_id) pt ON pt.game_id=ec.game_id AND pt.turn_number = t.turn_number AND pt.nation_id = ec.nation_id WHERE (ec.last_turn_notified IS NULL OR t.turn_number != ec.last_turn_notified) AND (pt.turn_number IS NULL OR pt.turn_number != t.turn_number)
+SELECT ec.* 
+FROM email_configs ec 
+LEFT JOIN (SELECT game_id,MAX(turn_number) as turn_number FROM turns GROUP BY game_id) t 
+    ON t.game_id=ec.game_id 
+LEFT OUTER JOIN (SELECT nation_id, game_id, MAX(turn_number) as turn_number FROM player_turns pt WHERE twohfile_id IS NOT NULL GROUP BY game_id,nation_id) pt 
+    ON pt.game_id=ec.game_id AND pt.turn_number = t.turn_number AND pt.nation_id = ec.nation_id 
+WHERE 
+    (ec.last_turn_notified IS NULL OR t.turn_number != ec.last_turn_notified) 
+    AND (pt.turn_number IS NULL OR pt.turn_number != t.turn_number)
+    AND t.turn_number IS NOT NULL
 ").load(&db).unwrap();
             for email_config in email_configs {
                 let game: Game = games_dsl::games
