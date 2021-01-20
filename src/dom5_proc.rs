@@ -682,7 +682,6 @@ impl Dom5Proc {
     }
 
     pub fn populate_maps(&mut self) {
-        log::debug!("Populating maps");
         std::fs::create_dir_all(&std::path::PathBuf::from(&self.datadir).join("maps")).unwrap();
         let db = self.db_pool.get().expect("Unable to connect to database");
         let (_, map): (Game, Map) = {

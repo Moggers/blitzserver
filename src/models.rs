@@ -440,6 +440,7 @@ pub struct EmailConfig {
     pub last_turn_notified: Option<i32>,
     pub subject: String,
     pub body: String,
+    pub is_reminder: bool
 }
 
 #[derive(Insertable)]
@@ -451,4 +452,5 @@ pub struct NewEmailConfig {
     pub email_address: String,
     pub subject: String,
     pub body: String,
+    pub is_reminder: bool
 }

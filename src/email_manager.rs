@@ -35,6 +35,7 @@ impl EmailManager {
         body: String,
         nation: i32,
         hours_remaining: i32,
+        is_reminder: bool,
     ) {
         let db = self.db_pool.get().unwrap();
         use crate::schema::email_configs::dsl as emails_dsl;
@@ -46,6 +47,7 @@ impl EmailManager {
                 email_address: address,
                 body,
                 subject,
+                is_reminder,
             })
             .execute(&db)
             .unwrap();
@@ -91,18 +93,30 @@ impl EmailManager {
             .limit(1)
             .get_result(db)
             .unwrap();
-        let subject= email_config
+        let subject = email_config
             .subject
             .replace("%TURNNUMBER%", &turn.turn_number.to_string())
-            .replace("%GAMEIP%", &format!("{}:{}", hostname, game.port.unwrap_or(0)))
-            .replace("%GAMEURL%", &format!("{}/game/{}/status", hostname, game.id))
+            .replace(
+                "%GAMEIP%",
+                &format!("{}:{}", hostname, game.port.unwrap_or(0)),
+            )
+            .replace(
+                "%GAMEURL%",
+                &format!("{}/game/{}/status", hostname, game.id),
+            )
             .replace("%GAMENAME%", &game.name)
             .replace("%HOURSREMAINING%", &game.next_turn_string());
         let body = email_config
             .body
             .replace("%TURNNUMBER%", &turn.turn_number.to_string())
-            .replace("%GAMEIP%", &format!("{}:{}", hostname, game.port.unwrap_or(0)))
-            .replace("%GAMEURL%", &format!("{}/game/{}/status", hostname, game.id))
+            .replace(
+                "%GAMEIP%",
+                &format!("{}:{}", hostname, game.port.unwrap_or(0)),
+            )
+            .replace(
+                "%GAMEURL%",
+                &format!("{}/game/{}/status", hostname, game.id),
+            )
             .replace("%GAMENAME%", &game.name)
             .replace("%HOURSREMAINING%", &game.next_turn_string());
         let email = lettre::Message::builder()
@@ -137,29 +151,35 @@ SELECT ec.* FROM email_configs ec LEFT OUTER JOIN (SELECT game_id,MAX(turn_numbe
                     .filter(games_dsl::id.eq(email_config.game_id))
                     .get_result(&db)
                     .unwrap();
-                if let Some(next_turn) = game.next_turn {
-                    if next_turn
-                        < std::time::SystemTime::now().add(std::time::Duration::from_secs(
-                            60 * 60 * email_config.hours_before_host as u64,
-                        ))
-                    {
-                        let last_turns: Vec<Turn> = turns_dsl::turns
-                            .filter(turns_dsl::game_id.eq(email_config.game_id))
-                            .order(turns_dsl::turn_number.desc())
-                            .limit(1)
-                            .get_results(&db)
-                            .unwrap();
-                        let new_turn_number = match last_turns.len() {
-                            0 => 0,
-                            _ => last_turns[0].turn_number,
-                        };
-                        Self::send_notice_email(&db, &email_config, &hostname, &mailer);
-                        diesel::update(emails_dsl::email_configs)
-                            .filter(emails_dsl::id.eq(email_config.id))
-                            .set(emails_dsl::last_turn_notified.eq(new_turn_number))
-                            .execute(&db)
-                            .unwrap();
+                let should_send = if email_config.is_reminder {
+                    if let Some(next_turn) = game.next_turn {
+                        next_turn
+                            < std::time::SystemTime::now().add(std::time::Duration::from_secs(
+                                60 * 60 * email_config.hours_before_host as u64,
+                            ))
+                    } else {
+                        false
                     }
+                } else {
+                    true
+                };
+                if should_send {
+                    let last_turns: Vec<Turn> = turns_dsl::turns
+                        .filter(turns_dsl::game_id.eq(email_config.game_id))
+                        .order(turns_dsl::turn_number.desc())
+                        .limit(1)
+                        .get_results(&db)
+                        .unwrap();
+                    let new_turn_number = match last_turns.len() {
+                        0 => 0,
+                        _ => last_turns[0].turn_number,
+                    };
+                    Self::send_notice_email(&db, &email_config, &hostname, &mailer);
+                    diesel::update(emails_dsl::email_configs)
+                        .filter(emails_dsl::id.eq(email_config.id))
+                        .set(emails_dsl::last_turn_notified.eq(new_turn_number))
+                        .execute(&db)
+                        .unwrap();
                 }
             }
             drop(db);

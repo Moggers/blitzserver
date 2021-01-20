@@ -8,6 +8,7 @@ table! {
         last_turn_notified -> Nullable<Int4>,
         subject -> Varchar,
         body -> Varchar,
+        is_reminder -> Bool,
     }
 }
 

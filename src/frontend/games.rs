@@ -159,6 +159,8 @@ struct EmailForm {
     #[serde(default)]
     #[serde(deserialize_with = "from_str")]
     hours_remaining: i32,
+    #[serde(default)]
+    is_reminder: bool
 }
 impl Default for EmailForm {
     fn default() -> Self {
@@ -168,6 +170,7 @@ impl Default for EmailForm {
             subject: "".to_string(),
             body: "".to_string(),
             hours_remaining: 0,
+            is_reminder: false
         }
     }
 }
@@ -799,6 +802,7 @@ async fn emails_post(
                 email_form.body,
                 email_form.nation,
                 email_form.hours_remaining,
+                email_form.is_reminder
             );
             Ok(HttpResponse::Found()
                 .header(
