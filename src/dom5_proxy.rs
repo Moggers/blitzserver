@@ -171,7 +171,6 @@ impl Dom5Proxy {
                                                 .join(&game.name),
                                             name: game.name.clone(),
                                             era: game.era,
-                                            mapname: mapname.clone(),
                                             datadir: game_dir
                                                 .clone()
                                                 .into_os_string()
@@ -284,7 +283,6 @@ impl Dom5Proxy {
                                         .join(&game.name),
                                     name: game.name.clone(),
                                     era: game.era,
-                                    mapname: mapname.clone(),
                                     datadir: game_dir
                                         .clone()
                                         .into_os_string()

@@ -49,7 +49,6 @@ impl Drop for Dom5ProcHandle {
 pub struct Dom5Proc {
     pub name: String,
     pub era: i32,
-    pub mapname: String,
     pub datadir: String,
     pub send_upstream: crossbeam_channel::Sender<ProcEvent>,
     pub savedir: std::path::PathBuf,
@@ -376,85 +375,91 @@ impl Dom5Proc {
                 .flat_map(|(_, m)| vec![String::from("-M"), m.dm_filename.clone()])
                 .collect::<Vec<String>>()
         };
-        {
-            let db = self.db_pool.get().expect("Unable to connect to database");
-            use crate::schema::games::dsl::*;
-            let game: Game = games.filter(id.eq(self.game_id)).get_result(&db).unwrap();
-            arguments.append(&mut vec![
-                "--noclientstart".to_string(),
-                "--thrones".to_string(),
-                game.thrones_t1.to_string(),
-                game.thrones_t2.to_string(),
-                game.thrones_t3.to_string(),
-                "--requiredap".to_string(),
-                game.throne_points_required.to_string(),
-                "--research".to_string(),
-                game.research_diff.to_string(),
-                if game.research_rand {
-                    ""
-                } else {
-                    "--norandres"
-                }
-                .to_string(),
-                "--hofsize".to_string(),
-                game.hof_size.to_string(),
-                "--globals".to_string(),
-                game.global_size.to_string(),
-                "--indepstr".to_string(),
-                game.indepstr.to_string(),
-                "--magicsites".to_string(),
-                game.magicsites.to_string(),
-                "--eventrarity".to_string(),
-                game.eventrarity.to_string(),
-                "--richness".to_string(),
-                game.richness.to_string(),
-                "--resources".to_string(),
-                game.resources.to_string(),
-                "--supplies".to_string(),
-                game.supplies.to_string(),
-                "--startprov".to_string(),
-                game.startprov.to_string(),
-                if game.renaming { "--renaming" } else { "" }.to_string(),
-                if game.scoregraphs {
-                    "--scoregraphs"
-                } else {
-                    ""
-                }
-                .to_string(),
-                if game.nationinfo {
-                    ""
-                } else {
-                    "--nonationinfo"
-                }
-                .to_string(),
-                "--era".to_string(),
-                game.era.to_string(),
-                if game.artrest { "" } else { "--noartrest" }.to_string(),
-                if game.teamgame { "--teamgame" } else { "" }.to_string(),
-                if game.clustered { "--clustered" } else { "" }.to_string(),
-                match game.storyevents {
-                    0 => "--nostoryevents",
-                    1 => "--storyevents",
-                    2 => "--allstoryevents",
-                    _ => "",
-                }
-                .to_string(),
-                "--newailvl".to_string(),
-                game.newailvl.to_string(),
-                if game.newai { "" } else { "--nonewai" }.to_string(),
-            ]);
-            let turns: Vec<Turn> = crate::schema::turns::dsl::turns
-                .filter(crate::schema::turns::dsl::game_id.eq(game.id))
-                .get_results(&db)
-                .unwrap();
-            if turns.len() == 0 {
-                arguments.append(&mut vec!["--newgame".to_string()]);
+        let db = self.db_pool.get().expect("Unable to connect to database");
+        use crate::schema::files::dsl as files_dsl;
+        use crate::schema::games::dsl::*;
+        use crate::schema::maps::dsl as maps_dsl;
+        let (game, map, file) = games
+            .filter(id.eq(self.game_id))
+            .inner_join(maps_dsl::maps.on(maps_dsl::id.eq(id)))
+            .inner_join(files_dsl::files.on(files_dsl::id.eq(maps_dsl::mapfile_id)))
+            .get_result::<(Game, Map, File)>(&db)
+            .unwrap();
+        arguments.append(&mut vec![
+            "--noclientstart".to_string(),
+            "--thrones".to_string(),
+            game.thrones_t1.to_string(),
+            game.thrones_t2.to_string(),
+            game.thrones_t3.to_string(),
+            "--requiredap".to_string(),
+            game.throne_points_required.to_string(),
+            "--research".to_string(),
+            game.research_diff.to_string(),
+            if game.research_rand {
+                ""
+            } else {
+                "--norandres"
             }
+            .to_string(),
+            "--hofsize".to_string(),
+            game.hof_size.to_string(),
+            "--globals".to_string(),
+            game.global_size.to_string(),
+            "--indepstr".to_string(),
+            game.indepstr.to_string(),
+            "--magicsites".to_string(),
+            game.magicsites.to_string(),
+            "--eventrarity".to_string(),
+            game.eventrarity.to_string(),
+            "--richness".to_string(),
+            game.richness.to_string(),
+            "--resources".to_string(),
+            game.resources.to_string(),
+            "--supplies".to_string(),
+            game.supplies.to_string(),
+            "--startprov".to_string(),
+            game.startprov.to_string(),
+            if game.renaming { "--renaming" } else { "" }.to_string(),
+            if game.scoregraphs {
+                "--scoregraphs"
+            } else {
+                ""
+            }
+            .to_string(),
+            if game.nationinfo {
+                ""
+            } else {
+                "--nonationinfo"
+            }
+            .to_string(),
+            "--era".to_string(),
+            game.era.to_string(),
+            if game.artrest { "" } else { "--noartrest" }.to_string(),
+            if game.teamgame { "--teamgame" } else { "" }.to_string(),
+            if game.clustered { "--clustered" } else { "" }.to_string(),
+            match game.storyevents {
+                0 => "--nostoryevents",
+                1 => "--storyevents",
+                2 => "--allstoryevents",
+                _ => "",
+            }
+            .to_string(),
+            "--newailvl".to_string(),
+            game.newailvl.to_string(),
+            if game.newai { "" } else { "--nonewai" }.to_string(),
+        ]);
+        let turns: Vec<Turn> = crate::schema::turns::dsl::turns
+            .filter(crate::schema::turns::dsl::game_id.eq(game.id))
+            .get_results(&db)
+            .unwrap();
+        if turns.len() == 0 {
+            arguments.append(&mut vec!["--newgame".to_string()]);
         }
+        drop(db);
         arguments.append(&mut vec![
             String::from("-T"),
             String::from("--mapfile"),
-            self.mapname.clone(),
+            file.filename,
             String::from("-g"),
             format!("{}", self.name),
         ]);
@@ -510,74 +515,80 @@ impl Dom5Proc {
                 .flat_map(|(_, m)| vec![String::from("-M"), m.dm_filename.clone()])
                 .collect::<Vec<String>>()
         };
-        {
-            let db = self.db_pool.get().expect("Unable to connect to database");
-            use crate::schema::games::dsl::*;
-            let game: Game = games.filter(id.eq(self.game_id)).get_result(&db).unwrap();
-            arguments.append(&mut vec![
-                "--noclientstart".to_string(),
-                "--thrones".to_string(),
-                game.thrones_t1.to_string(),
-                game.thrones_t2.to_string(),
-                game.thrones_t3.to_string(),
-                "--requiredap".to_string(),
-                game.throne_points_required.to_string(),
-                "--research".to_string(),
-                game.research_diff.to_string(),
-                if game.research_rand {
-                    ""
-                } else {
-                    "--norandres"
-                }
-                .to_string(),
-                "--hofsize".to_string(),
-                game.hof_size.to_string(),
-                "--globals".to_string(),
-                game.global_size.to_string(),
-                "--indepstr".to_string(),
-                game.indepstr.to_string(),
-                "--magicsites".to_string(),
-                game.magicsites.to_string(),
-                "--eventrarity".to_string(),
-                game.eventrarity.to_string(),
-                "--richness".to_string(),
-                game.richness.to_string(),
-                "--resources".to_string(),
-                game.resources.to_string(),
-                "--supplies".to_string(),
-                game.supplies.to_string(),
-                "--startprov".to_string(),
-                game.startprov.to_string(),
-                if game.renaming { "--renaming" } else { "" }.to_string(),
-                if game.scoregraphs {
-                    "--scoregraphs"
-                } else {
-                    ""
-                }
-                .to_string(),
-                if game.nationinfo {
-                    ""
-                } else {
-                    "--nonationinfo"
-                }
-                .to_string(),
-                "--era".to_string(),
-                game.era.to_string(),
-                if game.artrest { "" } else { "--noartrest" }.to_string(),
-                if game.teamgame { "--teamgame" } else { "" }.to_string(),
-                if game.clustered { "--clustered" } else { "" }.to_string(),
-                match game.storyevents {
-                    0 => "--nostoryevents",
-                    1 => "--storyevents",
-                    2 => "--allstoryevents",
-                    _ => "",
-                }
-                .to_string(),
-                "--newailvl".to_string(),
-                game.newailvl.to_string(),
-                if game.newai { "" } else { "--nonewai" }.to_string(),
-            ]);
-        }
+        let db = self.db_pool.get().expect("Unable to connect to database");
+        use crate::schema::files::dsl as files_dsl;
+        use crate::schema::games::dsl::*;
+        use crate::schema::maps::dsl as maps_dsl;
+        let (game, map, file) = games
+            .filter(id.eq(self.game_id))
+            .inner_join(maps_dsl::maps.on(maps_dsl::id.eq(id)))
+            .inner_join(files_dsl::files.on(files_dsl::id.eq(maps_dsl::mapfile_id)))
+            .get_result::<(Game, Map, File)>(&db)
+            .unwrap();
+        arguments.append(&mut vec![
+            "--noclientstart".to_string(),
+            "--thrones".to_string(),
+            game.thrones_t1.to_string(),
+            game.thrones_t2.to_string(),
+            game.thrones_t3.to_string(),
+            "--requiredap".to_string(),
+            game.throne_points_required.to_string(),
+            "--research".to_string(),
+            game.research_diff.to_string(),
+            if game.research_rand {
+                ""
+            } else {
+                "--norandres"
+            }
+            .to_string(),
+            "--hofsize".to_string(),
+            game.hof_size.to_string(),
+            "--globals".to_string(),
+            game.global_size.to_string(),
+            "--indepstr".to_string(),
+            game.indepstr.to_string(),
+            "--magicsites".to_string(),
+            game.magicsites.to_string(),
+            "--eventrarity".to_string(),
+            game.eventrarity.to_string(),
+            "--richness".to_string(),
+            game.richness.to_string(),
+            "--resources".to_string(),
+            game.resources.to_string(),
+            "--supplies".to_string(),
+            game.supplies.to_string(),
+            "--startprov".to_string(),
+            game.startprov.to_string(),
+            if game.renaming { "--renaming" } else { "" }.to_string(),
+            if game.scoregraphs {
+                "--scoregraphs"
+            } else {
+                ""
+            }
+            .to_string(),
+            if game.nationinfo {
+                ""
+            } else {
+                "--nonationinfo"
+            }
+            .to_string(),
+            "--era".to_string(),
+            game.era.to_string(),
+            if game.artrest { "" } else { "--noartrest" }.to_string(),
+            if game.teamgame { "--teamgame" } else { "" }.to_string(),
+            if game.clustered { "--clustered" } else { "" }.to_string(),
+            match game.storyevents {
+                0 => "--nostoryevents",
+                1 => "--storyevents",
+                2 => "--allstoryevents",
+                _ => "",
+            }
+            .to_string(),
+            "--newailvl".to_string(),
+            game.newailvl.to_string(),
+            if game.newai { "" } else { "--nonewai" }.to_string(),
+        ]);
+        drop(db);
         let new_internal_port = (self.internal_port_range[0]..self.internal_port_range[1])
             .find(|check_port| {
                 match std::net::TcpListener::bind(format!("0.0.0.0:{}", check_port)) {
@@ -596,7 +607,7 @@ impl Dom5Proc {
             String::from("--port"),
             format!("{}", new_internal_port),
             String::from("--mapfile"),
-            self.mapname.clone(),
+            file.filename,
             String::from("--newgame"),
             format!("{}", self.name),
         ]);
@@ -671,6 +682,7 @@ impl Dom5Proc {
     }
 
     pub fn populate_maps(&mut self) {
+        log::debug!("Populating maps");
         std::fs::create_dir_all(&std::path::PathBuf::from(&self.datadir).join("maps")).unwrap();
         let db = self.db_pool.get().expect("Unable to connect to database");
         let (_, map): (Game, Map) = {

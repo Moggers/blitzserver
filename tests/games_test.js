@@ -169,4 +169,11 @@ Scenario("validate map upload", async ({I}) => {
 	I.attachFile("tga_winter", "./test_data/islandsofgoodandevil_winter.tga");
 	I.click("Upload");
 	I.see("Islands of Good and Evil");
+
+	// Check map with commented out winter TGA
+	I.amOnPage("/maps");
+	I.attachFile("map", "./test_data/isles_of_nipponia.map");
+	I.attachFile("tga", "./test_data/isles_of_nipponia.tga");
+	I.click("Upload");
+	I.see("isles_of_nipponia.tga");
 });
