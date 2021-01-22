@@ -94,8 +94,8 @@
 			<div class="input-group">
 				<label for="artrest">Artefact Forging</label>
 				<select name="artrest">
-					<option value="0">Unlimited</option>
-					<option value="1">Limited</option>
+					<option {% if settings.artrest == 0 %} selected {% endif %} value="0">Unlimited</option>
+					<option {% if settings.artrest == 1 %} selected {% endif %} value="1">Limited</option>
 				</select>
 			</div>
 		</div>

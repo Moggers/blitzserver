@@ -182,7 +182,7 @@ impl Default for NewGame {
             renaming: true,
             scoregraphs: false,
             nationinfo: true,
-            artrest: false,
+            artrest: true,
             teamgame: false,
             clustered: false,
             storyevents: 1,
