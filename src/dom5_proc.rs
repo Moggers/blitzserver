@@ -377,11 +377,11 @@ impl Dom5Proc {
         };
         let db = self.db_pool.get().expect("Unable to connect to database");
         use crate::schema::files::dsl as files_dsl;
-        use crate::schema::games::dsl::*;
+        use crate::schema::games::dsl as games_dsl;
         use crate::schema::maps::dsl as maps_dsl;
-        let (game, map, file) = games
-            .filter(id.eq(self.game_id))
-            .inner_join(maps_dsl::maps.on(maps_dsl::id.eq(id)))
+        let (game, _map, file) = games_dsl::games
+            .filter(games_dsl::id.eq(self.game_id))
+            .inner_join(maps_dsl::maps.on(maps_dsl::id.eq(games_dsl::map_id)))
             .inner_join(files_dsl::files.on(files_dsl::id.eq(maps_dsl::mapfile_id)))
             .get_result::<(Game, Map, File)>(&db)
             .unwrap();
