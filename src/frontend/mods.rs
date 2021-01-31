@@ -55,11 +55,11 @@ pub async fn image(
         )
         .decode()
         .unwrap();
-        let maps_dir = std::path::PathBuf::from("./images/maps");
-        if !maps_dir.exists() {
-            std::fs::create_dir_all(&maps_dir).unwrap();
+        let mods_dir= std::path::PathBuf::from("./images/mods");
+        if !mods_dir.exists() {
+            std::fs::create_dir_all(&mods_dir).unwrap();
         }
-        let mut file = std::fs::File::create(maps_dir.join(format!("{}.jpg", map.id))).unwrap();
+        let mut file = std::fs::File::create(mods_dir.join(format!("{}.jpg", map.id))).unwrap();
         reader
             .write_to(&mut file, crate::image::ImageFormat::Jpeg)
             .unwrap();

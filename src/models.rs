@@ -259,7 +259,7 @@ pub struct Map {
     pub tgafile_id: i32,
     pub winterfile_id: Option<i32>,
     pub province_count: i32,
-    pub uw_count: i32
+    pub uw_count: i32,
 }
 
 #[derive(Debug, Insertable)]
@@ -270,7 +270,7 @@ pub struct NewMap {
     pub tgafile_id: i32,
     pub winterfile_id: Option<i32>,
     pub province_count: i32,
-    pub uw_count: i32
+    pub uw_count: i32,
 }
 
 #[derive(Identifiable, Queryable, Associations, PartialEq, Debug)]
@@ -319,6 +319,7 @@ pub struct Turn {
     pub turn_number: i32,
     pub file_id: i32,
     pub created_at: std::time::SystemTime,
+    pub archived: bool,
 }
 
 #[derive(Clone, Deserialize, QueryableByName)]
@@ -380,6 +381,7 @@ pub struct PlayerTurn {
     pub game_id: i32,
     pub trnfile_id: i32,
     pub twohfile_id: Option<i32>,
+    pub archived: bool,
 }
 
 #[derive(Insertable)]
@@ -440,7 +442,7 @@ pub struct EmailConfig {
     pub last_turn_notified: Option<i32>,
     pub subject: String,
     pub body: String,
-    pub is_reminder: bool
+    pub is_reminder: bool,
 }
 
 #[derive(Insertable)]
@@ -452,5 +454,5 @@ pub struct NewEmailConfig {
     pub email_address: String,
     pub subject: String,
     pub body: String,
-    pub is_reminder: bool
+    pub is_reminder: bool,
 }

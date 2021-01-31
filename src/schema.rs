@@ -108,6 +108,7 @@ table! {
         game_id -> Int4,
         trnfile_id -> Int4,
         twohfile_id -> Nullable<Int4>,
+        archived -> Bool,
     }
 }
 
@@ -127,6 +128,7 @@ table! {
         turn_number -> Int4,
         file_id -> Int4,
         created_at -> Timestamp,
+        archived -> Bool,
     }
 }
 

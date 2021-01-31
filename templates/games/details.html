@@ -131,8 +131,14 @@
 									<input type="submit" class="btn btn-block" value="Begin Countdown (Secs)"/>
 								</div>
 							</form>
+							{% else %}
+							<form action="/game/{{game.id}}/rollback" method="POST">
+								<input {% if self.game.archived %} value="Archived"{% else %}value="Rollback Turn"{% endif %} type="submit" class="btn btn-block"/>
+							</form>
+							<form action="/game/{{game.id}}/unstart" method="POST">
+								<input {% if self.game.archived %} value="Archived"{% else %}value="Unstart Game"{% endif %} type="submit" class="btn btn-block"/>
+							</form>
 							{% endif %}
-							<input type="submit" class="btn btn-block btn-danger" disabled value="Jomonhost"/>
 							<form action="/game/{{game.id}}/archive" method="POST">
 								<input {% if self.game.archived %} value="Archived"{% else %}value="Archive Game"{% endif %} type="submit" class="btn btn-block btn-danger"/>
 							</form>
