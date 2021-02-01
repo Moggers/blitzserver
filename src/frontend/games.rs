@@ -901,23 +901,28 @@ pub async fn remove_post(
     }
     let db = app_data.pool.get().expect("Unable to connect to database");
     use crate::schema::players::dsl as players_dsl;
-    diesel::delete(players_dsl::players)
-        .filter(
-            players_dsl::game_id
-                .eq(path_id)
-                .and(players_dsl::nationid.eq(nation_id)),
-        )
-        .execute(&db)
-        .unwrap();
-    app_data
-        .manager_notifier
-        .send(game_manager::ManagerMsg::GameMsg(
-            crate::dom5_proxy::GameMsg {
-                id: path_id,
-                cmd: crate::dom5_proxy::GameMsgType::RebootCmd,
-            },
-        ))
-        .unwrap();
+    let turns = crate::models::Turn::current_turn(&vec![path_id], &db);
+    // Check if there were no turns found for the vector of games containing only our game, *not*
+    // that there were zero games for just ours, this is not a logic error, though it looks odd.
+    if turns.len() == 0 {
+        diesel::delete(players_dsl::players)
+            .filter(
+                players_dsl::game_id
+                    .eq(path_id)
+                    .and(players_dsl::nationid.eq(nation_id)),
+            )
+            .execute(&db)
+            .unwrap();
+        app_data
+            .manager_notifier
+            .send(game_manager::ManagerMsg::GameMsg(
+                crate::dom5_proxy::GameMsg {
+                    id: path_id,
+                    cmd: crate::dom5_proxy::GameMsgType::RebootCmd,
+                },
+            ))
+            .unwrap();
+    }
     return Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}/status", path_id))
         .finish());
