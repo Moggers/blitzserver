@@ -41,7 +41,7 @@ pub async fn image(
     let db = app_data.pool.get().unwrap();
     use crate::schema::files::dsl as files_dsl;
     use crate::schema::mods::dsl as mods_dsl;
-    if let Ok((map, file)) = mods_dsl::mods
+    if let Ok((cmod, file)) = mods_dsl::mods
         .filter(mods_dsl::id.eq(path_id))
         .inner_join(
             crate::schema::files::dsl::files
@@ -55,11 +55,11 @@ pub async fn image(
         )
         .decode()
         .unwrap();
-        let maps_dir = std::path::PathBuf::from("./images/maps");
-        if !maps_dir.exists() {
-            std::fs::create_dir_all(&maps_dir).unwrap();
+        let mods_dir = std::path::PathBuf::from("./images/mods");
+        if !mods_dir.exists() {
+            std::fs::create_dir_all(&mods_dir).unwrap();
         }
-        let mut file = std::fs::File::create(maps_dir.join(format!("{}.jpg", map.id))).unwrap();
+        let mut file = std::fs::File::create(mods_dir.join(format!("{}.jpg", cmod.id))).unwrap();
         reader
             .write_to(&mut file, crate::image::ImageFormat::Jpeg)
             .unwrap();
