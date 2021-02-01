@@ -42,7 +42,12 @@
 								</td>
 								{% if player.submitted %}<td class="submitted">submitted</td>{% else %}<td class="unsubmitted">unsubmitted</td>{% endif %}
 							{% else %}
-								<td></td><td></td>
+								<td></td>
+								<td>
+									<form action="remove/{{player.id}}" method="POST">
+										<input type="submit" class="btn btn-block btn-danger" value="Remove"/>
+									</form>
+								</td>
 							{% endif %}
 						</tr>
 						{% endfor %}

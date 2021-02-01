@@ -160,7 +160,7 @@ struct EmailForm {
     #[serde(deserialize_with = "from_str")]
     hours_remaining: i32,
     #[serde(default)]
-    is_reminder: bool
+    is_reminder: bool,
 }
 impl Default for EmailForm {
     fn default() -> Self {
@@ -170,7 +170,7 @@ impl Default for EmailForm {
             subject: "".to_string(),
             body: "".to_string(),
             hours_remaining: 0,
-            is_reminder: false
+            is_reminder: false,
         }
     }
 }
@@ -802,7 +802,7 @@ async fn emails_post(
                 email_form.body,
                 email_form.nation,
                 email_form.hours_remaining,
-                email_form.is_reminder
+                email_form.is_reminder,
             );
             Ok(HttpResponse::Found()
                 .header(
@@ -878,5 +878,47 @@ pub async fn archive_post(
         .unwrap();
     return Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}/schedule", path_id))
+        .finish());
+}
+
+#[post("/game/{id}/remove/{playerid}")]
+pub async fn remove_post(
+    (app_data, web::Path((path_id, nation_id)), session): (
+        web::Data<AppData>,
+        web::Path<(i32, i32)>,
+        actix_session::Session,
+    ),
+) -> Result<HttpResponse> {
+    if session
+        .get(&format!("auth_{}", path_id))
+        .unwrap_or(Some(AuthStatus::Unauthed))
+        .unwrap_or(AuthStatus::Unauthed)
+        == AuthStatus::Unauthed
+    {
+        return Ok(HttpResponse::Unauthorized()
+            .header(header::LOCATION, format!("/game/{}/schedule", path_id))
+            .finish());
+    }
+    let db = app_data.pool.get().expect("Unable to connect to database");
+    use crate::schema::players::dsl as players_dsl;
+    diesel::delete(players_dsl::players)
+        .filter(
+            players_dsl::game_id
+                .eq(path_id)
+                .and(players_dsl::nationid.eq(nation_id)),
+        )
+        .execute(&db)
+        .unwrap();
+    app_data
+        .manager_notifier
+        .send(game_manager::ManagerMsg::GameMsg(
+            crate::dom5_proxy::GameMsg {
+                id: path_id,
+                cmd: crate::dom5_proxy::GameMsgType::RebootCmd,
+            },
+        ))
+        .unwrap();
+    return Ok(HttpResponse::Found()
+        .header(header::LOCATION, format!("/game/{}/status", path_id))
         .finish());
 }
