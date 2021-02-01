@@ -280,6 +280,11 @@ impl Dom5Proc {
                         std::fs::create_dir_all(&mod_dir.join(f.name())).unwrap();
                     }
                 } else {
+                    let mut folder_name = std::path::PathBuf::from(f.name());
+                    folder_name.pop();
+                    if !mod_dir.join(&folder_name).exists() {
+                        std::fs::create_dir_all(&mod_dir.join(folder_name)).unwrap();
+                    }
                     let mut os_f = std::fs::File::create(&mod_dir.join(f.name())).unwrap();
                     std::io::copy(&mut f, &mut os_f).unwrap();
                 }

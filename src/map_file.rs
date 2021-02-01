@@ -59,7 +59,7 @@ impl std::convert::TryFrom<&[u8]> for MapFile {
     fn try_from(contents: &[u8]) -> Result<Self, Self::Error> {
         let commented_regex = regex::Regex::new(r#"^ *--"#).unwrap();
         let nocomment_lines = contents.lines().filter_map(Result::ok).filter(|l| !commented_regex.is_match(l)).collect::<Vec<String>>().join("\n");
-        let tga_name = regex::Regex::new(r#"#imagefile ("?[^"\n]+"?)"#)
+        let tga_name = regex::Regex::new(r#"#imagefile "?([^"\n]+)"?"#)
             .ok()
             .and_then(|c| c.captures(&nocomment_lines))
             .and_then(|m| m.get(1))
@@ -67,7 +67,7 @@ impl std::convert::TryFrom<&[u8]> for MapFile {
             .ok_or(MapFileReadError {
                 err_type: MapFileReadErrorType::NoImageFile,
             })?;
-        let name = regex::Regex::new(r#"#dom2title ("?[^"\n]+"?)"#)
+        let name = regex::Regex::new(r#"#dom2title "?([^"\n]+)"?"#)
             .ok()
             .and_then(|c| c.captures(&nocomment_lines))
             .and_then(|m| m.get(1))
@@ -75,7 +75,7 @@ impl std::convert::TryFrom<&[u8]> for MapFile {
             .ok_or(MapFileReadError {
                 err_type: MapFileReadErrorType::NoName,
             })?;
-        let winter_filename = regex::Regex::new(r#"#winterimagefile ("?[^"\n]+"?)"#)
+        let winter_filename = regex::Regex::new(r#"#winterimagefile "?([^"\n]+)"?"#)
             .ok()
             .and_then(|c| c.captures(&nocomment_lines))
             .and_then(|m| m.get(1))
