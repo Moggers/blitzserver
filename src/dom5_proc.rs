@@ -168,17 +168,13 @@ impl Dom5Proc {
                 self.game_id,
                 ftherlnd.turnnumber
             );
-            diesel::insert_into(turns)
-                .values(NewTurn {
-                    game_id: self.game_id,
-                    turn_number: ftherlnd.turnnumber,
-                    file_id: new_file.id,
-                })
-                .on_conflict((game_id, turn_number))
-                .do_update()
-                .set(file_id.eq(new_file.id))
-                .execute(&db)
-                .unwrap();
+            (NewTurn {
+                game_id: self.game_id,
+                turn_number: ftherlnd.turnnumber,
+                file_id: new_file.id,
+            })
+            .insert(&db)
+            .unwrap();
             self.unset_timer();
             self.send_upstream.send(ProcEvent::NewTurn).unwrap();
         }
@@ -353,6 +349,7 @@ impl Dom5Proc {
                 nation_id: trn.nationid,
                 game_id: self.game_id,
                 turn_number: trn.turnnumber,
+                archived: false,
             })
             .on_conflict((game_id, turn_number, nation_id))
             .do_update()

@@ -372,6 +372,16 @@ pub struct NewTurn {
     pub file_id: i32,
 }
 
+impl NewTurn {
+    pub fn insert<D>(&self, db: &D) -> Result<Turn, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        diesel::sql_query(format!("INSERT INTO turns (game_id, turn_number, file_id) VALUES({}, {}, {}) ON CONFLICT (game_id, turn_number) WHERE archived IS false DO UPDATE SET file_id={} RETURNING *", self.game_id, self.turn_number, self.file_id, self.file_id))
+            .get_result(db)
+    }
+}
+
 #[derive(Identifiable, Queryable, Associations)]
 #[belongs_to(parent = "File", foreign_key = "trnfile_id")]
 pub struct PlayerTurn {
@@ -391,6 +401,7 @@ pub struct NewPlayerTurn {
     pub nation_id: i32,
     pub game_id: i32,
     pub trnfile_id: i32,
+    pub archived: bool,
 }
 
 #[derive(Insertable)]
