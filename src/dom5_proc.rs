@@ -383,7 +383,6 @@ impl Dom5Proc {
             .unwrap();
         arguments.append(&mut vec![
             "--noclientstart".to_string(),
-            "--host".to_string(),
             "--thrones".to_string(),
             game.thrones_t1.to_string(),
             game.thrones_t2.to_string(),
@@ -447,7 +446,11 @@ impl Dom5Proc {
         ]);
         use crate::schema::turns::dsl as turns_dsl;
         let turns: Vec<Turn> = turns_dsl::turns
-            .filter(turns_dsl::game_id.eq(game.id).and(turns_dsl::archived.eq(false)))
+            .filter(
+                turns_dsl::game_id
+                    .eq(game.id)
+                    .and(turns_dsl::archived.eq(false)),
+            )
             .get_results(&db)
             .unwrap();
         if turns.len() == 0 {
@@ -461,7 +464,7 @@ impl Dom5Proc {
             String::from("-g"),
             format!("{}", self.name),
         ]);
-        let res = std::process::Command::new(bin)
+        std::process::Command::new(bin)
             .env("DOM5_CONF", &self.datadir)
             .args(arguments)
             .output()
