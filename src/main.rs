@@ -205,6 +205,7 @@ async fn main() -> std::io::Result<()> {
             .service(frontend::games::launch)
             .service(frontend::games::list)
             .service(frontend::games::create_post)
+            .service(frontend::games::remove_post)
             .service(frontend::games::settings_post)
             .service(frontend::games::emails_delete)
             .service(frontend::games::emails_post)

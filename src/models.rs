@@ -335,13 +335,13 @@ pub struct TurnSummary {
 }
 
 impl Turn {
-    pub fn current_turn<D>(game_ids: &[i32], db: D) -> Vec<Turn>
+    pub fn current_turn<D>(game_ids: &[i32], db: &D) -> Vec<Turn>
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
         diesel::sql_query(
             format!("SELECT * FROM turns t INNER JOIN (SELECT game_id,MAX(turn_number) as turn_number FROM turns WHERE game_id IN ({}) GROUP BY game_id ) as mt ON mt.turn_number = t.turn_number AND mt.game_id = t.game_id", game_ids.iter().map(|i| i.to_string()).collect::<Vec<String>>().join(",")),
-        ).get_results(&db).unwrap()
+        ).get_results(db).unwrap()
     }
     pub fn turn_summary<D>(game_ids: &[i32], db: &D) -> Vec<TurnSummary>
     where

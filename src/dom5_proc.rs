@@ -180,7 +180,12 @@ impl Dom5Proc {
         }
     }
     fn populate_savegame(&self) {
-        std::fs::create_dir_all(&self.savedir).unwrap();
+        if std::path::PathBuf::from(&self.savedir).exists() {
+            std::fs::remove_dir_all(&self.savedir).unwrap();
+            std::fs::create_dir_all(&self.savedir).unwrap();
+        } else {
+            std::fs::create_dir_all(&self.savedir).unwrap();
+        }
         let db = self.db_pool.get().unwrap();
         let latest_turn: Vec<(Turn, File)> = {
             use super::schema::turns::dsl::*;
