@@ -72,14 +72,20 @@ impl Dom5Proc {
     }
 
     fn set_timer(&mut self) {
+        use crate::schema::games::dsl as games_dsl;
+        use crate::schema::turns::dsl as turns_dsl;
         let db = self.db_pool.get().unwrap();
-        let game: Game = crate::schema::games::dsl::games
-            .filter(crate::schema::games::dsl::id.eq(self.game_id))
+        let game: Game = games_dsl::games
+            .filter(games_dsl::id.eq(self.game_id))
             .get_result(&db)
             .unwrap();
         if let Some(next_turn) = game.next_turn {
-            let turns: Vec<Turn> = crate::schema::turns::dsl::turns
-                .filter(crate::schema::turns::dsl::game_id.eq(self.game_id))
+            let turns: Vec<Turn> = turns_dsl::turns
+                .filter(
+                    turns_dsl::game_id
+                        .eq(self.game_id)
+                        .and(turns_dsl::archived.eq(false)),
+                )
                 .get_results::<Turn>(&db)
                 .unwrap();
             if turns.len() > 0 {
@@ -154,27 +160,14 @@ impl Dom5Proc {
             return;
         };
         let new_file: File = NewFile::new("ftherlnd", &ftherlnd.file_contents).insert(&db);
-        use super::schema::turns::dsl::*;
-        let existing_turn = turns
-            .filter(
-                game_id
-                    .eq(self.game_id)
-                    .and(turn_number.eq(ftherlnd.turnnumber)),
-            )
-            .get_result::<Turn>(&db);
-        if !existing_turn.is_ok() || existing_turn.unwrap().file_id != new_file.id {
-            log::info!(
-                "Game {}: Creating turn {}",
-                self.game_id,
-                ftherlnd.turnnumber
-            );
-            (NewTurn {
-                game_id: self.game_id,
-                turn_number: ftherlnd.turnnumber,
-                file_id: new_file.id,
-            })
-            .insert(&db)
-            .unwrap();
+        let inserted = crate::models::NewTurn {
+            game_id: self.game_id,
+            turn_number: ftherlnd.turnnumber,
+            file_id: new_file.id,
+        }
+        .insert(&db)
+        .unwrap();
+        if inserted {
             self.unset_timer();
             self.send_upstream.send(ProcEvent::NewTurn).unwrap();
         }
@@ -190,7 +183,7 @@ impl Dom5Proc {
         let latest_turn: Vec<(Turn, File)> = {
             use super::schema::turns::dsl::*;
             turns
-                .filter(game_id.eq(self.game_id))
+                .filter(game_id.eq(self.game_id).and(archived.eq(false)))
                 .order(turn_number.desc())
                 .inner_join(
                     super::schema::files::dsl::files.on(super::schema::files::dsl::id.eq(file_id)),
@@ -227,7 +220,8 @@ impl Dom5Proc {
                     .filter(
                         game_id
                             .eq(self.game_id)
-                            .and(turn_number.eq(turn.turn_number)),
+                            .and(turn_number.eq(turn.turn_number))
+                            .and(archived.eq(false)),
                     )
                     .inner_join(
                         super::schema::files::dsl::files
@@ -325,6 +319,7 @@ impl Dom5Proc {
                     nation_id
                         .eq(twoh.nationid)
                         .and(game_id.eq(self.game_id))
+                        .and(archived.eq(false))
                         .and(turn_number.eq(twoh.turnnumber)),
                 ),
             )
@@ -347,20 +342,14 @@ impl Dom5Proc {
         )
         .insert(&db);
 
-        use super::schema::player_turns::dsl::*;
-        diesel::insert_into(super::schema::player_turns::table)
-            .values(&NewPlayerTurn {
-                trnfile_id: file.id,
-                nation_id: trn.nationid,
-                game_id: self.game_id,
-                turn_number: trn.turnnumber,
-                archived: false,
-            })
-            .on_conflict((game_id, turn_number, nation_id))
-            .do_update()
-            .set(trnfile_id.eq(file.id))
-            .execute(&db)
-            .unwrap();
+        (NewPlayerTurn {
+            trnfile_id: file.id,
+            nation_id: trn.nationid,
+            game_id: self.game_id,
+            turn_number: trn.turnnumber,
+        })
+        .insert(&db)
+        .unwrap();
     }
 
     pub fn host_turn(mut self, bin: &std::path::Path) {
@@ -394,6 +383,7 @@ impl Dom5Proc {
             .unwrap();
         arguments.append(&mut vec![
             "--noclientstart".to_string(),
+            "--host".to_string(),
             "--thrones".to_string(),
             game.thrones_t1.to_string(),
             game.thrones_t2.to_string(),
@@ -455,8 +445,9 @@ impl Dom5Proc {
             game.newailvl.to_string(),
             if game.newai { "" } else { "--nonewai" }.to_string(),
         ]);
-        let turns: Vec<Turn> = crate::schema::turns::dsl::turns
-            .filter(crate::schema::turns::dsl::game_id.eq(game.id))
+        use crate::schema::turns::dsl as turns_dsl;
+        let turns: Vec<Turn> = turns_dsl::turns
+            .filter(turns_dsl::game_id.eq(game.id).and(turns_dsl::archived.eq(false)))
             .get_results(&db)
             .unwrap();
         if turns.len() == 0 {
@@ -470,7 +461,7 @@ impl Dom5Proc {
             String::from("-g"),
             format!("{}", self.name),
         ]);
-        std::process::Command::new(bin)
+        let res = std::process::Command::new(bin)
             .env("DOM5_CONF", &self.datadir)
             .args(arguments)
             .output()

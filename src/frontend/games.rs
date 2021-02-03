@@ -370,7 +370,11 @@ async fn timer(
         .get_result::<Game>(&db)
         .unwrap();
     let turns: Vec<Turn> = turns_dsl::turns
-        .filter(turns_dsl::game_id.eq(game.id))
+        .filter(
+            turns_dsl::game_id
+                .eq(game.id)
+                .and(turns_dsl::archived.eq(false)),
+        )
         .get_results(&db)
         .unwrap();
     if turns.len() > 0 {
@@ -462,23 +466,14 @@ async fn details(
             .get_results(&db)
             .unwrap()
     };
-    let player_turn_map = game_players.iter().fold(
-        HashMap::new(),
-        |mut f: HashMap<i32, Vec<PlayerTurn>>, (_, n)| {
-            let pt = crate::schema::player_turns::dsl::player_turns
-                .filter(
-                    crate::schema::player_turns::dsl::game_id
-                        .eq(n.game_id)
-                        .and(crate::schema::player_turns::dsl::nation_id.eq(n.nation_id)),
-                )
-                .order(crate::schema::player_turns::dsl::turn_number)
-                .get_results(&db)
-                .unwrap();
-            f.insert(n.nation_id, pt);
-            f
-        },
-    );
-    let turns: Vec<Turn> = { Turn::belonging_to(&game).get_results(&db).unwrap() };
+    let player_turn_map = crate::models::PlayerTurn::get_player_turns(game.id, &db);
+    use crate::schema::turns::dsl as turns_dsl;
+    let turns: Vec<Turn> = {
+        Turn::belonging_to(&game)
+            .filter(turns_dsl::archived.eq(false))
+            .get_results(&db)
+            .unwrap()
+    };
     let settings: GameSettings = if let Some(_) = game_settings.loaded {
         game_settings.clone()
     } else {
@@ -925,5 +920,84 @@ pub async fn remove_post(
     }
     return Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}/status", path_id))
+        .finish());
+}
+
+#[post("/game/{id}/rollback")]
+pub async fn rollback_post(
+    (app_data, web::Path(path_id), session): (
+        web::Data<AppData>,
+        web::Path<i32>,
+        actix_session::Session,
+    ),
+) -> Result<HttpResponse> {
+    if session
+        .get(&format!("auth_{}", path_id))
+        .unwrap_or(Some(AuthStatus::Unauthed))
+        .unwrap_or(AuthStatus::Unauthed)
+        == AuthStatus::Unauthed
+    {
+        return Ok(HttpResponse::Unauthorized()
+            .header(header::LOCATION, format!("/game/{}/schedule", path_id))
+            .finish());
+    }
+    let db = app_data.pool.get().expect("Unable to connect to database");
+    use crate::schema::games::dsl as games_dsl;
+    let game: Game = games_dsl::games
+        .filter(games_dsl::id.eq(path_id))
+        .get_result(&db)
+        .unwrap();
+    game.rollback(&db).unwrap();
+    app_data
+        .manager_notifier
+        .send(game_manager::ManagerMsg::GameMsg(
+            crate::dom5_proxy::GameMsg {
+                id: game.id,
+                cmd: crate::dom5_proxy::GameMsgType::RebootCmd,
+            },
+        ))
+        .unwrap();
+    return Ok(HttpResponse::Found()
+        .header(header::LOCATION, format!("/game/{}/schedule", path_id))
+        .finish());
+}
+
+#[post("/game/{id}/unstart")]
+pub async fn unstart_post(
+    (app_data, web::Path(path_id), session): (
+        web::Data<AppData>,
+        web::Path<i32>,
+        actix_session::Session,
+    ),
+) -> Result<HttpResponse> {
+    if session
+        .get(&format!("auth_{}", path_id))
+        .unwrap_or(Some(AuthStatus::Unauthed))
+        .unwrap_or(AuthStatus::Unauthed)
+        == AuthStatus::Unauthed
+    {
+        return Ok(HttpResponse::Unauthorized()
+            .header(header::LOCATION, format!("/game/{}/schedule", path_id))
+            .finish());
+    }
+    let db = app_data.pool.get().expect("Unable to connect to database");
+    use crate::schema::games::dsl as games_dsl;
+    let game: Game = games_dsl::games
+        .filter(games_dsl::id.eq(path_id))
+        .get_result(&db)
+        .unwrap();
+    game.unstart(&db).unwrap();
+    let game = game.remove_timer(&db).unwrap();
+    app_data
+        .manager_notifier
+        .send(game_manager::ManagerMsg::GameMsg(
+            crate::dom5_proxy::GameMsg {
+                id: game.id,
+                cmd: crate::dom5_proxy::GameMsgType::RebootCmd,
+            },
+        ))
+        .unwrap();
+    return Ok(HttpResponse::Found()
+        .header(header::LOCATION, format!("/game/{}/schedule", path_id))
         .finish());
 }

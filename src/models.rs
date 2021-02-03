@@ -2,6 +2,7 @@ use super::schema::{
     email_configs, files, game_mods, games, maps, mods, nations, player_turns, players, turns,
 };
 use crate::diesel::RunQueryDsl;
+use crate::diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl};
 use serde::Deserialize;
 use std::hash::{Hash, Hasher};
 
@@ -106,6 +107,60 @@ impl Game {
         }
     }
 
+    pub fn unstart<D>(&self, db: &D) -> Result<(), diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::player_turns::dsl as pt_dsl;
+        use crate::schema::turns::dsl as turns_dsl;
+        diesel::update(turns_dsl::turns)
+            .filter(turns_dsl::game_id.eq(self.id))
+            .set(turns_dsl::archived.eq(true))
+            .execute(db)?;
+        diesel::update(pt_dsl::player_turns)
+            .filter(pt_dsl::game_id.eq(self.id))
+            .set(pt_dsl::archived.eq(true))
+            .execute(db)?;
+        Ok(())
+    }
+
+    pub fn rollback<D>(&self, db: &D) -> Result<Turn, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::player_turns::dsl as pt_dsl;
+        use crate::schema::turns::dsl as turns_dsl;
+        let turn: Turn = turns_dsl::turns
+            .filter(
+                turns_dsl::game_id
+                    .eq(self.id)
+                    .and(turns_dsl::archived.eq(false)),
+            )
+            .order(turns_dsl::turn_number.desc())
+            .limit(1)
+            .get_result(db)?;
+        if turn.turn_number == 1 { 
+            return Ok(turn);
+        }
+        let turn: Turn = diesel::update(turns_dsl::turns)
+            .filter(
+                turns_dsl::game_id
+                    .eq(self.id)
+                    .and(turns_dsl::turn_number.eq(turn.turn_number)),
+            )
+            .set(turns_dsl::archived.eq(true))
+            .get_result(db)?;
+        diesel::update(pt_dsl::player_turns)
+            .filter(
+                pt_dsl::game_id
+                    .eq(self.id)
+                    .and(pt_dsl::turn_number.eq(turn.turn_number)),
+            )
+            .set(pt_dsl::archived.eq(true))
+            .execute(db)?;
+        Ok(turn)
+    }
+
     pub fn get_player_count<D>(games: Vec<i32>, db: &D) -> std::collections::HashMap<i32, i32>
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
@@ -121,6 +176,17 @@ impl Game {
             hm.insert(val.game_id, val.count as i32);
             hm
         })
+    }
+
+    pub fn remove_timer<D>(self, db: &D) -> Result<Self, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::games::dsl as games_dsl;
+        diesel::update(games_dsl::games)
+            .filter(games_dsl::id.eq(self.id))
+            .set(games_dsl::next_turn.eq::<Option<std::time::SystemTime>>(None))
+            .get_result::<Game>(db)
     }
 }
 
@@ -340,7 +406,7 @@ impl Turn {
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
         diesel::sql_query(
-            format!("SELECT * FROM turns t INNER JOIN (SELECT game_id,MAX(turn_number) as turn_number FROM turns WHERE game_id IN ({}) GROUP BY game_id ) as mt ON mt.turn_number = t.turn_number AND mt.game_id = t.game_id", game_ids.iter().map(|i| i.to_string()).collect::<Vec<String>>().join(",")),
+            format!("SELECT * FROM turns t INNER JOIN (SELECT game_id,MAX(turn_number) as turn_number FROM turns WHERE game_id IN ({}) AND archived = false GROUP BY game_id ) as mt ON mt.turn_number = t.turn_number AND mt.game_id = t.game_id", game_ids.iter().map(|i| i.to_string()).collect::<Vec<String>>().join(",")),
         ).get_results(db).unwrap()
     }
     pub fn turn_summary<D>(game_ids: &[i32], db: &D) -> Vec<TurnSummary>
@@ -354,9 +420,9 @@ impl Turn {
             format!("\
 SELECT t.game_id, t.turn_number, COALESCE(pt.submitted, 0) as submitted, COALESCE(pt.total, 0) as total
 FROM turns t 
-INNER JOIN (SELECT game_id,MAX(turn_number) as turn_number FROM turns WHERE game_id IN ({}) GROUP BY game_id ) as mt 
+INNER JOIN (SELECT game_id,MAX(turn_number) as turn_number FROM turns WHERE game_id IN ({}) AND archived = false GROUP BY game_id ) as mt 
     ON mt.turn_number = t.turn_number AND mt.game_id = t.game_id
-LEFT JOIN (SELECT game_id,turn_number,COUNT(twohfile_id) submitted, COUNT(trnfile_id) total FROM player_turns GROUP BY game_id, turn_number) as pt
+LEFT JOIN (SELECT game_id,turn_number,COUNT(twohfile_id) submitted, COUNT(trnfile_id) total FROM player_turns WHERE archived = false GROUP BY game_id, turn_number) as pt
     ON pt.turn_number = t.turn_number AND pt.game_id = t.game_id\
 ", game_ids.iter().map(|i| i.to_string()).collect::<Vec<String>>().join(",")),
         ).get_results(db).unwrap()
@@ -373,16 +439,32 @@ pub struct NewTurn {
 }
 
 impl NewTurn {
-    pub fn insert<D>(&self, db: &D) -> Result<Turn, diesel::result::Error>
+    pub fn insert<D>(&self, db: &D) -> Result<bool, diesel::result::Error>
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
-        diesel::sql_query(format!("INSERT INTO turns (game_id, turn_number, file_id) VALUES({}, {}, {}) ON CONFLICT (game_id, turn_number) WHERE archived IS false DO UPDATE SET file_id={} RETURNING *", self.game_id, self.turn_number, self.file_id, self.file_id))
-            .get_result(db)
+        use crate::schema::turns::dsl as turns_dsl;
+        let existing_turn = turns_dsl::turns
+            .filter(
+                turns_dsl::game_id
+                    .eq(self.game_id)
+                    .and(turns_dsl::turn_number.eq(self.turn_number))
+                    .and(turns_dsl::archived.eq(false)),
+            )
+            .get_result::<Turn>(db);
+        if !existing_turn.is_ok() || existing_turn.as_ref().unwrap().file_id != self.file_id {
+            log::info!("Game {}: Creating turn {}", self.game_id, self.turn_number);
+            diesel::sql_query(format!("INSERT INTO turns (game_id, turn_number, file_id) VALUES({}, {}, {}) ON CONFLICT (game_id, turn_number) WHERE archived IS false DO UPDATE SET file_id={}", self.game_id, self.turn_number, self.file_id, self.file_id))
+            .execute(db).unwrap();
+            return Ok(true);
+        } else {
+            return Ok(false);
+        }
     }
 }
 
-#[derive(Identifiable, Queryable, Associations)]
+#[derive(Identifiable, QueryableByName, Queryable, Associations)]
+#[table_name = "player_turns"]
 #[belongs_to(parent = "File", foreign_key = "trnfile_id")]
 pub struct PlayerTurn {
     id: i32,
@@ -394,6 +476,33 @@ pub struct PlayerTurn {
     pub archived: bool,
 }
 
+impl PlayerTurn {
+    pub fn get_player_turns<D>(
+        game_id: i32,
+        db: &D,
+    ) -> std::collections::HashMap<i32, Vec<PlayerTurn>>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::player_turns::dsl as pt_dsl;
+        let player_turns = pt_dsl::player_turns
+            .filter(pt_dsl::game_id.eq(game_id).and(pt_dsl::archived.eq(false)))
+            .order(pt_dsl::turn_number)
+            .get_results(db)
+            .unwrap();
+        player_turns.into_iter().fold(
+            std::collections::HashMap::new(),
+            |mut hm: std::collections::HashMap<i32, Vec<PlayerTurn>>, pt: PlayerTurn| {
+                if !hm.contains_key(&pt.nation_id) {
+                    hm.insert(pt.nation_id, vec![]);
+                }
+                hm.get_mut(&pt.nation_id).unwrap().push(pt);
+                hm
+            },
+        )
+    }
+}
+
 #[derive(Insertable)]
 #[table_name = "player_turns"]
 pub struct NewPlayerTurn {
@@ -401,7 +510,16 @@ pub struct NewPlayerTurn {
     pub nation_id: i32,
     pub game_id: i32,
     pub trnfile_id: i32,
-    pub archived: bool,
+}
+
+impl NewPlayerTurn {
+    pub fn insert<D>(&self, db: &D) -> Result<PlayerTurn, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        diesel::sql_query(format!("INSERT INTO player_turns (turn_number, nation_id, game_id, trnfile_id) VALUES({}, {}, {}, {}) ON CONFLICT (game_id, turn_number, nation_id) WHERE archived IS false DO UPDATE SET trnfile_id={} RETURNING *", self.turn_number, self.nation_id, self.game_id, self.trnfile_id, self.trnfile_id))
+            .get_result(db)
+    }
 }
 
 #[derive(Insertable)]

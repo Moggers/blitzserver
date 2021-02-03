@@ -88,7 +88,7 @@ impl EmailManager {
             .get_result(db)
             .unwrap();
         let turn: Turn = turns_dsl::turns
-            .filter(turns_dsl::game_id.eq(email_config.game_id))
+            .filter(turns_dsl::game_id.eq(email_config.game_id).and(turns_dsl::archived.eq(false)))
             .order(turns_dsl::turn_number.desc())
             .limit(1)
             .get_result(db)
@@ -146,9 +146,9 @@ impl EmailManager {
             let email_configs: Vec<EmailConfig> = diesel::sql_query("\
 SELECT ec.* 
 FROM email_configs ec 
-LEFT JOIN (SELECT game_id,MAX(turn_number) as turn_number FROM turns GROUP BY game_id) t 
+LEFT JOIN (SELECT game_id,MAX(turn_number) as turn_number FROM turns WHERE archived = false GROUP BY game_id) t 
     ON t.game_id=ec.game_id 
-LEFT OUTER JOIN (SELECT nation_id, game_id, MAX(turn_number) as turn_number FROM player_turns pt WHERE twohfile_id IS NOT NULL GROUP BY game_id,nation_id) pt 
+LEFT OUTER JOIN (SELECT nation_id, game_id, MAX(turn_number) as turn_number FROM player_turns pt WHERE archived = false AND twohfile_id IS NOT NULL GROUP BY game_id,nation_id) pt 
     ON pt.game_id=ec.game_id AND pt.turn_number = t.turn_number AND pt.nation_id = ec.nation_id 
 WHERE 
     (ec.last_turn_notified IS NULL OR t.turn_number != ec.last_turn_notified) 
@@ -174,7 +174,7 @@ WHERE
                 };
                 if should_send {
                     let last_turns: Vec<Turn> = turns_dsl::turns
-                        .filter(turns_dsl::game_id.eq(email_config.game_id))
+                        .filter(turns_dsl::game_id.eq(email_config.game_id).and(turns_dsl::archived.eq(false)))
                         .order(turns_dsl::turn_number.desc())
                         .limit(1)
                         .get_results(&db)
