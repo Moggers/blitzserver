@@ -29,3 +29,6 @@ env_logger = "*"
 log = "*"
 lettre = "0.10.0-alpha.4"
 actix-session = "0.4.0"
+flate2 = { version = "1.0.17", features = ["zlib"], default-features = false }
+num-traits = "*"
+num-derive = "*"

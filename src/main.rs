@@ -7,9 +7,12 @@
 extern crate num_enum;
 #[macro_use]
 extern crate diesel;
+extern crate crossbeam_channel;
 extern crate byteorder;
 extern crate image;
 extern crate zip;
+extern crate num_derive;
+extern crate num_traits;
 use self::diesel::prelude::*;
 use self::models::*;
 use actix_web::http::header;
@@ -22,16 +25,19 @@ use serde::Deserialize;
 use std::env;
 use std::io::Write;
 
+pub mod dom5_emu;
 pub mod dom5_proc;
 pub mod dom5_proxy;
 pub mod email_manager;
 pub mod frontend;
 pub mod game_manager;
+pub mod map_file;
 pub mod models;
 pub mod schema;
 pub mod statusdump;
 pub mod twoh;
-pub mod map_file;
+pub mod packets;
+pub mod msgbus;
 
 use frontend::AppData;
 
@@ -50,14 +56,13 @@ async fn favicon() -> Result<HttpResponse> {
 }
 #[get("/styles.css")]
 async fn styles() -> Result<HttpResponse> {
-    Ok(HttpResponse::Ok()
-        .content_type("text/css")
-        .body(
-            &concat!(
-                include_str!("../content/map-list.css"),
-                include_str!("../content/mod-list.css"),
-                include_str!("../content/styles.css")
-            )[..]))
+    Ok(HttpResponse::Ok().content_type("text/css").body(
+        &concat!(
+            include_str!("../content/map-list.css"),
+            include_str!("../content/mod-list.css"),
+            include_str!("../content/styles.css")
+        )[..],
+    ))
 }
 
 #[derive(Deserialize)]
@@ -75,6 +80,7 @@ async fn main() -> std::io::Result<()> {
         let manager = ConnectionManager::<PgConnection>::new(database_url);
         r2d2::Pool::new(manager).unwrap().clone()
     };
+    let bus = msgbus::MsgBus::new();
 
     let mut manager = {
         let port_var = env::var("PORT_RANGE").expect("PORT_RANGE must be set (ie. '10000,10999')");
@@ -83,6 +89,8 @@ async fn main() -> std::io::Result<()> {
         let range: Vec<&str> = port_var.split(",").collect();
         let internal_range: Vec<&str> = internal_port_var.split(",").collect();
         let cfg = GameManagerConfig {
+            bus_rx: bus.new_recv(),
+            bus_tx: bus.sender.clone(),
             db_pool: &pool.clone(),
             tmp_dir: &env::current_dir().unwrap().join("tmp"),
             dom5_bin: &std::path::PathBuf::from(env::var("DOM5_BIN").expect("DOM5_BIN mus be set")),
@@ -96,7 +104,7 @@ async fn main() -> std::io::Result<()> {
             ],
         };
 
-        GameManager::new(&cfg)
+        GameManager::new(cfg)
     };
 
     let app_data = AppData {
