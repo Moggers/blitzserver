@@ -32,3 +32,6 @@ actix-session = "0.4.0"
 flate2 = { version = "1.0.17", features = ["zlib"], default-features = false }
 num-traits = "*"
 num-derive = "*"
+
+crc = "*"
+fletcher = "*"

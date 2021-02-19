@@ -339,17 +339,6 @@ async fn postpone(
             .execute(&db)
             .unwrap();
     }
-    app_data
-        .manager_notifier
-        .send(game_manager::ManagerMsg::GameMsg(
-            crate::dom5_proxy::GameMsg {
-                id: game.id,
-                cmd: crate::dom5_proxy::GameMsgType::GameCmd(
-                    crate::dom5_proc::GameCmd::SetTimerCmd,
-                ),
-            },
-        ))
-        .unwrap();
     Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}/schedule", game.id))
         .finish())
@@ -394,17 +383,6 @@ async fn timer(
             .execute(&db)
             .unwrap();
     }
-    app_data
-        .manager_notifier
-        .send(game_manager::ManagerMsg::GameMsg(
-            crate::dom5_proxy::GameMsg {
-                id: game.id,
-                cmd: crate::dom5_proxy::GameMsgType::GameCmd(
-                    crate::dom5_proc::GameCmd::SetTimerCmd,
-                ),
-            },
-        ))
-        .unwrap();
     Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}/schedule", game.id))
         .finish())
@@ -568,17 +546,6 @@ async fn launch(
         )
         .execute(&db)
         .unwrap();
-    app_data
-        .manager_notifier
-        .send(game_manager::ManagerMsg::GameMsg(
-            crate::dom5_proxy::GameMsg {
-                id: game.id,
-                cmd: crate::dom5_proxy::GameMsgType::GameCmd(
-                    crate::dom5_proc::GameCmd::SetTimerCmd,
-                ),
-            },
-        ))
-        .unwrap();
     Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}/schedule", game.id))
         .finish())
@@ -610,11 +577,6 @@ async fn create_post(
         .values(&new_game)
         .get_result(&db)
         .expect("Error saving new game");
-
-    app_data
-        .manager_notifier
-        .send(game_manager::ManagerMsg::Start(game.id))
-        .unwrap();
 
     Ok(HttpResponse::Found()
         .header(
@@ -766,15 +728,6 @@ async fn settings_post(
             Ok(game)
         })
         .unwrap();
-    app_data
-        .manager_notifier
-        .send(game_manager::ManagerMsg::GameMsg(
-            crate::dom5_proxy::GameMsg {
-                id: game.id,
-                cmd: crate::dom5_proxy::GameMsgType::RebootCmd,
-            },
-        ))
-        .unwrap();
     Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}/settings", game.id))
         .finish())
@@ -867,10 +820,6 @@ pub async fn archive_post(
         ))
         .execute(&db)
         .unwrap();
-    app_data
-        .manager_notifier
-        .send(game_manager::ManagerMsg::Archive(*path_id))
-        .unwrap();
     return Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}/schedule", path_id))
         .finish());
@@ -908,15 +857,6 @@ pub async fn remove_post(
             )
             .execute(&db)
             .unwrap();
-        app_data
-            .manager_notifier
-            .send(game_manager::ManagerMsg::GameMsg(
-                crate::dom5_proxy::GameMsg {
-                    id: path_id,
-                    cmd: crate::dom5_proxy::GameMsgType::RebootCmd,
-                },
-            ))
-            .unwrap();
     }
     return Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}/status", path_id))
@@ -948,15 +888,6 @@ pub async fn rollback_post(
         .get_result(&db)
         .unwrap();
     game.rollback(&db).unwrap();
-    app_data
-        .manager_notifier
-        .send(game_manager::ManagerMsg::GameMsg(
-            crate::dom5_proxy::GameMsg {
-                id: game.id,
-                cmd: crate::dom5_proxy::GameMsgType::RebootCmd,
-            },
-        ))
-        .unwrap();
     return Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}/schedule", path_id))
         .finish());
@@ -988,15 +919,6 @@ pub async fn unstart_post(
         .unwrap();
     game.unstart(&db).unwrap();
     let game = game.remove_timer(&db).unwrap();
-    app_data
-        .manager_notifier
-        .send(game_manager::ManagerMsg::GameMsg(
-            crate::dom5_proxy::GameMsg {
-                id: game.id,
-                cmd: crate::dom5_proxy::GameMsgType::RebootCmd,
-            },
-        ))
-        .unwrap();
     return Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}/schedule", path_id))
         .finish());

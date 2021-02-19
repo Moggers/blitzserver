@@ -1,9 +1,10 @@
 use crate::twoh::TwoH;
+use std::io::Read;
 
 use super::diesel::prelude::*;
 use super::models::{
-    File, Game, GameMod, Map, Mod, NewFile, NewNation, NewPlayer, NewPlayerTurn, NewTurn, Player,
-    PlayerTurn, Turn,
+    File, Game, GameMod, Map, Mod, Nation, NewFile, NewNation, NewPlayer, NewPlayerTurn, NewTurn,
+    Player, PlayerTurn, Turn,
 };
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
@@ -49,108 +50,141 @@ impl Drop for Dom5ProcHandle {
 pub struct Dom5Proc {
     pub name: String,
     pub era: i32,
-    pub datadir: String,
-    pub send_upstream: crossbeam_channel::Sender<ProcEvent>,
+    datadir: std::path::PathBuf,
     pub savedir: std::path::PathBuf,
     pub game_id: i32,
-    pub internal_port_range: [i32; 2],
     pub db_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
 }
 
 impl Dom5Proc {
-    fn add_string_to_domcmd<'a>(&self, cmd: &'a str) {
-        let mut file = if self.savedir.join("cmd").exists() {
-            std::fs::File::open(self.savedir.join("domcmd")).unwrap()
-        } else {
-            std::fs::File::create(self.savedir.join("domcmd")).unwrap()
-        };
-        write!(file, "{}", cmd).unwrap();
-    }
-
-    fn unset_timer(&self) {
-        self.add_string_to_domcmd("setinterval 0");
-    }
-
-    fn set_timer(&mut self) {
-        use crate::schema::games::dsl as games_dsl;
-        use crate::schema::turns::dsl as turns_dsl;
-        let db = self.db_pool.get().unwrap();
-        let game: Game = games_dsl::games
-            .filter(games_dsl::id.eq(self.game_id))
-            .get_result(&db)
-            .unwrap();
-        if let Some(next_turn) = game.next_turn {
-            let turns: Vec<Turn> = turns_dsl::turns
-                .filter(
-                    turns_dsl::game_id
-                        .eq(self.game_id)
-                        .and(turns_dsl::archived.eq(false)),
-                )
-                .get_results::<Turn>(&db)
-                .unwrap();
-            if turns.len() > 0 {
-                if next_turn >= std::time::SystemTime::now() {
-                    self.add_string_to_domcmd(&format!(
-                        "settimeleft {}",
-                        (next_turn
-                            .duration_since(std::time::SystemTime::now())
-                            .unwrap()
-                            .as_secs())
-                    ));
-                } else {
-                    self.add_string_to_domcmd("settimeleft 1");
-                }
-            } else {
-                if next_turn >= std::time::SystemTime::now() {
-                    self.add_string_to_domcmd(&format!(
-                        "settimeleft {}",
-                        next_turn
-                            .duration_since(std::time::SystemTime::now())
-                            .unwrap()
-                            .as_secs()
-                    ));
-                } else {
-                    self.add_string_to_domcmd("settimeleft 1");
-                }
-            }
+    pub fn new(game: Game, db_pool: r2d2::Pool<ConnectionManager<PgConnection>>) -> Self {
+        Self {
+            savedir: std::env::current_dir()
+                .unwrap()
+                .join("tmp")
+                .join("games")
+                .join(game.id.to_string())
+                .join("savedgames")
+                .join(&game.name),
+            datadir: std::env::current_dir()
+                .unwrap()
+                .join("tmp")
+                .join("games")
+                .join(game.id.to_string()),
+            name: game.name,
+            era: game.era,
+            game_id: game.id,
+            db_pool,
         }
     }
 
-    fn update_nations(&self, bin: &std::path::Path) {
-        let db = self.db_pool.get().unwrap();
-        let res = String::from_utf8(
-            std::process::Command::new(bin)
-                .env("DOM5_CONF", &self.datadir)
-                .arg("--listnations")
-                .output()
-                .unwrap()
-                .stdout,
+    fn find_unused_port() -> Option<i32> {
+        for port in 1025..65535 {
+            match std::net::TcpListener::bind(("127.0.0.1", port)) {
+                Ok(l) => {
+                    return Some(port.into());
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+
+    pub fn update_nations(&self) {
+        let mut arguments = {
+            let db = self.db_pool.get().expect("Unable to connect to database");
+            let mods: Vec<(GameMod, Mod)> = crate::schema::game_mods::dsl::game_mods
+                .filter(crate::schema::game_mods::dsl::game_id.eq(self.game_id))
+                .inner_join(
+                    crate::schema::mods::dsl::mods
+                        .on(crate::schema::mods::dsl::id.eq(crate::schema::game_mods::dsl::mod_id)),
+                )
+                .get_results::<(GameMod, Mod)>(&db)
+                .unwrap();
+            mods.iter()
+                .flat_map(|(_, m)| vec![String::from("-M"), m.dm_filename.clone()])
+                .collect::<Vec<String>>()
+        };
+        let db = self.db_pool.get().expect("Unable to connect to database");
+        use crate::schema::files::dsl as files_dsl;
+        use crate::schema::games::dsl as games_dsl;
+        use crate::schema::maps::dsl as maps_dsl;
+        let (game, _map, file) = games_dsl::games
+            .filter(games_dsl::id.eq(self.game_id))
+            .inner_join(maps_dsl::maps.on(maps_dsl::id.eq(games_dsl::map_id)))
+            .inner_join(files_dsl::files.on(files_dsl::id.eq(maps_dsl::mapfile_id)))
+            .get_result::<(Game, Map, File)>(&db)
+            .unwrap();
+        arguments.append(&mut vec![
+            "--statusdump".to_string(),
+            "--port".to_string(),
+            format!("{}", Self::find_unused_port().unwrap()),
+            "--era".to_string(),
+            game.era.to_string(),
+            "-T".to_string(),
+            "--tcpserver".to_string(),
+            "-g".to_string(),
+            format!("{}", self.name),
+        ]);
+        drop(db);
+        let mut proc = std::process::Command::new(std::path::PathBuf::from(
+            std::env::var("DOM5_BIN")
+                .expect("DOM5_BIN not specified")
+                .to_string(),
+        ))
+        .env("DOM5_CONF", &self.datadir)
+        .args(arguments)
+        .spawn()
+        .expect(&format!(
+            "Failed to launch dom5 binary for game {} while fetching nations",
+            self.name
+        ));
+        let mut statusdump = None;
+        let mut wait_counter = 5;
+        loop {
+            match std::fs::File::open(self.savedir.join("statusdump.txt")) {
+                Ok(f) => {
+                    statusdump = Some(f);
+                    break;
+                }
+                Err(_) => {
+                    if wait_counter == 0 {
+                        panic!("Unable to find statusdump with nation info")
+                    } else {
+                        wait_counter -= 1
+                    }
+                }
+            }
+            std::thread::sleep(std::time::Duration::from_secs(1));
+        }
+        let nation_info_regex = regex::Regex::new(
+            r#"Nation\t([0-9]+)\t[0-9]+\t[0-9]+\t[0-9]+\t[0-9]+\t([a-zA-Z_]+)\t([^ ]+)\t([^$]+)"#,
         )
         .unwrap();
-        let re = regex::Regex::new(r#"^ *([0-9]+) +([^,]+), (.+)"#).unwrap();
-        let mut new_nations: Vec<NewNation> = vec![];
-        for line in res.lines() {
-            match re.captures(line) {
-                Some(s) => {
-                    new_nations.push(NewNation {
+        if let Some(mut statusdump) = statusdump {
+            let db = self.db_pool.get().unwrap();
+            let mut contents = vec![];
+            statusdump.read_to_end(&mut contents).unwrap();
+            let statusdump_str = String::from_utf8_lossy(&contents);
+            let nations: Vec<Nation> = statusdump_str
+                .lines()
+                .filter(|l| nation_info_regex.is_match(l))
+                .map(|l| {
+                    let result = nation_info_regex.captures(l).unwrap();
+                    NewNation {
                         game_id: self.game_id,
-                        nation_id: s.get(1).unwrap().as_str().parse().unwrap(),
-                        name: s.get(2).unwrap().as_str().to_owned(),
-                        epithet: s.get(3).unwrap().as_str().to_owned(),
-                    });
-                }
-                None => {}
-            }
+                        nation_id: result.get(1).unwrap().as_str().parse().unwrap(),
+                        filename: result.get(2).unwrap().as_str().to_owned(),
+                        name: result.get(3).unwrap().as_str().to_owned(),
+                        epithet: result.get(4).unwrap().as_str().to_owned(),
+                    }
+                })
+                .map(|n| n.insert(&db).unwrap())
+                .collect();
+            log::debug!("Found nations {:?}", nations);
         }
-        use super::schema::nations::*;
-        use diesel::pg::upsert::excluded;
-        diesel::insert_into(super::schema::nations::table)
-            .values(new_nations)
-            .on_conflict((game_id, nation_id))
-            .do_update()
-            .set((name.eq(excluded(name)), epithet.eq(excluded(epithet))))
-            .execute(&db)
-            .unwrap();
+        proc.kill().unwrap();
+        proc.wait().unwrap();
     }
     fn handle_new_turn(&self) {
         let db = self.db_pool.get().unwrap();
@@ -167,10 +201,6 @@ impl Dom5Proc {
         }
         .insert(&db)
         .unwrap();
-        if inserted {
-            self.unset_timer();
-            self.send_upstream.send(ProcEvent::NewTurn).unwrap();
-        }
     }
     fn populate_savegame(&self) {
         if std::path::PathBuf::from(&self.savedir).exists() {
@@ -352,8 +382,8 @@ impl Dom5Proc {
         .unwrap();
     }
 
-    pub fn host_turn(mut self, bin: &std::path::Path) {
-        self.update_nations(bin);
+    pub fn host_turn(mut self) {
+        self.update_nations();
         self.populate_savegame();
         self.populate_mods();
         self.populate_maps();
@@ -382,6 +412,7 @@ impl Dom5Proc {
             .get_result::<(Game, Map, File)>(&db)
             .unwrap();
         arguments.append(&mut vec![
+            "--statusdump".to_string(),
             "--noclientstart".to_string(),
             "--thrones".to_string(),
             game.thrones_t1.to_string(),
@@ -464,14 +495,23 @@ impl Dom5Proc {
             String::from("-g"),
             format!("{}", self.name),
         ]);
-        std::process::Command::new(bin)
-            .env("DOM5_CONF", &self.datadir)
-            .args(arguments)
-            .output()
-            .expect(&format!(
-                "Failed to launch dom5 binary for game {}",
-                self.name
-            ));
+        let result = std::process::Command::new(std::path::PathBuf::from(
+            std::env::var("DOM5_BIN")
+                .expect("DOM5_BIN not specified")
+                .to_string(),
+        ))
+        .env("DOM5_CONF", &self.datadir)
+        .args(arguments)
+        .output()
+        .expect(&format!(
+            "Failed to launch dom5 binary for game {}",
+            self.name
+        ));
+        log::debug!(
+            "Output {}\nErrors: {}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
         self.handle_new_turn();
         for entry in std::fs::read_dir(&self.savedir).unwrap() {
             if let Ok(entry) = entry {
@@ -495,191 +535,6 @@ impl Dom5Proc {
                 }
             }
         }
-    }
-
-    pub fn launch(mut self, bin: &std::path::Path) -> Dom5ProcHandle {
-        self.update_nations(bin);
-        self.populate_savegame();
-        self.populate_mods();
-        self.populate_maps();
-        let mut arguments = {
-            let db = self.db_pool.get().expect("Unable to connect to database");
-            let mods: Vec<(GameMod, Mod)> = crate::schema::game_mods::dsl::game_mods
-                .filter(crate::schema::game_mods::dsl::game_id.eq(self.game_id))
-                .inner_join(
-                    crate::schema::mods::dsl::mods
-                        .on(crate::schema::mods::dsl::id.eq(crate::schema::game_mods::dsl::mod_id)),
-                )
-                .get_results::<(GameMod, Mod)>(&db)
-                .unwrap();
-            mods.iter()
-                .flat_map(|(_, m)| vec![String::from("-M"), m.dm_filename.clone()])
-                .collect::<Vec<String>>()
-        };
-        let db = self.db_pool.get().expect("Unable to connect to database");
-        use crate::schema::files::dsl as files_dsl;
-        use crate::schema::games::dsl::*;
-        use crate::schema::maps::dsl as maps_dsl;
-        let (game, map, file) = games
-            .filter(id.eq(self.game_id))
-            .inner_join(maps_dsl::maps.on(maps_dsl::id.eq(map_id)))
-            .inner_join(files_dsl::files.on(files_dsl::id.eq(maps_dsl::mapfile_id)))
-            .get_result::<(Game, Map, File)>(&db)
-            .unwrap();
-        arguments.append(&mut vec![
-            "--noclientstart".to_string(),
-            "--thrones".to_string(),
-            game.thrones_t1.to_string(),
-            game.thrones_t2.to_string(),
-            game.thrones_t3.to_string(),
-            "--requiredap".to_string(),
-            game.throne_points_required.to_string(),
-            "--research".to_string(),
-            game.research_diff.to_string(),
-            if game.research_rand {
-                ""
-            } else {
-                "--norandres"
-            }
-            .to_string(),
-            "--hofsize".to_string(),
-            game.hof_size.to_string(),
-            "--globals".to_string(),
-            game.global_size.to_string(),
-            "--indepstr".to_string(),
-            game.indepstr.to_string(),
-            "--magicsites".to_string(),
-            game.magicsites.to_string(),
-            "--eventrarity".to_string(),
-            game.eventrarity.to_string(),
-            "--richness".to_string(),
-            game.richness.to_string(),
-            "--resources".to_string(),
-            game.resources.to_string(),
-            "--supplies".to_string(),
-            game.supplies.to_string(),
-            "--startprov".to_string(),
-            game.startprov.to_string(),
-            if game.renaming { "--renaming" } else { "" }.to_string(),
-            if game.scoregraphs {
-                "--scoregraphs"
-            } else {
-                ""
-            }
-            .to_string(),
-            if game.nationinfo {
-                ""
-            } else {
-                "--nonationinfo"
-            }
-            .to_string(),
-            "--era".to_string(),
-            game.era.to_string(),
-            if game.artrest { "" } else { "--noartrest" }.to_string(),
-            if game.teamgame { "--teamgame" } else { "" }.to_string(),
-            if game.clustered { "--clustered" } else { "" }.to_string(),
-            match game.storyevents {
-                0 => "--nostoryevents",
-                1 => "--storyevents",
-                2 => "--allstoryevents",
-                _ => "",
-            }
-            .to_string(),
-            "--newailvl".to_string(),
-            game.newailvl.to_string(),
-            if game.newai { "" } else { "--nonewai" }.to_string(),
-        ]);
-        drop(db);
-        let new_internal_port = (self.internal_port_range[0]..self.internal_port_range[1])
-            .find(|check_port| {
-                match std::net::TcpListener::bind(format!("0.0.0.0:{}", check_port)) {
-                    Ok(_) => {
-                        println!("Bound to {}, using", check_port);
-                        true
-                    }
-                    Err(_) => false,
-                }
-            })
-            .unwrap();
-        arguments.append(&mut vec![
-            String::from("-T"),
-            String::from("--tcpserver"),
-            String::from("--statusdump"),
-            String::from("--port"),
-            format!("{}", new_internal_port),
-            String::from("--mapfile"),
-            file.filename,
-            String::from("--newgame"),
-            format!("{}", self.name),
-        ]);
-        let mut cmd = std::process::Command::new(bin)
-            .env("DOM5_CONF", &self.datadir)
-            .args(arguments)
-            .spawn()
-            .expect(&format!(
-                "Failed to launch dom5 binary for game {}",
-                self.name
-            ));
-        self.set_timer();
-        let datadir = self.datadir.clone();
-        let (sender, receiver) = crossbeam_channel::unbounded::<GameCmd>();
-        let (file_s, file_r) = crossbeam_channel::unbounded::<notify::Event>();
-        std::thread::spawn(move || {
-            let mut watcher: notify::RecommendedWatcher =
-                notify::Watcher::new_immediate(move |res| match res {
-                    Ok(event) => {
-                        file_s.send(event).unwrap();
-                    }
-                    Err(_err) => {}
-                })
-                .unwrap();
-            watcher
-                .watch(datadir, notify::RecursiveMode::Recursive)
-                .unwrap();
-            loop {
-                crossbeam_channel::select! {
-                    recv(receiver) -> res => {
-                        match res {
-                            Ok(GameCmd::Shutdown) => {
-                                cmd.kill().unwrap();
-                                cmd.wait().unwrap();
-                                break;
-                            },
-                            Ok(GameCmd::SetTimerCmd) => {
-                                self.set_timer();
-                            }
-                            Err(_) => {
-                                panic!("Failed to receive command from game manager");
-                            }
-                        }
-                    },
-                    recv(file_r) -> res => {
-                        match res {
-                            Ok(event) => {
-                                match event.kind {
-                                    notify::EventKind::Modify(_) | notify::EventKind::Create(_) => {
-                                        for path in event.paths {
-                                            if path.file_name() == Some(std::ffi::OsStr::new("ftherlnd")) {
-                                                self.handle_new_turn();
-                                            }
-                                            if path.extension() == Some(std::ffi::OsStr::new("trn")) {
-                                                self.handle_trn_update(&path);
-                                            }
-                                            if path.extension() == Some(std::ffi::OsStr::new("2h")) {
-                                                self.handle_2h_update(&path);
-                                          }
-                                        }
-                                    },
-                                    _ => (),
-                                }
-                            },
-                        _ => panic!("Received error in file watch")
-                        }
-                    }
-                };
-            }
-        });
-        Dom5ProcHandle::new(sender, new_internal_port)
     }
 
     pub fn populate_maps(&mut self) {

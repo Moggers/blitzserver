@@ -3,12 +3,18 @@ use std::sync::{Arc, Mutex};
 #[derive(Clone)]
 pub enum Msg {
     Pkt(PktMsg),
+    GameSchedule(GameScheduleMsg),
 }
 
 #[derive(Clone)]
 pub struct PktMsg {
     pub addr: std::net::SocketAddr,
     pub pkt: crate::packets::Body,
+}
+#[derive(Clone)]
+pub struct GameScheduleMsg {
+    pub game_id: i32,
+    pub schedule: std::time::SystemTime,
 }
 
 pub struct MsgBus {
@@ -74,6 +80,9 @@ impl MsgBusRx {
     }
     pub fn recv(&self) -> Result<Msg, crossbeam_channel::RecvError> {
         self.rx.recv()
+    }
+    pub fn recv_timeout(&self, timeout: std::time::Duration) -> Result<Msg, crossbeam_channel::RecvTimeoutError> {
+        self.rx.recv_timeout(timeout)
     }
 }
 

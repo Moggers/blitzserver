@@ -569,11 +569,13 @@ dependencies = [
  "actix-web",
  "askama",
  "byteorder",
+ "crc",
  "crossbeam-channel 0.5.0",
  "diesel",
  "dotenv",
  "env_logger",
  "flate2",
+ "fletcher",
  "futures",
  "image",
  "lettre",
@@ -627,6 +629,12 @@ checksum = "881e704e61d0fb41d7c6c9ae2bd790eb8c13dc974ae102fb98c788b4fdea4349"
 dependencies = [
  "bytes 0.6.0",
 ]
+
+[[package]]
+name = "build_const"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39092a32794787acd8525ee150305ff051b0aa6cc2abaf193924f5ab05425f39"
 
 [[package]]
 name = "bumpalo"
@@ -777,6 +785,15 @@ name = "cpuid-bool"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcb25d077389e53838a8158c8e99174c5a9d902dee4904320db714f3c653ffba"
+
+[[package]]
+name = "crc"
+version = "1.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d663548de7f5cca343f1e0a48d14dcfb0e9eb4e079ec58883b7251539fa10aeb"
+dependencies = [
+ "build_const",
+]
 
 [[package]]
 name = "crc32fast"
@@ -1029,6 +1046,12 @@ dependencies = [
  "libz-sys",
  "miniz_oxide 0.4.3",
 ]
+
+[[package]]
+name = "fletcher"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c76f5d0a035d1543c4a3f2d2c84fe00214a6d688e4b8a1ac00a1699528bc6611"
 
 [[package]]
 name = "fnv"

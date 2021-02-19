@@ -1,11 +1,15 @@
 use crate::diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, RunQueryDsl};
-use crate::models::Game;
+use crate::models::{Game, Map, Nation};
 use crate::msgbus::{Msg, PktMsg};
 use crate::packets::BodyContents;
-use crate::packets::{AstralPacketResp, GameInfoReq, GameInfoResp, Packet};
+use crate::packets::{
+    AstralPacketResp, DisconnectResp, GameInfoResp, LoadingMessageResp, MapFileResp, MapResp,
+    PAResp, Packet, PasswordsResp, TrnResp, TwoHCrcResp,
+};
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use std::env;
+use std::ops::Add;
 pub struct Dom5Emu {
     game_id: i32,
     bus_rx: crate::msgbus::MsgBusRx,
@@ -37,6 +41,7 @@ impl Dom5Emu {
             .filter(games_dsl::id.eq(game_id))
             .get_result(&db)
             .unwrap();
+        let players = crate::models::Player::get_players(game_id, &db).unwrap();
         let turn = crate::models::Turn::current_turn(&[game_id], &db);
         let next_turn = match game.next_turn {
             Some(t) => match t.duration_since(std::time::SystemTime::now()) {
@@ -54,6 +59,14 @@ impl Dom5Emu {
             disciples: false,
             unk3: 0,
             milliseconds_to_host: next_turn,
+            unk4: 0,
+            nation_statuses: players.iter().fold(
+                std::collections::HashMap::new(),
+                |mut accumulator, current| {
+                    accumulator.insert(current.nationid, 1);
+                    accumulator
+                },
+            ),
             remaining: vec![],
         };
         return resp;
@@ -87,6 +100,26 @@ impl Dom5Emu {
         }
     }
 
+    fn accept_pretender<D>(game_id: i32, req: crate::packets::UploadPretenderReq, db: &D)
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::models::{File, NewFile, NewPlayer};
+        use crate::twoh::TwoH;
+        let twoh = TwoH::read_contents(&req.pretender_contents[..]).unwrap();
+        let nation: Nation = Nation::get(game_id, twoh.nationid, db).unwrap();
+        let file: File =
+            NewFile::new(&format!("{}.2h", nation.filename), &req.pretender_contents).insert(db);
+
+        &NewPlayer {
+            file_id: file.id,
+            nationid: req.nation_id as i32,
+            game_id: game_id,
+        }
+        .insert(db)
+        .unwrap();
+    }
+
     pub fn launch(self) {
         std::thread::spawn(move || {
             let port = self.fetch_port();
@@ -107,12 +140,35 @@ impl Dom5Emu {
                     });
                     let pool_clone = self.db_pool.clone();
                     let game_id = self.game_id.clone();
+                    let tx_clone = self.bus_tx.clone();
                     std::thread::spawn(move || {
                         while let Ok(msg) = rx_clone.recv() {
                             match msg {
                                 Msg::Pkt(PktMsg { addr, pkt }) if client_addr == addr => {
                                     log::debug!("Packet: {:x?}", pkt);
                                     match pkt {
+                                        crate::packets::Body::StartGameReq(pkt) => {
+                                            let db = pool_clone.get().unwrap();
+                                            let game = Game::get(game_id, &db).unwrap();
+                                            let schedule = std::time::SystemTime::now()
+                                                .add(std::time::Duration::from_secs(5));
+                                            game.schedule_turn(schedule, &db).unwrap();
+                                            tx_clone
+                                                .send(Msg::GameSchedule(
+                                                    crate::msgbus::GameScheduleMsg {
+                                                        game_id,
+                                                        schedule,
+                                                    },
+                                                ))
+                                                .unwrap();
+                                        }
+                                        crate::packets::Body::DisconnectReq(pkt) => {
+                                            DisconnectResp {}.write_packet(&mut socket_send_clone);
+                                        }
+                                        crate::packets::Body::UploadPretenderReq(pkt) => {
+                                            let db = pool_clone.get().unwrap();
+                                            Self::accept_pretender(game_id, pkt, &db);
+                                        }
                                         crate::packets::Body::HeartbeatReq(pkg) => {
                                             let db = pool_clone.get().unwrap();
                                             Self::generate_gameinfo(game_id, db)
@@ -126,6 +182,72 @@ impl Dom5Emu {
                                             let db = pool_clone.get().unwrap();
                                             Self::generate_gameinfo(game_id, db)
                                                 .write_packet(&mut socket_send_clone);
+                                        }
+                                        crate::packets::Body::PAReq(pkt) => {
+                                            PAResp {}.write_packet(&mut socket_send_clone);
+                                        }
+                                        crate::packets::Body::PasswordsReq(pkt) => {
+                                            PasswordsResp::new(&[])
+                                                .write_packet(&mut socket_send_clone);
+                                        }
+                                        crate::packets::Body::TwoHCrcReq(pkt) => {
+                                            TwoHCrcResp {}.write_packet(&mut socket_send_clone);
+                                        }
+                                        crate::packets::Body::TrnReq(pkt) => {
+                                            log::debug!(
+                                                "Client requested trn file for nation {}",
+                                                pkt.nation_desired
+                                            );
+                                            let db = pool_clone.get().unwrap();
+                                            let (_turn, file) = crate::models::PlayerTurn::get(
+                                                game_id,
+                                                pkt.nation_desired as i32,
+                                                &db,
+                                            )
+                                            .unwrap();
+                                            TrnResp {
+                                                trn_contents: file.filebinary,
+                                            }
+                                            .write_packet(&mut socket_send_clone);
+                                        }
+                                        crate::packets::Body::MapReq(pkt) => {
+                                            let db = pool_clone.get().unwrap();
+                                            let game = Game::get(game_id, &db).unwrap();
+                                            let map = Map::get(game.map_id, &db).unwrap();
+                                            if let Ok((
+                                                Some(mapfile),
+                                                Some(imagefile),
+                                                Some(winterfile),
+                                            )) = map.get_files(&db)
+                                            {
+                                                MapResp {
+                                                    map: Some((
+                                                        mapfile.filename,
+                                                        mapfile.filebinary,
+                                                    )),
+                                                    image: Some((
+                                                        imagefile.filename,
+                                                        imagefile.filebinary,
+                                                    )),
+                                                    winter_image: Some((
+                                                        winterfile.filename,
+                                                        winterfile.filebinary,
+                                                    )),
+                                                }
+                                                .write_packet(&mut socket_send_clone);
+                                            }
+                                        }
+                                        crate::packets::Body::MapFileReq(pkt) => {
+                                            let db = pool_clone.get().unwrap();
+                                            let game = Game::get(game_id, &db).unwrap();
+                                            let map = Map::get(game.map_id, &db).unwrap();
+                                            if let Ok((Some(mapfile), _, _)) = map.get_files(&db) {
+                                                MapFileResp {
+                                                    // map_contents: mapfile.filebinary,
+                                                    map_contents: mapfile.filebinary
+                                                }
+                                                .write_packet(&mut socket_send_clone);
+                                            }
                                         }
                                         _ => {}
                                     }

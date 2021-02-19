@@ -1,8 +1,8 @@
 use super::schema::{
     email_configs, files, game_mods, games, maps, mods, nations, player_turns, players, turns,
 };
-use crate::diesel::RunQueryDsl;
 use crate::diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl};
+use crate::diesel::{JoinOnDsl, RunQueryDsl};
 use serde::Deserialize;
 use std::hash::{Hash, Hasher};
 
@@ -60,6 +60,29 @@ struct GameNationCount {
 }
 
 impl Game {
+    pub fn get<D>(game_id: i32, db: &D) -> Result<Game, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::games::dsl as games_dsl;
+        games_dsl::games
+            .filter(games_dsl::id.eq(game_id))
+            .get_result(db)
+    }
+
+    pub fn schedule_turn<D>(
+        &self,
+        next_turn: std::time::SystemTime,
+        db: &D,
+    ) -> Result<Game, crate::diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::games::dsl as games_dsl;
+        diesel::update(games_dsl::games.filter(games_dsl::id.eq(self.id)))
+            .set(games_dsl::next_turn.eq(next_turn))
+            .get_result(db)
+    }
     pub fn next_turn_string(&self) -> String {
         if self.archived {
             return "Never".to_string();
@@ -139,7 +162,7 @@ impl Game {
             .order(turns_dsl::turn_number.desc())
             .limit(1)
             .get_result(db)?;
-        if turn.turn_number == 1 { 
+        if turn.turn_number == 1 {
             return Ok(turn);
         }
         let turn: Turn = diesel::update(turns_dsl::turns)
@@ -259,7 +282,7 @@ impl Default for NewGame {
     }
 }
 
-#[derive(Debug, Queryable)]
+#[derive(Clone, Debug, Queryable)]
 pub struct File {
     pub id: i32,
     pub filename: String,
@@ -268,10 +291,10 @@ pub struct File {
 }
 
 impl<'a> NewFile<'a> {
-    pub fn insert<'b>(
-        self,
-        db: &'b r2d2::PooledConnection<diesel::r2d2::ConnectionManager<diesel::PgConnection>>,
-    ) -> File {
+    pub fn insert<D>(self, db: &D) -> File
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
         use super::diesel::prelude::*;
         use crate::schema::files::dsl::*;
         match files.filter(hash.eq(self.hash)).get_result(db) {
@@ -328,6 +351,41 @@ pub struct Map {
     pub uw_count: i32,
 }
 
+impl Map {
+    pub fn get<D>(id: i32, db: &D) -> Result<Self, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::maps::dsl as maps_dsl;
+        maps_dsl::maps.filter(maps_dsl::id.eq(id)).get_result(db)
+    }
+
+    pub fn get_files<D>(
+        &self,
+        db: &D,
+    ) -> Result<(Option<File>, Option<File>, Option<File>), diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::files::dsl as files_dsl;
+        let ids = match self.winterfile_id {
+            Some(wid) => vec![self.tgafile_id, self.mapfile_id, wid],
+            None => vec![self.tgafile_id, self.mapfile_id],
+        };
+        let files: Vec<File> = files_dsl::files
+            .filter(files_dsl::id.eq_any(&ids))
+            .get_results(db)?;
+        return Ok((
+            Some((*files.iter().find(|f| f.id == self.mapfile_id).unwrap()).clone()),
+            Some((*files.iter().find(|f| f.id == self.tgafile_id).unwrap()).clone()),
+            match self.winterfile_id {
+                None => None,
+                Some(fid) => Some((*files.iter().find(|f| f.id == fid).unwrap()).clone()),
+            },
+        ));
+    }
+}
+
 #[derive(Debug, Insertable)]
 #[table_name = "maps"]
 pub struct NewMap {
@@ -349,6 +407,18 @@ pub struct Player {
     pub file_id: i32,
 }
 
+impl Player {
+    pub fn get_players<D>(game_id: i32, db: &D) -> Result<Vec<Player>, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::players::dsl as players_dsl;
+        players_dsl::players
+            .filter(players_dsl::game_id.eq(game_id))
+            .get_results(db)
+    }
+}
+
 #[derive(Insertable)]
 #[table_name = "players"]
 pub struct NewPlayer {
@@ -357,7 +427,22 @@ pub struct NewPlayer {
     pub file_id: i32,
 }
 
-#[derive(Identifiable, Queryable)]
+impl NewPlayer {
+    pub fn insert<D>(&self, db: &D) -> Result<Player, crate::diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::players::dsl::*;
+        diesel::insert_into(super::schema::players::table)
+            .values(self)
+            .on_conflict((game_id, nationid))
+            .do_update()
+            .set(file_id.eq(self.file_id))
+            .get_result(db)
+    }
+}
+
+#[derive(Debug, Identifiable, Queryable)]
 #[table_name = "nations"]
 pub struct Nation {
     pub id: i32,
@@ -365,15 +450,52 @@ pub struct Nation {
     pub nation_id: i32,
     pub name: String,
     pub epithet: String,
+    pub filename: String,
 }
 
-#[derive(Insertable)]
+impl Nation {
+    pub fn get<D>(game_id: i32, nation_id: i32, db: &D) -> Result<Nation, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::nations::dsl as nations_dsl;
+        nations_dsl::nations
+            .filter(
+                nations_dsl::game_id
+                    .eq(game_id)
+                    .and(nations_dsl::nation_id.eq(nation_id)),
+            )
+            .get_result(db)
+    }
+}
+
+#[derive(Debug, Insertable)]
 #[table_name = "nations"]
 pub struct NewNation {
     pub game_id: i32,
     pub name: String,
     pub nation_id: i32,
     pub epithet: String,
+    pub filename: String,
+}
+
+impl NewNation {
+    pub fn insert<D>(&self, db: &D) -> Result<Nation, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::nations::dsl as nations_dsl;
+        diesel::insert_into(nations_dsl::nations)
+            .values(self)
+            .on_conflict((nations_dsl::game_id, nations_dsl::nation_id))
+            .do_update()
+            .set((
+                (nations_dsl::name.eq(&self.name)),
+                (nations_dsl::epithet.eq(&self.epithet)),
+                (nations_dsl::filename.eq(&self.filename)),
+            ))
+            .get_result(db)
+    }
 }
 
 #[derive(Debug, Associations, Identifiable, Queryable, QueryableByName)]
@@ -477,6 +599,26 @@ pub struct PlayerTurn {
 }
 
 impl PlayerTurn {
+    pub fn get<D>(
+        game_id: i32,
+        nation_id: i32,
+        db: &D,
+    ) -> Result<(PlayerTurn, File), diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::files::dsl as files_dsl;
+        use crate::schema::player_turns::dsl as pt_dsl;
+        pt_dsl::player_turns
+            .filter(
+                pt_dsl::game_id
+                    .eq(game_id)
+                    .and(pt_dsl::nation_id.eq(nation_id))
+                    .and(pt_dsl::archived.eq(false)),
+            )
+            .inner_join(files_dsl::files.on(files_dsl::id.eq(pt_dsl::trnfile_id)))
+            .get_result(db)
+    }
     pub fn get_player_turns<D>(
         game_id: i32,
         db: &D,

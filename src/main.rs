@@ -13,6 +13,9 @@ extern crate image;
 extern crate zip;
 extern crate num_derive;
 extern crate num_traits;
+extern crate crc;
+extern crate fletcher;
+
 use self::diesel::prelude::*;
 use self::models::*;
 use actix_web::http::header;
@@ -27,7 +30,6 @@ use std::io::Write;
 
 pub mod dom5_emu;
 pub mod dom5_proc;
-pub mod dom5_proxy;
 pub mod email_manager;
 pub mod frontend;
 pub mod game_manager;
@@ -38,6 +40,7 @@ pub mod statusdump;
 pub mod twoh;
 pub mod packets;
 pub mod msgbus;
+pub mod util;
 
 use frontend::AppData;
 

@@ -1,9 +1,3 @@
-pub mod heartbeat_req;
-pub mod astralpacket_req;
-pub mod astralpacket_resp;
-pub mod gameinfo_req;
-pub mod gameinfo_resp;
-pub mod uploadpretender_req;
 use crate::num_derive::{FromPrimitive, ToPrimitive};
 use crate::num_traits::{FromPrimitive, ToPrimitive};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -11,16 +5,56 @@ use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
 use std::io::Write;
 
-pub use heartbeat_req::HeartbeatReq;
+pub mod astralpacket_req;
+pub mod astralpacket_resp;
+pub mod gameinfo_req;
+pub mod gameinfo_resp;
+pub mod heartbeat_req;
+pub mod uploadpretender_req;
+pub mod disconnect_req;
+pub mod disconnect_resp;
+pub mod startgame_req;
+pub mod pa_req;
+pub mod pa_resp;
+pub mod unknown_req;
+pub mod passwords_req;
+pub mod twohcrc_req;
+pub mod passwords_resp;
+pub mod twohcrc_resp;
+pub mod loadingmessage_resp;
+pub mod trn_req;
+pub mod trn_resp;
+pub mod map_req;
+pub mod map_resp;
+pub mod mapfile_req;
+pub mod mapfile_resp;
+
 pub use astralpacket_req::AstralPacketReq;
 pub use astralpacket_resp::AstralPacketResp;
 pub use gameinfo_req::GameInfoReq;
 pub use gameinfo_resp::GameInfoResp;
+pub use heartbeat_req::HeartbeatReq;
 pub use uploadpretender_req::UploadPretenderReq;
+pub use disconnect_req::DisconnectReq;
+pub use disconnect_resp::DisconnectResp;
+pub use startgame_req::StartGameReq;
+pub use pa_req::PAReq;
+pub use pa_resp::PAResp;
+pub use unknown_req::UnknownReq;
+pub use passwords_req::PasswordsReq;
+pub use twohcrc_req::TwoHCrcReq;
+pub use passwords_resp::PasswordsResp;
+pub use twohcrc_resp::TwoHCrcResp;
+pub use loadingmessage_resp::LoadingMessageResp;
+pub use trn_req::TrnReq;
+pub use trn_resp::TrnResp;
+pub use map_req::MapReq;
+pub use map_resp::MapResp;
+pub use mapfile_req::MapFileReq;
+pub use mapfile_resp::MapFileResp;
 
 #[cfg(test)]
 mod tests {
-    use crate::packets::BodyContents;
     #[test]
     fn deserialize_connection_req() {
         let test_packet = crate::packets::Packet::from_reader(&mut std::io::BufReader::new(
@@ -135,6 +169,13 @@ mod tests {
         ));
         println!("Packet: {:x?}", test_packet);
     }
+    #[test]
+    fn deserialize_game_start_1() {
+        let test_packet = crate::packets::Packet::from_reader(&mut std::io::BufReader::new(
+            &include_bytes!("../../pktdmps/game_start/real_server")[..],
+        ));
+        println!("Packet: {:x?}", test_packet);
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -198,6 +239,22 @@ pub enum Body {
     AstralPacketResp(AstralPacketResp),
     GameInfoReq(GameInfoReq),
     GameInfoResp(GameInfoResp),
+    DisconnectReq(DisconnectReq),
+    StartGameReq(StartGameReq),
+    PAReq(PAReq),
+    PAResp(PAResp),
+    LoadingMessageResp(LoadingMessageResp),
+    UnknownReq(UnknownReq),
+    PasswordsReq(PasswordsReq),
+    TwoHCrcReq(TwoHCrcReq),
+    PasswordsResp(PasswordsResp),
+    TwoHCrcResp(TwoHCrcResp),
+    TrnReq(TrnReq),
+    TrnResp(TrnResp),
+    MapReq(MapReq),
+    MapResp(MapResp),
+    MapFileReq(MapFileReq),
+    MapFileResp(MapFileResp)
 }
 
 impl Body {
@@ -209,20 +266,54 @@ impl Body {
             GameInfoResp::ID => Body::GameInfoResp(GameInfoResp::from_reader(r)),
             AstralPacketResp::ID => Body::AstralPacketResp(AstralPacketResp::from_reader(r)),
             AstralPacketReq::ID => Body::AstralPacketReq(AstralPacketReq::from_reader(r)),
-            d => panic!(
-                "What the fuck is that? What the FUCK is that? Mystery id {:x?}",
-                d
-            ),
+            StartGameReq::ID => Body::StartGameReq(StartGameReq::from_reader(r)),
+            DisconnectReq::ID => Body::DisconnectReq(DisconnectReq::from_reader(r)),
+            PAReq::ID => Body::PAReq(PAReq::from_reader(r)),
+            PAResp::ID => Body::PAResp(PAResp::from_reader(r)),
+            UnknownReq::ID => Body::UnknownReq(UnknownReq::from_reader(r)),
+            PasswordsReq::ID => Body::PasswordsReq(PasswordsReq::from_reader(r)),
+            TwoHCrcReq::ID => Body::TwoHCrcReq(TwoHCrcReq::from_reader(r)),
+            PasswordsResp::ID => Body::PasswordsResp(PasswordsResp::from_reader(r)),
+            TwoHCrcResp::ID => Body::TwoHCrcResp(TwoHCrcResp::from_reader(r)),
+            TrnReq::ID => Body::TrnReq(TrnReq::from_reader(r)),
+            TrnResp::ID => Body::TrnResp(TrnResp::from_reader(r)),
+            MapReq::ID => Body::MapReq(MapReq::from_reader(r)),
+            MapResp::ID => Body::MapResp(MapResp::from_reader(r)),
+            MapFileReq::ID => Body::MapFileReq(MapFileReq::from_reader(r)),
+            MapFileResp::ID => Body::MapFileResp(MapFileResp::from_reader(r)),
+            d => {
+                let mut v = vec![];
+                r.read_to_end(&mut v).unwrap();
+                panic!(
+                "What the fuck is that? What the FUCK is that? Mystery id {:x?}, full contents:\n{:x?}",
+                d, v);
+            }
         }
     }
     pub fn write<W: std::io::Write>(&self, w: &mut W) {
         match self {
+            Self::PAReq(p) => p.write(w),
+            Self::PAResp(p) => p.write(w),
+            Self::DisconnectReq(p) => p.write(w),
             Self::UploadPretenderReq(p) => p.write(w),
             Self::HeartbeatReq(p) => p.write(w),
             Self::AstralPacketReq(p) => p.write(w),
             Self::AstralPacketResp(p) => p.write(w),
             Self::GameInfoReq(p) => p.write(w),
             Self::GameInfoResp(p) => p.write(w),
+            Self::StartGameReq(p) => p.write(w),
+            Self::UnknownReq(p) => p.write(w),
+            Self::PasswordsReq(p) => p.write(w),
+            Self::TwoHCrcReq(p) => p.write(w),
+            Self::PasswordsResp(p) => p.write(w),
+            Self::TwoHCrcResp(p) => p.write(w),
+            Self::LoadingMessageResp(p) => p.write(w),
+            Self::TrnReq(p) => p.write(w),
+            Self::TrnResp(p) => p.write(w),
+            Self::MapReq(p) => p.write(w),
+            Self::MapResp(p) => p.write(w),
+            Self::MapFileReq(p) => p.write(w),
+            Self::MapFileResp(p) => p.write(w),
         }
     }
 }

@@ -1,5 +1,4 @@
 use byteorder::{LittleEndian, ReadBytesExt};
-use std::io::Read;
 
 pub struct TwoH {
     pub gamename: String,
@@ -10,7 +9,7 @@ pub struct TwoH {
 }
 
 impl TwoH {
-    fn read_magic_marker(file: &mut std::fs::File) -> String {
+    fn read_magic_marker<R: std::io::Read>(mut file: R) -> String {
         let mut magic: [u8; 3] = [0, 0, 0];
         file.read_exact(&mut magic).unwrap();
         let magic_string = std::str::from_utf8(&magic).unwrap();
@@ -20,13 +19,7 @@ impl TwoH {
         return magic_string.to_string();
     }
 
-    pub fn read_file(filepath: &std::path::Path) -> Option<Self> {
-        let mut file = if let Ok(file) = std::fs::File::open(filepath) {
-            file
-        } else {
-            return None;
-        };
-
+    pub fn read_contents<R: std::io::Read>(mut file: R) -> Option<Self> {
         let _unk = file.read_u24::<LittleEndian>().unwrap();
         Self::read_magic_marker(&mut file);
         let cdkey = file.read_u64::<LittleEndian>().unwrap();
@@ -36,10 +29,7 @@ impl TwoH {
         let nationid = file.read_i32::<LittleEndian>().unwrap();
 
         let mut contents = vec![];
-        std::fs::File::open(filepath)
-            .unwrap()
-            .read_to_end(&mut contents)
-            .unwrap();
+        file.read_to_end(&mut contents).unwrap();
 
         Some(Self {
             gamename: "".to_string(),
@@ -48,5 +38,14 @@ impl TwoH {
             nationid,
             file_contents: contents,
         })
+    }
+
+    pub fn read_file(filepath: &std::path::Path) -> Option<Self> {
+        let file = if let Ok(file) = std::fs::File::open(filepath) {
+            file
+        } else {
+            return None;
+        };
+        Self::read_contents(file)
     }
 }

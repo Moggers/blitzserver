@@ -97,6 +97,7 @@ table! {
         nation_id -> Int4,
         name -> Varchar,
         epithet -> Varchar,
+        filename -> Varchar,
     }
 }
 

@@ -1,9 +1,9 @@
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 #[derive(Debug, Clone)]
 pub struct UploadPretenderReq {
-    nation_id: u16,
-    unk: [u8; 5],
-    pretender_contents: Vec<u8>,
+    pub nation_id: u16,
+    pub unk: [u8; 5],
+    pub pretender_contents: Vec<u8>,
 }
 
 impl UploadPretenderReq {

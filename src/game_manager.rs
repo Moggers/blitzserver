@@ -1,10 +1,12 @@
 use super::diesel::prelude::*;
 use super::models::Game;
+use crate::msgbus::Msg;
 use crossbeam_channel::{Receiver, Sender};
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
+use std::ops::Add;
 
-use crate::dom5_proxy::{Dom5Proxy, Dom5ProxyHandle, GameMsg};
+use crate::dom5_proc::Dom5Proc;
 
 pub struct GameManager {
     db_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
@@ -14,14 +16,12 @@ pub struct GameManager {
     internal_port_range: [i32; 2],
     sender: Sender<ManagerMsg>,
     receiver: Receiver<ManagerMsg>,
-    proxies: std::collections::HashMap<i32, Dom5ProxyHandle>,
     pub bus_rx: crate::msgbus::MsgBusRx,
     pub bus_tx: crate::msgbus::MsgBusTx,
 }
 
 pub enum ManagerMsg {
     Start(i32),
-    GameMsg(GameMsg),
     Archive(i32),
 }
 
@@ -35,13 +35,6 @@ pub struct GameManagerConfig<'a> {
     pub internal_port_range: &'a [i32; 2],
 }
 
-/**
- * Manager for servers
- *
- * Responsible for:
- * * receiving messages from frontend and divying them out to the appropriate proxies
- * * Starting new server proxies when requested by the server
- */
 impl GameManager {
     pub fn new(cfg: GameManagerConfig) -> GameManager {
         let (s, r) = crossbeam_channel::unbounded();
@@ -55,7 +48,6 @@ impl GameManager {
             internal_port_range: cfg.internal_port_range.clone(),
             sender: s,
             receiver: r,
-            proxies: std::collections::HashMap::new(),
         }
     }
 
@@ -69,68 +61,78 @@ impl GameManager {
         }
         self.launch_games()
     }
+    fn kill_game(&mut self, game_id: i32) {}
+    pub fn monitor(&mut self) {}
 
-    pub fn monitor(&mut self) {
-        loop {
-            if let Ok(msg) = self
-                .receiver
-                .recv_timeout(std::time::Duration::from_secs(5))
-            {
-                match msg {
-                    ManagerMsg::Start(id) => {
-                        self.launch_game(id);
+    fn launch_scheduler(&mut self, launch_id: i32) {
+        let bus_rx = self.bus_rx.new_recv();
+        let bus_tx = self.bus_tx.clone();
+        let db_pool = self.db_pool.clone();
+        std::thread::spawn(move || {
+            let mut timeout =
+                std::time::SystemTime::now().add(std::time::Duration::from_secs(99_999_999));
+            let mut game = {
+                let db = db_pool.get().unwrap();
+                Game::get(launch_id, &db).unwrap()
+            };
+            if let Some(t) = game.next_turn {
+                timeout = t;
+            }
+            if std::time::SystemTime::now() > timeout {
+                log::debug!("Game {} missed scheduled turn roll, running now", launch_id);
+                game = {
+                    let db = db_pool.get().unwrap();
+                    Game::get(launch_id, &db).unwrap()
+                };
+                let dom5_proc = Dom5Proc::new(game, db_pool.clone());
+                dom5_proc.host_turn();
+                log::debug!("Turn for game {} hosted", launch_id);
+            }
+            loop {
+                match bus_rx.recv_timeout(
+                    timeout
+                        .duration_since(std::time::SystemTime::now())
+                        .unwrap(),
+                ) {
+                    Err(_e) => {
+                        game = {
+                            let db = db_pool.get().unwrap();
+                            Game::get(launch_id, &db).unwrap()
+                        };
+                        let dom5_proc = Dom5Proc::new(game, db_pool.clone());
+                        dom5_proc.host_turn();
                     }
-                    ManagerMsg::GameMsg(game_cmd) => {
-                        let id = game_cmd.id;
-                        match self.proxies.get(&id) {
-                            Some(ref s) => {
-                                if let Err(_) = s.manager_sender.send(game_cmd) {
-                                    println!("WARN!!!! Failed to send message to slave for game {}, assumed the server no longer exists and rebooting!", id);
-                                    self.launch_game(id);
-                                }
-                            }
-                            None => {}
+                    Ok(Msg::GameSchedule(schdmsg)) if schdmsg.game_id == launch_id => {
+                        timeout = schdmsg.schedule;
+                    }
+                    _ => {
+                        if std::time::SystemTime::now() > timeout {
+                            log::debug!(
+                                "Game {} scheduled for new turn right now",
+                                launch_id
+                            );
+                            game = {
+                                let db = db_pool.get().unwrap();
+                                Game::get(launch_id, &db).unwrap()
+                            };
+                            let dom5_proc = Dom5Proc::new(game, db_pool.clone());
+                            dom5_proc.host_turn();
+                            log::debug!("Turn for game {} hosted", launch_id);
                         }
-                    }
-                    ManagerMsg::Archive(id) => {
-                        self.kill_game(id);
                     }
                 }
             }
-        }
+        });
     }
-    fn kill_game(&mut self, game_id: i32) {
-        match self.proxies.get(&game_id) {
-            Some(proxy) => proxy
-                .manager_sender
-                .send(GameMsg {
-                    id: game_id,
-                    cmd: crate::dom5_proxy::GameMsgType::Shutdown,
-                })
-                .unwrap(),
-            None => {}
-        }
-    }
+
     fn launch_game(&mut self, launch_id: i32) {
-        /*
-        let (s, r) = crossbeam_channel::unbounded::<GameMsg>();
-        let (is, ir) = crossbeam_channel::bounded::<()>(0);
-        let proxy = Dom5Proxy {
-            game_id: launch_id,
-            db_pool: self.db_pool.clone(),
-            game_dir: self.tmp_dir.join("games").join(format!("{}", launch_id)),
-            dom5_bin: self.dom5_bin.clone(),
-            internal_port_range: self.internal_port_range,
-            manager_sender: s,
-            manager_receiver: r,
-            port_range: self.port_range,
-            nextturn_interupt: is,
-            nextturn_interupt_recv: ir,
-        };
-        let proxy_handle = proxy.launch();
-        self.proxies.insert(launch_id, proxy_handle);
-        */
-        let emu = crate::dom5_emu::Dom5Emu::new(launch_id, self.bus_tx.clone(), self.bus_rx.new_recv(), self.db_pool.clone());
+        self.launch_scheduler(launch_id);
+        let emu = crate::dom5_emu::Dom5Emu::new(
+            launch_id,
+            self.bus_tx.clone(),
+            self.bus_rx.new_recv(),
+            self.db_pool.clone(),
+        );
         emu.launch();
     }
 
@@ -146,6 +148,8 @@ impl GameManager {
 
         for game in current_games {
             self.launch_game(game.id);
+            let dom5_proc = Dom5Proc::new(game, self.db_pool.clone());
+            dom5_proc.update_nations();
         }
         self.monitor();
     }
