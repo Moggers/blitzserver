@@ -4,12 +4,12 @@ use std::ops::Add;
 
 use super::diesel::prelude::*;
 use super::models::{
-    File, Game, GameMod, Map, Mod, Nation, NewFile, NewNation, NewPlayer, NewPlayerTurn, NewTurn,
+    File, Game, GameMod, Map, Mod, Nation, NewFile, NewNation, NewPlayerTurn,
     Player, PlayerTurn, Turn,
 };
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
-use notify::Watcher;
+
 use std::io::Write;
 
 pub enum GameCmd {
@@ -82,7 +82,7 @@ impl Dom5Proc {
     fn find_unused_port() -> Option<i32> {
         for port in 1025..65535 {
             match std::net::TcpListener::bind(("127.0.0.1", port)) {
-                Ok(l) => {
+                Ok(_l) => {
                     return Some(port.into());
                 }
                 _ => {}
@@ -110,7 +110,7 @@ impl Dom5Proc {
         use crate::schema::files::dsl as files_dsl;
         use crate::schema::games::dsl as games_dsl;
         use crate::schema::maps::dsl as maps_dsl;
-        let (game, _map, file) = games_dsl::games
+        let (game, _map, _file) = games_dsl::games
             .filter(games_dsl::id.eq(self.game_id))
             .inner_join(maps_dsl::maps.on(maps_dsl::id.eq(games_dsl::map_id)))
             .inner_join(files_dsl::files.on(files_dsl::id.eq(maps_dsl::mapfile_id)))
@@ -140,7 +140,7 @@ impl Dom5Proc {
             "Failed to launch dom5 binary for game {} while fetching nations",
             self.name
         ));
-        let mut statusdump = None;
+        let statusdump;
         let mut wait_counter = 5;
         loop {
             match std::fs::File::open(self.savedir.join("statusdump.txt")) {
@@ -167,7 +167,7 @@ impl Dom5Proc {
             let mut contents = vec![];
             statusdump.read_to_end(&mut contents).unwrap();
             let statusdump_str = String::from_utf8_lossy(&contents);
-            let nations: Vec<Nation> = statusdump_str
+            let _nations: Vec<Nation> = statusdump_str
                 .lines()
                 .filter(|l| nation_info_regex.is_match(l))
                 .map(|l| {
@@ -194,7 +194,7 @@ impl Dom5Proc {
             return;
         };
         let new_file: File = NewFile::new("ftherlnd", &ftherlnd.file_contents).insert(&db);
-        let inserted = crate::models::NewTurn {
+        let _inserted = crate::models::NewTurn {
             game_id: self.game_id,
             turn_number: ftherlnd.turnnumber,
             file_id: new_file.id,
@@ -314,48 +314,6 @@ impl Dom5Proc {
                     std::io::copy(&mut f, &mut os_f).unwrap();
                 }
             }
-        }
-    }
-
-    fn handle_2h_update(&mut self, path: &std::path::PathBuf) {
-        let db = self.db_pool.get().unwrap();
-        let twoh = if let Some(file) = TwoH::read_file(&path) {
-            file
-        } else {
-            return;
-        };
-        let file: File = NewFile::new(
-            path.file_name().unwrap().to_str().unwrap(),
-            &twoh.file_contents,
-        )
-        .insert(&db);
-        if twoh.turnnumber == 0 {
-            use super::schema::players::dsl::*;
-            diesel::insert_into(super::schema::players::table)
-                .values(&NewPlayer {
-                    file_id: file.id,
-                    nationid: twoh.nationid,
-                    game_id: self.game_id,
-                })
-                .on_conflict((game_id, nationid))
-                .do_update()
-                .set(file_id.eq(file.id))
-                .execute(&db)
-                .unwrap();
-        } else {
-            use super::schema::player_turns::dsl::*;
-            diesel::update(
-                player_turns.filter(
-                    nation_id
-                        .eq(twoh.nationid)
-                        .and(game_id.eq(self.game_id))
-                        .and(archived.eq(false))
-                        .and(turn_number.eq(twoh.turnnumber)),
-                ),
-            )
-            .set(twohfile_id.eq(file.id))
-            .execute(&db)
-            .unwrap();
         }
     }
 

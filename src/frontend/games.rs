@@ -1,7 +1,7 @@
 use super::utils::*;
 use super::AppData;
 use crate::diesel::prelude::*;
-use crate::game_manager;
+
 use crate::models::{
     EmailConfig, Game, GameMod, Map, Mod, Nation, NewGame, NewGameMod, Player, PlayerTurn, Turn,
 };
@@ -918,7 +918,7 @@ pub async fn unstart_post(
         .get_result(&db)
         .unwrap();
     game.unstart(&db).unwrap();
-    let game = game.remove_timer(&db).unwrap();
+    let _game = game.remove_timer(&db).unwrap();
     return Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}/schedule", path_id))
         .finish());

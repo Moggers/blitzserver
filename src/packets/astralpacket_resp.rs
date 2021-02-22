@@ -1,9 +1,9 @@
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+
 #[derive(Debug, Clone)]
 pub struct AstralPacketResp {}
 
 impl AstralPacketResp {
-    pub fn from_reader<R: std::io::Read>(r: &mut R) -> AstralPacketResp {
+    pub fn from_reader<R: std::io::Read>(_r: &mut R) -> AstralPacketResp {
         AstralPacketResp {}
     }
 }

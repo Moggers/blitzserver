@@ -3,6 +3,7 @@ use super::schema::{
 };
 use crate::diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl};
 use crate::diesel::{JoinOnDsl, RunQueryDsl};
+use crate::twoh;
 use serde::Deserialize;
 use std::hash::{Hash, Hasher};
 
@@ -524,11 +525,38 @@ pub struct TurnSummary {
 }
 
 impl Turn {
-    pub fn get_ftherlnd<D>(&self, db: &D) -> Result<File, diesel::result::Error> 
-        where
-        D: diesel::Connection<Backend = diesel::pg::Pg>,{
-            use crate::schema::files::dsl as files_dsl;
-            files_dsl::files.filter(files_dsl::id.eq(self.file_id)).get_result(db)
+    pub fn get_player_turns<D>(&self, db: &D) -> Result<Vec<PlayerTurn>, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::player_turns::dsl as pt_dsl;
+        pt_dsl::player_turns
+            .filter(
+                pt_dsl::game_id
+                    .eq(self.game_id)
+                    .and(pt_dsl::turn_number.eq(self.turn_number)),
+            )
+            .get_results(db)
+    }
+    pub fn get_ftherlnd<D>(&self, db: &D) -> Result<File, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::files::dsl as files_dsl;
+        files_dsl::files
+            .filter(files_dsl::id.eq(self.file_id))
+            .get_result(db)
+    }
+    pub fn get<D>(game_id: i32, db: &D) -> Result<Turn, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::turns::dsl as turns_dsl;
+        turns_dsl::turns
+            .filter(turns_dsl::game_id.eq(game_id))
+            .order(turns_dsl::turn_number.desc())
+            .limit(1)
+            .get_result(db)
     }
     pub fn current_turn<D>(game_ids: &[i32], db: &D) -> Vec<Turn>
     where
@@ -606,6 +634,29 @@ pub struct PlayerTurn {
 }
 
 impl PlayerTurn {
+    pub fn get_2h<D>(&self, db: &D) -> Result<File, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::files::dsl as files_dsl;
+        match self.twohfile_id {
+            Some(thfid) => files_dsl::files
+                .filter(files_dsl::id.eq(thfid))
+                .get_result(db),
+            None => Err(diesel::result::Error::NotFound),
+        }
+    }
+    pub fn save_2h<D>(&self, twoh: NewFile, db: &D) -> Result<PlayerTurn, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        let file = twoh.insert(db);
+        use crate::schema::player_turns::dsl as pt_dsl;
+        diesel::update(pt_dsl::player_turns)
+            .filter(pt_dsl::id.eq(self.id))
+            .set(pt_dsl::twohfile_id.eq(file.id))
+            .get_result(db)
+    }
     pub fn get<D>(
         game_id: i32,
         nation_id: i32,
@@ -623,6 +674,8 @@ impl PlayerTurn {
                     .and(pt_dsl::nation_id.eq(nation_id))
                     .and(pt_dsl::archived.eq(false)),
             )
+            .order(pt_dsl::turn_number.desc())
+            .limit(1)
             .inner_join(files_dsl::files.on(files_dsl::id.eq(pt_dsl::trnfile_id)))
             .get_result(db)
     }

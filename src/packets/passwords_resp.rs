@@ -1,5 +1,5 @@
 
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{WriteBytesExt};
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct PasswordsResp {
@@ -7,10 +7,10 @@ pub struct PasswordsResp {
 }
 
 impl PasswordsResp {
-    pub fn new(protected_nationids: &[i32]) -> Self {
+    pub fn new(_protected_nationids: &[i32]) -> Self {
         Self { nations_protected: HashMap::new() }
     }
-    pub fn from_reader<R: std::io::Read>(r: &mut R) -> PasswordsResp {
+    pub fn from_reader<R: std::io::Read>(_r: &mut R) -> PasswordsResp {
         PasswordsResp { 
             nations_protected: HashMap::new()
         }

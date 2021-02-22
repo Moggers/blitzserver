@@ -7,23 +7,12 @@ use std::io::Write;
 
 pub mod astralpacket_req;
 pub mod astralpacket_resp;
+pub mod disconnect_req;
+pub mod disconnect_resp;
 pub mod gameinfo_req;
 pub mod gameinfo_resp;
 pub mod heartbeat_req;
-pub mod uploadpretender_req;
-pub mod disconnect_req;
-pub mod disconnect_resp;
-pub mod startgame_req;
-pub mod pa_req;
-pub mod pa_resp;
-pub mod unknown_req;
-pub mod passwords_req;
-pub mod twohcrc_req;
-pub mod passwords_resp;
-pub mod twohcrc_resp;
 pub mod loadingmessage_resp;
-pub mod trn_req;
-pub mod trn_resp;
 pub mod map_req;
 pub mod map_resp;
 pub mod mapfile_req;
@@ -32,27 +21,30 @@ pub mod mapimagefile_req;
 pub mod mapimagefile_resp;
 pub mod mapwinterfile_req;
 pub mod mapwinterfile_resp;
+pub mod pa_req;
+pub mod pa_resp;
+pub mod passwords_req;
+pub mod passwords_resp;
+pub mod startgame_req;
 pub mod submit2h_req;
+pub mod submit2h_resp;
+pub mod trn_req;
+pub mod trn_resp;
+pub mod twoh_req;
+pub mod twoh_resp;
+pub mod twohcrc_req;
+pub mod twohcrc_resp;
+pub mod unknown_req;
+pub mod uploadpretender_req;
 
 pub use astralpacket_req::AstralPacketReq;
 pub use astralpacket_resp::AstralPacketResp;
+pub use disconnect_req::DisconnectReq;
+pub use disconnect_resp::DisconnectResp;
 pub use gameinfo_req::GameInfoReq;
 pub use gameinfo_resp::GameInfoResp;
 pub use heartbeat_req::HeartbeatReq;
-pub use uploadpretender_req::UploadPretenderReq;
-pub use disconnect_req::DisconnectReq;
-pub use disconnect_resp::DisconnectResp;
-pub use startgame_req::StartGameReq;
-pub use pa_req::PAReq;
-pub use pa_resp::PAResp;
-pub use unknown_req::UnknownReq;
-pub use passwords_req::PasswordsReq;
-pub use twohcrc_req::TwoHCrcReq;
-pub use passwords_resp::PasswordsResp;
-pub use twohcrc_resp::TwoHCrcResp;
 pub use loadingmessage_resp::LoadingMessageResp;
-pub use trn_req::TrnReq;
-pub use trn_resp::TrnResp;
 pub use map_req::MapReq;
 pub use map_resp::MapResp;
 pub use mapfile_req::MapFileReq;
@@ -61,7 +53,21 @@ pub use mapimagefile_req::MapImageFileReq;
 pub use mapimagefile_resp::MapImageFileResp;
 pub use mapwinterfile_req::MapWinterFileReq;
 pub use mapwinterfile_resp::MapWinterFileResp;
+pub use pa_req::PAReq;
+pub use pa_resp::PAResp;
+pub use passwords_req::PasswordsReq;
+pub use passwords_resp::PasswordsResp;
+pub use startgame_req::StartGameReq;
 pub use submit2h_req::Submit2hReq;
+pub use submit2h_resp::Submit2hResp;
+pub use trn_req::TrnReq;
+pub use trn_resp::TrnResp;
+pub use twoh_req::TwoHReq;
+pub use twoh_resp::TwoHResp;
+pub use twohcrc_req::TwoHCrcReq;
+pub use twohcrc_resp::TwoHCrcResp;
+pub use unknown_req::UnknownReq;
+pub use uploadpretender_req::UploadPretenderReq;
 
 #[cfg(test)]
 mod tests {
@@ -201,7 +207,7 @@ impl Packet {
         r.read_exact(&mut body_buf).unwrap();
         let mut reader = &body_buf[..];
         let body = if header.compression == CompressionType::Zlib {
-            let len = reader.read_u32::<LittleEndian>().unwrap();
+            let _len = reader.read_u32::<LittleEndian>().unwrap();
             Body::from_reader(&mut ZlibDecoder::new(reader))
         } else {
             Body::from_reader(&mut reader)
@@ -269,7 +275,10 @@ pub enum Body {
     MapImageFileResp(MapImageFileResp),
     MapWinterFileReq(MapWinterFileReq),
     MapWinterFileResp(MapWinterFileResp),
-    Submit2hReq(Submit2hReq)
+    Submit2hReq(Submit2hReq),
+    Submit2hResp(Submit2hResp),
+    TwoHReq(TwoHReq),
+    TwoHResp(TwoHResp),
 }
 
 impl Body {
@@ -301,6 +310,9 @@ impl Body {
             MapWinterFileReq::ID => Body::MapWinterFileReq(MapWinterFileReq::from_reader(r)),
             MapWinterFileResp::ID => Body::MapWinterFileResp(MapWinterFileResp::from_reader(r)),
             Submit2hReq::ID => Body::Submit2hReq(Submit2hReq::from_reader(r)),
+            Submit2hResp::ID => Body::Submit2hResp(Submit2hResp::from_reader(r)),
+            TwoHReq::ID => Body::TwoHReq(TwoHReq::from_reader(r)),
+            TwoHResp::ID => Body::TwoHResp(TwoHResp::from_reader(r)),
             d => {
                 let mut v = vec![];
                 r.read_to_end(&mut v).unwrap();
@@ -338,7 +350,10 @@ impl Body {
             Self::MapImageFileResp(p) => p.write(w),
             Self::MapWinterFileReq(p) => p.write(w),
             Self::MapWinterFileResp(p) => p.write(w),
-            Self::Submit2hReq(p) => p.write(w)
+            Self::Submit2hReq(p) => p.write(w),
+            Self::Submit2hResp(p) => p.write(w),
+            Self::TwoHReq(p) => p.write(w),
+            Self::TwoHResp(p) => p.write(w),
         }
     }
 }

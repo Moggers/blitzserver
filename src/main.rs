@@ -86,25 +86,11 @@ async fn main() -> std::io::Result<()> {
     let bus = msgbus::MsgBus::new();
 
     let mut manager = {
-        let port_var = env::var("PORT_RANGE").expect("PORT_RANGE must be set (ie. '10000,10999')");
-        let internal_port_var = env::var("INTERNAL_PORT_RANGE")
-            .expect("INTERNAL_PORT_RANGE must be set (ie. '11000,11999')");
-        let range: Vec<&str> = port_var.split(",").collect();
-        let internal_range: Vec<&str> = internal_port_var.split(",").collect();
         let cfg = GameManagerConfig {
             bus_rx: bus.new_recv(),
             bus_tx: bus.sender.clone(),
             db_pool: &pool.clone(),
             tmp_dir: &env::current_dir().unwrap().join("tmp"),
-            dom5_bin: &std::path::PathBuf::from(env::var("DOM5_BIN").expect("DOM5_BIN mus be set")),
-            port_range: &[
-                range[0].parse::<i32>().unwrap(),
-                range[1].parse::<i32>().unwrap(),
-            ],
-            internal_port_range: &[
-                internal_range[0].parse::<i32>().unwrap(),
-                internal_range[1].parse::<i32>().unwrap(),
-            ],
         };
 
         GameManager::new(cfg)

@@ -1,4 +1,4 @@
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+
 #[derive(Debug, Clone)]
 pub struct UnknownReq {
     remaining: Vec<u8>,
@@ -14,5 +14,5 @@ impl UnknownReq {
 
 impl crate::packets::BodyContents for UnknownReq {
     const ID: u8 = 0x19;
-    fn write<W: std::io::Write>(&self, w: &mut W) {}
+    fn write<W: std::io::Write>(&self, _w: &mut W) {}
 }

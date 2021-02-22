@@ -1,4 +1,4 @@
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{ReadBytesExt, WriteBytesExt};
 #[derive(Debug, Clone)]
 pub struct Submit2hReq {
     pub nation_id: u8,

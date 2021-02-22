@@ -11,16 +11,17 @@ pub struct GameInfoResp {
     pub milliseconds_to_host: Option<u32>,
     pub unk4: u16,
     pub nation_statuses: std::collections::HashMap<i32, u8>,
+    pub turn_statuses: std::collections::HashMap<i32, u8>,
     pub remaining: Vec<u8>,
     pub turn_number: u32,
-    pub turnkey: u32
+    pub turnkey: u32,
 }
 
 const DISCIPLES_BIT_ID: u32 = 0b10000000;
 
 impl GameInfoResp {
     pub fn from_reader<R: std::io::Read>(r: &mut R) -> GameInfoResp {
-        let mut unk1 = r.read_u32::<LittleEndian>().unwrap();
+        let unk1 = r.read_u32::<LittleEndian>().unwrap();
         let game_state = r.read_u8().unwrap();
         let mut buf = [0u8; 1];
         let mut name = String::new();
@@ -43,10 +44,20 @@ impl GameInfoResp {
         let unk4 = r.read_u16::<LittleEndian>().unwrap();
         let mut nation_statuses: std::collections::HashMap<i32, u8> =
             std::collections::HashMap::new();
-        for i in 1..=752 {
+        for i in 1..=250 {
             match r.read_u8() {
                 Ok(1) => {
                     nation_statuses.insert(i, 1);
+                }
+                _ => {}
+            }
+        }
+        let mut turn_statuses: std::collections::HashMap<i32, u8> =
+            std::collections::HashMap::new();
+        for i in 1..=250 {
+            match r.read_u8() {
+                Ok(1) => {
+                    turn_statuses.insert(i, 1);
                 }
                 _ => {}
             }
@@ -65,8 +76,9 @@ impl GameInfoResp {
             milliseconds_to_host,
             unk4,
             nation_statuses,
+            turn_statuses,
             turn_number: 0,
-            turnkey: 0
+            turnkey: 0,
         }
     }
 }
@@ -91,15 +103,23 @@ impl crate::packets::BodyContents for GameInfoResp {
         };
 
         w.write_all(&[0, 0]).unwrap();
-        for i in 1..=749 {
+        for i in 1..=250 {
             match self.nation_statuses.get(&i) {
                 Some(1) => w.write_u8(1).unwrap(),
                 _ => w.write_u8(0).unwrap(),
             }
         }
+        for i in 1..250 {
+            match self.turn_statuses.get(&i) {
+                Some(t) => w.write_u8(*t).unwrap(),
+                _ => w.write_u8(0).unwrap(),
+            }
+        }
+        w.write_all(&[0; 250]).unwrap();
         match self.turn_number {
             0 => {
-                w.write_all(&[0xff,0xff,0xff,0xff,0x00,0x00,0x00,0x00,0x00]).unwrap();
+                w.write_all(&[0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00])
+                    .unwrap();
             }
             t => {
                 w.write_u32::<LittleEndian>(t).unwrap();

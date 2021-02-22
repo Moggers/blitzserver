@@ -1,4 +1,4 @@
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{LittleEndian, WriteBytesExt};
 #[derive(Debug, Clone)]
 pub struct MapResp {
     pub map: Option<(String, Vec<u8>)>,
@@ -7,7 +7,7 @@ pub struct MapResp {
 }
 
 impl MapResp {
-    pub fn from_reader<R: std::io::Read>(r: &mut R) -> MapResp {
+    pub fn from_reader<R: std::io::Read>(_r: &mut R) -> MapResp {
         Self {
             map: None,
             image: None,
