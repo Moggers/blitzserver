@@ -1,5 +1,6 @@
 use crate::twoh::TwoH;
 use std::io::Read;
+use std::ops::Add;
 
 use super::diesel::prelude::*;
 use super::models::{
@@ -181,7 +182,6 @@ impl Dom5Proc {
                 })
                 .map(|n| n.insert(&db).unwrap())
                 .collect();
-            log::debug!("Found nations {:?}", nations);
         }
         proc.kill().unwrap();
         proc.wait().unwrap();
@@ -366,6 +366,7 @@ impl Dom5Proc {
         } else {
             return;
         };
+        log::warn!("Trn file is {} bytes", trn.file_contents.len());
         let file: File = NewFile::new(
             path.file_name().unwrap().to_str().unwrap(),
             &trn.file_contents,
@@ -412,7 +413,6 @@ impl Dom5Proc {
             .get_result::<(Game, Map, File)>(&db)
             .unwrap();
         arguments.append(&mut vec![
-            "--statusdump".to_string(),
             "--noclientstart".to_string(),
             "--thrones".to_string(),
             game.thrones_t1.to_string(),
@@ -487,7 +487,6 @@ impl Dom5Proc {
         if turns.len() == 0 {
             arguments.append(&mut vec!["--newgame".to_string()]);
         }
-        drop(db);
         arguments.append(&mut vec![
             String::from("-T"),
             String::from("--mapfile"),
@@ -508,7 +507,8 @@ impl Dom5Proc {
             self.name
         ));
         log::debug!(
-            "Output {}\nErrors: {}",
+            "Status: {}\nOutput: {}\nErrors: {}",
+            result.status,
             String::from_utf8_lossy(&result.stdout),
             String::from_utf8_lossy(&result.stderr)
         );
@@ -524,15 +524,13 @@ impl Dom5Proc {
                 }
             }
         }
-        for entry in std::fs::read_dir(&self.savedir).unwrap() {
-            if let Ok(entry) = entry {
-                let file_name = std::path::PathBuf::from(entry.file_name());
-                match file_name.extension().and_then(std::ffi::OsStr::to_str) {
-                    Some("2h") => {
-                        self.handle_2h_update(&self.savedir.join(&file_name.to_path_buf()))
-                    }
-                    _ => {}
-                }
+        match game.timer {
+            Some(timer) => {
+                game.schedule_turn(std::time::SystemTime::now().add(std::time::Duration::from_secs((60*timer) as u64)), &db)
+                    .unwrap();
+            }
+            None => {
+                game.remove_timer(&db).unwrap();
             }
         }
     }

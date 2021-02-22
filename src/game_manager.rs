@@ -64,6 +64,22 @@ impl GameManager {
     fn kill_game(&mut self, game_id: i32) {}
     pub fn monitor(&mut self) {}
 
+    fn host_turn(
+        launch_id: i32,
+        db_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
+    ) -> std::time::SystemTime {
+        let db = db_pool.get().unwrap();
+        let game = Game::get(launch_id, &db).unwrap();
+        let dom5_proc = Dom5Proc::new(game, db_pool.clone());
+        dom5_proc.host_turn();
+        log::debug!("Turn for game {} hosted", launch_id);
+        let game = Game::get(launch_id, &db).unwrap();
+        match game.next_turn {
+            None => std::time::SystemTime::now().add(std::time::Duration::from_secs(99_999_999)),
+            Some(t) => t,
+        }
+    }
+
     fn launch_scheduler(&mut self, launch_id: i32) {
         let bus_rx = self.bus_rx.new_recv();
         let bus_tx = self.bus_tx.clone();
@@ -78,47 +94,22 @@ impl GameManager {
             if let Some(t) = game.next_turn {
                 timeout = t;
             }
-            if std::time::SystemTime::now() > timeout {
-                log::debug!("Game {} missed scheduled turn roll, running now", launch_id);
-                game = {
-                    let db = db_pool.get().unwrap();
-                    Game::get(launch_id, &db).unwrap()
-                };
-                let dom5_proc = Dom5Proc::new(game, db_pool.clone());
-                dom5_proc.host_turn();
-                log::debug!("Turn for game {} hosted", launch_id);
-            }
             loop {
-                match bus_rx.recv_timeout(
-                    timeout
-                        .duration_since(std::time::SystemTime::now())
-                        .unwrap(),
-                ) {
-                    Err(_e) => {
-                        game = {
-                            let db = db_pool.get().unwrap();
-                            Game::get(launch_id, &db).unwrap()
-                        };
-                        let dom5_proc = Dom5Proc::new(game, db_pool.clone());
-                        dom5_proc.host_turn();
-                    }
-                    Ok(Msg::GameSchedule(schdmsg)) if schdmsg.game_id == launch_id => {
-                        timeout = schdmsg.schedule;
-                    }
-                    _ => {
-                        if std::time::SystemTime::now() > timeout {
-                            log::debug!(
-                                "Game {} scheduled for new turn right now",
-                                launch_id
-                            );
-                            game = {
-                                let db = db_pool.get().unwrap();
-                                Game::get(launch_id, &db).unwrap()
-                            };
-                            let dom5_proc = Dom5Proc::new(game, db_pool.clone());
-                            dom5_proc.host_turn();
-                            log::debug!("Turn for game {} hosted", launch_id);
+                match timeout.duration_since(std::time::SystemTime::now()) {
+                    Ok(t) => match bus_rx.recv_timeout(t) {
+                        Ok(Msg::GameSchedule(schdmsg)) if schdmsg.game_id == launch_id => {
+                            timeout = schdmsg.schedule;
                         }
+                        Err(_) | _ => {
+                            if std::time::SystemTime::now() >= timeout {
+                                log::debug!("Game {} scheduled for new turn right now", launch_id);
+                                timeout = Self::host_turn(launch_id, db_pool.clone());
+                            }
+                        }
+                    },
+                    Err(_) => {
+                        log::debug!("Game {} missed scheduled turn roll, running now", launch_id);
+                        timeout = Self::host_turn(launch_id, db_pool.clone());
                     }
                 }
             }

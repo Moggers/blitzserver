@@ -1,10 +1,10 @@
-use crate::diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl, RunQueryDsl};
+use crate::diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use crate::models::{Game, Map, Nation};
 use crate::msgbus::{Msg, PktMsg};
 use crate::packets::BodyContents;
 use crate::packets::{
-    AstralPacketResp, DisconnectResp, GameInfoResp, LoadingMessageResp, MapFileResp, MapResp,
-    PAResp, Packet, PasswordsResp, TrnResp, TwoHCrcResp,
+    AstralPacketResp, DisconnectResp, GameInfoResp, MapFileResp, MapImageFileResp, MapResp,
+    MapWinterFileResp, PAResp, Packet, PasswordsResp, TrnResp, TwoHCrcResp,
 };
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
@@ -53,10 +53,10 @@ impl Dom5Emu {
         let resp = GameInfoResp {
             unk1: 0,
             game_state: if turn.len() > 0 { 2 } else { 1 },
-            game_name: "aaa".to_owned(),
-            era: 1,
+            game_name: game.name,
+            era: game.era,
             unk2: 0,
-            disciples: false,
+            disciples: game.teamgame,
             unk3: 0,
             milliseconds_to_host: next_turn,
             unk4: 0,
@@ -68,6 +68,18 @@ impl Dom5Emu {
                 },
             ),
             remaining: vec![],
+            turn_number: match turn.get(0) {
+                None => 0,
+                Some(t) => t.turn_number as u32
+            },
+            turnkey: match turn.get(0) {
+                Some(t) => {
+                    let fthlnd = t.get_ftherlnd(&db).unwrap();
+                    let fthrlnd_read = crate::twoh::TwoH::read_contents(std::io::Cursor::new(&fthlnd.filebinary)).unwrap();
+                    fthrlnd_read.turnkey
+                }
+                None => 0 
+            }
         };
         return resp;
     }
@@ -106,7 +118,7 @@ impl Dom5Emu {
     {
         use crate::models::{File, NewFile, NewPlayer};
         use crate::twoh::TwoH;
-        let twoh = TwoH::read_contents(&req.pretender_contents[..]).unwrap();
+        let twoh = TwoH::read_contents(std::io::Cursor::new(&req.pretender_contents[..])).unwrap();
         let nation: Nation = Nation::get(game_id, twoh.nationid, db).unwrap();
         let file: File =
             NewFile::new(&format!("{}.2h", nation.filename), &req.pretender_contents).insert(db);
@@ -147,7 +159,7 @@ impl Dom5Emu {
                                 Msg::Pkt(PktMsg { addr, pkt }) if client_addr == addr => {
                                     log::debug!("Packet: {:x?}", pkt);
                                     match pkt {
-                                        crate::packets::Body::StartGameReq(pkt) => {
+                                        crate::packets::Body::StartGameReq(_) => {
                                             let db = pool_clone.get().unwrap();
                                             let game = Game::get(game_id, &db).unwrap();
                                             let schedule = std::time::SystemTime::now()
@@ -162,35 +174,35 @@ impl Dom5Emu {
                                                 ))
                                                 .unwrap();
                                         }
-                                        crate::packets::Body::DisconnectReq(pkt) => {
+                                        crate::packets::Body::DisconnectReq(_) => {
                                             DisconnectResp {}.write_packet(&mut socket_send_clone);
                                         }
                                         crate::packets::Body::UploadPretenderReq(pkt) => {
                                             let db = pool_clone.get().unwrap();
                                             Self::accept_pretender(game_id, pkt, &db);
                                         }
-                                        crate::packets::Body::HeartbeatReq(pkg) => {
+                                        crate::packets::Body::HeartbeatReq(_) => {
                                             let db = pool_clone.get().unwrap();
                                             Self::generate_gameinfo(game_id, db)
                                                 .write_packet(&mut socket_send_clone);
                                         }
-                                        crate::packets::Body::AstralPacketReq(pkt) => {
-                                            let resp = (AstralPacketResp {})
+                                        crate::packets::Body::AstralPacketReq(_) => {
+                                            AstralPacketResp {}
                                                 .write_packet(&mut socket_send_clone);
                                         }
-                                        crate::packets::Body::GameInfoReq(pkt) => {
+                                        crate::packets::Body::GameInfoReq(_) => {
                                             let db = pool_clone.get().unwrap();
                                             Self::generate_gameinfo(game_id, db)
                                                 .write_packet(&mut socket_send_clone);
                                         }
-                                        crate::packets::Body::PAReq(pkt) => {
+                                        crate::packets::Body::PAReq(_) => {
                                             PAResp {}.write_packet(&mut socket_send_clone);
                                         }
-                                        crate::packets::Body::PasswordsReq(pkt) => {
+                                        crate::packets::Body::PasswordsReq(_) => {
                                             PasswordsResp::new(&[])
                                                 .write_packet(&mut socket_send_clone);
                                         }
-                                        crate::packets::Body::TwoHCrcReq(pkt) => {
+                                        crate::packets::Body::TwoHCrcReq(_) => {
                                             TwoHCrcResp {}.write_packet(&mut socket_send_clone);
                                         }
                                         crate::packets::Body::TrnReq(pkt) => {
@@ -210,7 +222,7 @@ impl Dom5Emu {
                                             }
                                             .write_packet(&mut socket_send_clone);
                                         }
-                                        crate::packets::Body::MapReq(pkt) => {
+                                        crate::packets::Body::MapReq(_) => {
                                             let db = pool_clone.get().unwrap();
                                             let game = Game::get(game_id, &db).unwrap();
                                             let map = Map::get(game.map_id, &db).unwrap();
@@ -237,17 +249,47 @@ impl Dom5Emu {
                                                 .write_packet(&mut socket_send_clone);
                                             }
                                         }
-                                        crate::packets::Body::MapFileReq(pkt) => {
+                                        crate::packets::Body::MapFileReq(_) => {
                                             let db = pool_clone.get().unwrap();
                                             let game = Game::get(game_id, &db).unwrap();
                                             let map = Map::get(game.map_id, &db).unwrap();
                                             if let Ok((Some(mapfile), _, _)) = map.get_files(&db) {
                                                 MapFileResp {
-                                                    // map_contents: mapfile.filebinary,
-                                                    map_contents: mapfile.filebinary
+                                                    map_contents: mapfile.filebinary,
                                                 }
                                                 .write_packet(&mut socket_send_clone);
                                             }
+                                        }
+                                        crate::packets::Body::MapImageFileReq(_) => {
+                                            let db = pool_clone.get().unwrap();
+                                            let game = Game::get(game_id, &db).unwrap();
+                                            let map = Map::get(game.map_id, &db).unwrap();
+                                            if let Ok((_, Some(mapimagefile), _)) =
+                                                map.get_files(&db)
+                                            {
+                                                MapImageFileResp {
+                                                    image_contents: mapimagefile.filebinary,
+                                                }
+                                                .write_packet(&mut socket_send_clone);
+                                            }
+                                        }
+                                        crate::packets::Body::MapWinterFileReq(_) => {
+                                            let db = pool_clone.get().unwrap();
+                                            let game = Game::get(game_id, &db).unwrap();
+                                            let map = Map::get(game.map_id, &db).unwrap();
+                                            if let Ok((_, _, Some(winterimagefile))) =
+                                                map.get_files(&db)
+                                            {
+                                                MapWinterFileResp {
+                                                    winter_contents: winterimagefile.filebinary,
+                                                }
+                                                .write_packet(&mut socket_send_clone);
+                                            }
+                                        }
+                                        crate::packets::Body::Submit2hReq(pkt) => {
+                                            let db = pool_clone.get().unwrap();
+                                            let twoh = crate::twoh::TwoH::read_contents(std::io::Cursor::new(&pkt.twoh_contents)).unwrap();
+                                            log::debug!("Submitted 2h {:?}", twoh);
                                         }
                                         _ => {}
                                     }

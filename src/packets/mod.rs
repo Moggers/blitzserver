@@ -28,6 +28,11 @@ pub mod map_req;
 pub mod map_resp;
 pub mod mapfile_req;
 pub mod mapfile_resp;
+pub mod mapimagefile_req;
+pub mod mapimagefile_resp;
+pub mod mapwinterfile_req;
+pub mod mapwinterfile_resp;
+pub mod submit2h_req;
 
 pub use astralpacket_req::AstralPacketReq;
 pub use astralpacket_resp::AstralPacketResp;
@@ -52,6 +57,11 @@ pub use map_req::MapReq;
 pub use map_resp::MapResp;
 pub use mapfile_req::MapFileReq;
 pub use mapfile_resp::MapFileResp;
+pub use mapimagefile_req::MapImageFileReq;
+pub use mapimagefile_resp::MapImageFileResp;
+pub use mapwinterfile_req::MapWinterFileReq;
+pub use mapwinterfile_resp::MapWinterFileResp;
+pub use submit2h_req::Submit2hReq;
 
 #[cfg(test)]
 mod tests {
@@ -254,7 +264,12 @@ pub enum Body {
     MapReq(MapReq),
     MapResp(MapResp),
     MapFileReq(MapFileReq),
-    MapFileResp(MapFileResp)
+    MapFileResp(MapFileResp),
+    MapImageFileReq(MapImageFileReq),
+    MapImageFileResp(MapImageFileResp),
+    MapWinterFileReq(MapWinterFileReq),
+    MapWinterFileResp(MapWinterFileResp),
+    Submit2hReq(Submit2hReq)
 }
 
 impl Body {
@@ -281,6 +296,11 @@ impl Body {
             MapResp::ID => Body::MapResp(MapResp::from_reader(r)),
             MapFileReq::ID => Body::MapFileReq(MapFileReq::from_reader(r)),
             MapFileResp::ID => Body::MapFileResp(MapFileResp::from_reader(r)),
+            MapImageFileReq::ID => Body::MapImageFileReq(MapImageFileReq::from_reader(r)),
+            MapImageFileResp::ID => Body::MapImageFileResp(MapImageFileResp::from_reader(r)),
+            MapWinterFileReq::ID => Body::MapWinterFileReq(MapWinterFileReq::from_reader(r)),
+            MapWinterFileResp::ID => Body::MapWinterFileResp(MapWinterFileResp::from_reader(r)),
+            Submit2hReq::ID => Body::Submit2hReq(Submit2hReq::from_reader(r)),
             d => {
                 let mut v = vec![];
                 r.read_to_end(&mut v).unwrap();
@@ -314,6 +334,11 @@ impl Body {
             Self::MapResp(p) => p.write(w),
             Self::MapFileReq(p) => p.write(w),
             Self::MapFileResp(p) => p.write(w),
+            Self::MapImageFileReq(p) => p.write(w),
+            Self::MapImageFileResp(p) => p.write(w),
+            Self::MapWinterFileReq(p) => p.write(w),
+            Self::MapWinterFileResp(p) => p.write(w),
+            Self::Submit2hReq(p) => p.write(w)
         }
     }
 }

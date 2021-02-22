@@ -297,6 +297,7 @@ impl<'a> NewFile<'a> {
     {
         use super::diesel::prelude::*;
         use crate::schema::files::dsl::*;
+        log::warn!("Inserting file of length {}", self.filebinary.len());
         match files.filter(hash.eq(self.hash)).get_result(db) {
             Ok(f) => f,
             Err(_) => diesel::insert_into(files)
@@ -523,6 +524,12 @@ pub struct TurnSummary {
 }
 
 impl Turn {
+    pub fn get_ftherlnd<D>(&self, db: &D) -> Result<File, diesel::result::Error> 
+        where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,{
+            use crate::schema::files::dsl as files_dsl;
+            files_dsl::files.filter(files_dsl::id.eq(self.file_id)).get_result(db)
+    }
     pub fn current_turn<D>(game_ids: &[i32], db: &D) -> Vec<Turn>
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,

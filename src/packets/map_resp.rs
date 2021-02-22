@@ -32,18 +32,15 @@ impl crate::packets::BodyContents for MapResp {
         w.write_u8(0).unwrap();
         w.write_u32::<LittleEndian>(map_contents.len() as u32).unwrap();
         w.write_u32::<LittleEndian>(crate::util::calculate_crc(&map_contents)).unwrap();
-        w.write_all(&map_contents).unwrap();
 
         w.write_all(image_name.as_bytes()).unwrap();
         w.write_u8(0).unwrap();
         w.write_u32::<LittleEndian>(image_contents.len() as u32).unwrap();
-        w.write_u32::<LittleEndian>(99 as u32).unwrap();
-        w.write_all(&image_contents).unwrap();
+        w.write_u32::<LittleEndian>(crate::util::calculate_crc(&image_contents)).unwrap();
 
         w.write_all(winter_name.as_bytes()).unwrap();
         w.write_u8(0).unwrap();
         w.write_u32::<LittleEndian>(winter_contents.len() as u32).unwrap();
-        w.write_u32::<LittleEndian>(99 as u32).unwrap();
-        w.write_all(&winter_contents).unwrap();
+        w.write_u32::<LittleEndian>(crate::util::calculate_crc(&winter_contents)).unwrap();
     }
 }
