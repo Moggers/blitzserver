@@ -1,6 +1,5 @@
 
 use byteorder::{WriteBytesExt};
-use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct Submit2hResp {
 }

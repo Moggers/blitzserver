@@ -3,7 +3,12 @@ use std::sync::{Arc, Mutex};
 #[derive(Clone)]
 pub enum Msg {
     Pkt(PktMsg),
+    CreateGame(CreateGameMsg),
     GameSchedule(GameScheduleMsg),
+    NewTurn(NewTurnMsg),
+    TurnHostStart(TurnHostStartMsg),
+    OrdersSubmitted(OrdersSubmittedMsg),
+    MapChanged(MapChangedMsg),
 }
 
 #[derive(Clone)]
@@ -15,6 +20,36 @@ pub struct PktMsg {
 pub struct GameScheduleMsg {
     pub game_id: i32,
     pub schedule: std::time::SystemTime,
+}
+
+#[derive(Clone)]
+pub struct CreateGameMsg {
+    pub game_id: i32,
+}
+
+#[derive(Clone)]
+pub struct OrdersSubmittedMsg {
+    pub game_id: i32,
+    pub nation_id: i32,
+    pub turn_id: i32,
+}
+
+#[derive(Clone)]
+pub struct TurnHostStartMsg {
+    pub game_id: i32,
+    pub turn_number: i32,
+}
+
+#[derive(Clone)]
+pub struct MapChangedMsg {
+    pub game_id: i32,
+    pub map_id: i32,
+}
+
+#[derive(Clone)]
+pub struct NewTurnMsg {
+    pub game_id: i32,
+    pub turn_number: i32,
 }
 
 pub struct MsgBus {
@@ -81,7 +116,10 @@ impl MsgBusRx {
     pub fn recv(&self) -> Result<Msg, crossbeam_channel::RecvError> {
         self.rx.recv()
     }
-    pub fn recv_timeout(&self, timeout: std::time::Duration) -> Result<Msg, crossbeam_channel::RecvTimeoutError> {
+    pub fn recv_timeout(
+        &self,
+        timeout: std::time::Duration,
+    ) -> Result<Msg, crossbeam_channel::RecvTimeoutError> {
         self.rx.recv_timeout(timeout)
     }
 }

@@ -324,7 +324,6 @@ impl Dom5Proc {
         } else {
             return;
         };
-        log::warn!("Trn file is {} bytes", trn.file_contents.len());
         let file: File = NewFile::new(
             path.file_name().unwrap().to_str().unwrap(),
             &trn.file_contents,

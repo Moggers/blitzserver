@@ -5,6 +5,7 @@ use crate::diesel::prelude::*;
 use crate::models::{
     EmailConfig, Game, GameMod, Map, Mod, Nation, NewGame, NewGameMod, Player, PlayerTurn, Turn,
 };
+use crate::msgbus::{CreateGameMsg, GameScheduleMsg, MapChangedMsg, Msg};
 use crate::StartGame;
 use actix_web::http::header;
 use actix_web::{get, post, web, HttpResponse, Result};
@@ -354,6 +355,8 @@ async fn timer(
     let db = app_data.pool.get().expect("Unable to connect to database");
     use crate::schema::games::dsl as games_dsl;
     use crate::schema::turns::dsl as turns_dsl;
+    let sched = std::time::SystemTime::now()
+        .add(std::time::Duration::from_secs(60 * timer_form.timer as u64));
     let game: Game = games_dsl::games
         .filter(games_dsl::id.eq(path_id))
         .get_result::<Game>(&db)
@@ -370,10 +373,7 @@ async fn timer(
         diesel::update(games_dsl::games.filter(games_dsl::id.eq(game.id)))
             .set((
                 games_dsl::timer.eq(Some(timer_form.timer)),
-                games_dsl::next_turn
-                    .eq(Some(std::time::SystemTime::now().add(
-                        std::time::Duration::from_secs(60 * timer_form.timer as u64),
-                    ))),
+                games_dsl::next_turn.eq(sched),
             ))
             .execute(&db)
             .unwrap();
@@ -383,6 +383,13 @@ async fn timer(
             .execute(&db)
             .unwrap();
     }
+    app_data
+        .msgbus_sender
+        .send(Msg::GameSchedule(GameScheduleMsg {
+            game_id: game.id,
+            schedule: sched,
+        }))
+        .unwrap();
     Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}/schedule", game.id))
         .finish())
@@ -532,6 +539,7 @@ async fn launch(
 ) -> Result<HttpResponse> {
     let db = app_data.pool.get().expect("Unable to connect to database");
     use crate::schema::games::dsl::*;
+    let sched = std::time::SystemTime::now().add(std::time::Duration::from_secs(form.countdown));
     let game = games
         .filter(id.eq(path_id))
         .get_result::<Game>(&*db)
@@ -539,12 +547,16 @@ async fn launch(
 
     diesel::update(games)
         .filter(id.eq(path_id))
-        .set(
-            next_turn
-                .eq(std::time::SystemTime::now()
-                    .add(std::time::Duration::from_secs(form.countdown))),
-        )
+        .set(next_turn.eq(sched))
         .execute(&db)
+        .unwrap();
+
+    app_data
+        .msgbus_sender
+        .send(Msg::GameSchedule(GameScheduleMsg {
+            game_id: game.id,
+            schedule: sched,
+        }))
         .unwrap();
     Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}/schedule", game.id))
@@ -577,6 +589,11 @@ async fn create_post(
         .values(&new_game)
         .get_result(&db)
         .expect("Error saving new game");
+
+    app_data
+        .msgbus_sender
+        .send(Msg::CreateGame(CreateGameMsg { game_id: game.id }))
+        .unwrap();
 
     Ok(HttpResponse::Found()
         .header(
@@ -672,6 +689,7 @@ async fn settings_post(
             .header(header::LOCATION, format!("/game/{}/settings", path_id))
             .finish());
     }
+    let old_game = Game::get(*path_id, &db).unwrap();
     let game: Game = db
         .transaction::<_, diesel::result::Error, _>(|| {
             let game: Game = {
@@ -727,6 +745,13 @@ async fn settings_post(
             };
             Ok(game)
         })
+        .unwrap();
+    app_data
+        .msgbus_sender
+        .send(Msg::MapChanged(MapChangedMsg {
+            game_id: game.id,
+            map_id: game.map_id,
+        }))
         .unwrap();
     Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}/settings", game.id))

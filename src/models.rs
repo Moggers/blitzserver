@@ -3,7 +3,6 @@ use super::schema::{
 };
 use crate::diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl};
 use crate::diesel::{JoinOnDsl, RunQueryDsl};
-use crate::twoh;
 use serde::Deserialize;
 use std::hash::{Hash, Hasher};
 
@@ -61,6 +60,18 @@ struct GameNationCount {
 }
 
 impl Game {
+    pub fn get_mods<D>(&self, db: &D) -> Result<Vec<Mod>, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::game_mods::dsl as gm_dsl;
+        use crate::schema::mods::dsl as mods_dsl;
+        let gamemods: Vec<(GameMod, Mod)> = gm_dsl::game_mods
+            .filter(gm_dsl::game_id.eq(self.id))
+            .inner_join(mods_dsl::mods.on(mods_dsl::id.eq(gm_dsl::mod_id)))
+            .get_results(db)?;
+        Ok(gamemods.into_iter().map(|(_, m)| m).collect())
+    }
     pub fn get<D>(game_id: i32, db: &D) -> Result<Game, diesel::result::Error>
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
@@ -298,7 +309,6 @@ impl<'a> NewFile<'a> {
     {
         use super::diesel::prelude::*;
         use crate::schema::files::dsl::*;
-        log::warn!("Inserting file of length {}", self.filebinary.len());
         match files.filter(hash.eq(self.hash)).get_result(db) {
             Ok(f) => f,
             Err(_) => diesel::insert_into(files)
@@ -365,7 +375,7 @@ impl Map {
     pub fn get_files<D>(
         &self,
         db: &D,
-    ) -> Result<(Option<File>, Option<File>, Option<File>), diesel::result::Error>
+    ) -> Result<(File, File, Option<File>), diesel::result::Error>
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
@@ -378,8 +388,8 @@ impl Map {
             .filter(files_dsl::id.eq_any(&ids))
             .get_results(db)?;
         return Ok((
-            Some((*files.iter().find(|f| f.id == self.mapfile_id).unwrap()).clone()),
-            Some((*files.iter().find(|f| f.id == self.tgafile_id).unwrap()).clone()),
+            (*files.iter().find(|f| f.id == self.mapfile_id).unwrap()).clone(),
+            (*files.iter().find(|f| f.id == self.tgafile_id).unwrap()).clone(),
             match self.winterfile_id {
                 None => None,
                 Some(fid) => Some((*files.iter().find(|f| f.id == fid).unwrap()).clone()),
@@ -534,6 +544,7 @@ impl Turn {
             .filter(
                 pt_dsl::game_id
                     .eq(self.game_id)
+                    .and(pt_dsl::archived.eq(false))
                     .and(pt_dsl::turn_number.eq(self.turn_number)),
             )
             .get_results(db)
@@ -553,7 +564,7 @@ impl Turn {
     {
         use crate::schema::turns::dsl as turns_dsl;
         turns_dsl::turns
-            .filter(turns_dsl::game_id.eq(game_id))
+            .filter(turns_dsl::game_id.eq(game_id).and(turns_dsl::archived.eq(false)))
             .order(turns_dsl::turn_number.desc())
             .limit(1)
             .get_result(db)
@@ -741,6 +752,19 @@ pub struct Mod {
     pub file_id: i32,
     pub icon_file_id: Option<i32>,
 }
+
+impl Mod {
+    pub fn get_archive<D>(&self, db: &D) -> Result<File, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::files::dsl as files_dsl;
+        files_dsl::files
+            .filter(files_dsl::id.eq(self.file_id))
+            .get_result(db)
+    }
+}
+
 #[derive(Clone)]
 pub struct ModDefinition {
     pub dm_filename: String,

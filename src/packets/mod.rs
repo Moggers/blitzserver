@@ -9,6 +9,8 @@ pub mod astralpacket_req;
 pub mod astralpacket_resp;
 pub mod disconnect_req;
 pub mod disconnect_resp;
+pub mod dmfile_req;
+pub mod dmfile_resp;
 pub mod gameinfo_req;
 pub mod gameinfo_resp;
 pub mod heartbeat_req;
@@ -21,6 +23,8 @@ pub mod mapimagefile_req;
 pub mod mapimagefile_resp;
 pub mod mapwinterfile_req;
 pub mod mapwinterfile_resp;
+pub mod modfile_req;
+pub mod modfile_resp;
 pub mod pa_req;
 pub mod pa_resp;
 pub mod passwords_req;
@@ -41,6 +45,8 @@ pub use astralpacket_req::AstralPacketReq;
 pub use astralpacket_resp::AstralPacketResp;
 pub use disconnect_req::DisconnectReq;
 pub use disconnect_resp::DisconnectResp;
+pub use dmfile_req::DmFileReq;
+pub use dmfile_resp::DmFileResp;
 pub use gameinfo_req::GameInfoReq;
 pub use gameinfo_resp::GameInfoResp;
 pub use heartbeat_req::HeartbeatReq;
@@ -53,6 +59,8 @@ pub use mapimagefile_req::MapImageFileReq;
 pub use mapimagefile_resp::MapImageFileResp;
 pub use mapwinterfile_req::MapWinterFileReq;
 pub use mapwinterfile_resp::MapWinterFileResp;
+pub use modfile_req::ModFileReq;
+pub use modfile_resp::ModFileResp;
 pub use pa_req::PAReq;
 pub use pa_resp::PAResp;
 pub use passwords_req::PasswordsReq;
@@ -69,131 +77,6 @@ pub use twohcrc_resp::TwoHCrcResp;
 pub use unknown_req::UnknownReq;
 pub use uploadpretender_req::UploadPretenderReq;
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn deserialize_connection_req() {
-        let test_packet = crate::packets::Packet::from_reader(&mut std::io::BufReader::new(
-            &include_bytes!("../../pktdmps/connect_lobby/client_req")[..],
-        ));
-        println!("Packet: {:x?}", test_packet);
-    }
-
-    #[test]
-    fn deserialize_connection_resp_1() {
-        let test_packet = crate::packets::Packet::from_reader(&mut std::io::BufReader::new(
-            &include_bytes!("../../pktdmps/connect_lobby/server_resp_ea_aaa")[..],
-        ));
-        println!("Packet: {:x?}", test_packet);
-    }
-
-    #[test]
-    fn deserialize_connection_resp_2() {
-        let test_packet = crate::packets::Packet::from_reader(&mut std::io::BufReader::new(
-            &include_bytes!("../../pktdmps/connect_lobby/server_resp_ma_bbb")[..],
-        ));
-        println!("Packet: {:x?}", test_packet);
-    }
-    #[test]
-    fn deserialize_connection_resp_3() {
-        let test_packet = crate::packets::Packet::from_reader(&mut std::io::BufReader::new(
-            &include_bytes!("../../pktdmps/connect_lobby/server_resp_ma_aaa_wh")[..],
-        ));
-        println!("Packet: {:x?}", test_packet);
-    }
-    #[test]
-    fn deserialize_connection_resp_4() {
-        let test_packet = crate::packets::Packet::from_reader(&mut std::io::BufReader::new(
-            &include_bytes!("../../pktdmps/connect_lobby/server_resp_ma_aaa_noclientstart")[..],
-        ));
-        println!("Packet: {:x?}", test_packet);
-    }
-    #[test]
-    fn deserialize_connection_resp_5() {
-        let test_packet = crate::packets::Packet::from_reader(&mut std::io::BufReader::new(
-            &include_bytes!("../../pktdmps/connect_lobby/server_resp_ma_aaa_clientstart")[..],
-        ));
-        println!("Packet: {:x?}", test_packet);
-    }
-    #[test]
-    fn deserialize_connection_resp_6() {
-        let test_packet = crate::packets::Packet::from_reader(&mut std::io::BufReader::new(
-            &include_bytes!("../../pktdmps/connect_lobby/server_resp_ma_aaa_ulm")[..],
-        ));
-        println!("Packet: {:x?}", test_packet);
-    }
-    #[test]
-    fn deserialize_connection_resp_7() {
-        let test_packet = crate::packets::Packet::from_reader(&mut std::io::BufReader::new(
-            &include_bytes!("../../pktdmps/connect_lobby/server_resp_la_aaa_erytheia")[..],
-        ));
-        println!("Packet: {:x?}", test_packet);
-    }
-    #[test]
-    fn deserialize_connection_resp_8() {
-        let test_packet = crate::packets::Packet::from_reader(&mut std::io::BufReader::new(
-            &include_bytes!("../../pktdmps/connect_lobby/server_resp_ea_disciples")[..],
-        ));
-        println!("Packet: {:x?}", test_packet);
-    }
-    #[test]
-    fn deserialize_connection_resp_9() {
-        let test_packet = crate::packets::Packet::from_reader(&mut std::io::BufReader::new(
-            &include_bytes!("../../pktdmps/connect_lobby/server_resp_ea_easy_research")[..],
-        ));
-        println!("Packet: {:x?}", test_packet);
-    }
-    #[test]
-    fn deserialize_connection_resp_10() {
-        let test_packet = crate::packets::Packet::from_reader(&mut std::io::BufReader::new(
-            &include_bytes!("../../pktdmps/connect_lobby/server_resp_ea_hel_closed")[..],
-        ));
-        println!("Packet: {:x?}", test_packet);
-    }
-    #[test]
-    fn deserialize_connection_resp_11() {
-        let test_packet = crate::packets::Packet::from_reader(&mut std::io::BufReader::new(
-            &include_bytes!("../../pktdmps/connect_lobby/server_resp_ea_started")[..],
-        ));
-        println!("Packet: {:x?}", test_packet);
-    }
-    #[test]
-    fn deserialize_connection_resp_12() {
-        let test_packet = crate::packets::Packet::from_reader(&mut std::io::BufReader::new(
-            &include_bytes!("../../pktdmps/connect_lobby/their_garbage_resp")[..],
-        ));
-        println!("Packet: {:x?}", test_packet);
-    }
-    #[test]
-    fn deserialize_connection_resp_13() {
-        let test_packet = crate::packets::Packet::from_reader(&mut std::io::BufReader::new(
-            &include_bytes!("../../pktdmps/connect_lobby/similar_garbage_resp")[..],
-        ));
-        println!("Packet: {:x?}", test_packet);
-    }
-    #[test]
-    fn deserialize_connection_resp_14() {
-        let test_packet = crate::packets::Packet::from_reader(&mut std::io::BufReader::new(
-            &include_bytes!("../../pktdmps/connect_lobby/timer")[..],
-        ));
-        println!("Packet: {:x?}", test_packet);
-    }
-    #[test]
-    fn deserialize_connection_resp_15() {
-        let test_packet = crate::packets::Packet::from_reader(&mut std::io::BufReader::new(
-            &include_bytes!("../../pktdmps/connect_lobby/timer_1")[..],
-        ));
-        println!("Packet: {:x?}", test_packet);
-    }
-    #[test]
-    fn deserialize_game_start_1() {
-        let test_packet = crate::packets::Packet::from_reader(&mut std::io::BufReader::new(
-            &include_bytes!("../../pktdmps/game_start/real_server")[..],
-        ));
-        println!("Packet: {:x?}", test_packet);
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct Packet {
     pub header: Header,
@@ -208,7 +91,7 @@ impl Packet {
         let mut reader = &body_buf[..];
         let body = if header.compression == CompressionType::Zlib {
             let _len = reader.read_u32::<LittleEndian>().unwrap();
-            Body::from_reader(&mut ZlibDecoder::new(reader))
+            Body::from_reader(&mut std::io::BufReader::new(ZlibDecoder::new(reader)))
         } else {
             Body::from_reader(&mut reader)
         };
@@ -279,10 +162,14 @@ pub enum Body {
     Submit2hResp(Submit2hResp),
     TwoHReq(TwoHReq),
     TwoHResp(TwoHResp),
+    DmFileReq(DmFileReq),
+    DmFileResp(DmFileResp),
+    ModFileReq(ModFileReq),
+    ModFileResp(ModFileResp),
 }
 
 impl Body {
-    pub fn from_reader<R: std::io::Read>(r: &mut R) -> Body {
+    pub fn from_reader<R: std::io::BufRead>(r: &mut R) -> Body {
         match r.read_u8().unwrap() {
             UploadPretenderReq::ID => Body::UploadPretenderReq(UploadPretenderReq::from_reader(r)),
             HeartbeatReq::ID => Body::HeartbeatReq(HeartbeatReq::from_reader(r)),
@@ -313,6 +200,11 @@ impl Body {
             Submit2hResp::ID => Body::Submit2hResp(Submit2hResp::from_reader(r)),
             TwoHReq::ID => Body::TwoHReq(TwoHReq::from_reader(r)),
             TwoHResp::ID => Body::TwoHResp(TwoHResp::from_reader(r)),
+            DmFileReq::ID => Body::DmFileReq(DmFileReq::from_reader(r)),
+            DmFileResp::ID => Body::DmFileResp(DmFileResp::from_reader(r)),
+            ModFileReq::ID => Body::ModFileReq(ModFileReq::from_reader(r)),
+            ModFileResp::ID => Body::ModFileResp(ModFileResp::from_reader(r)),
+
             d => {
                 let mut v = vec![];
                 r.read_to_end(&mut v).unwrap();
@@ -354,6 +246,10 @@ impl Body {
             Self::Submit2hResp(p) => p.write(w),
             Self::TwoHReq(p) => p.write(w),
             Self::TwoHResp(p) => p.write(w),
+            Self::DmFileReq(p) => p.write(w),
+            Self::DmFileResp(p) => p.write(w),
+            Self::ModFileReq(p) => p.write(w),
+            Self::ModFileResp(p) => p.write(w),
         }
     }
 }

@@ -7,14 +7,14 @@
 extern crate num_enum;
 #[macro_use]
 extern crate diesel;
-extern crate crossbeam_channel;
 extern crate byteorder;
+extern crate crc;
+extern crate crossbeam_channel;
+extern crate fletcher;
 extern crate image;
-extern crate zip;
 extern crate num_derive;
 extern crate num_traits;
-extern crate crc;
-extern crate fletcher;
+extern crate zip;
 
 use self::diesel::prelude::*;
 use self::models::*;
@@ -35,11 +35,11 @@ pub mod frontend;
 pub mod game_manager;
 pub mod map_file;
 pub mod models;
+pub mod msgbus;
+pub mod packets;
 pub mod schema;
 pub mod statusdump;
 pub mod twoh;
-pub mod packets;
-pub mod msgbus;
 pub mod util;
 
 use frontend::AppData;
@@ -97,8 +97,8 @@ async fn main() -> std::io::Result<()> {
     };
 
     let app_data = AppData {
+        msgbus_sender: bus.sender.clone(),
         pool: pool.clone(),
-        manager_notifier: manager.get_sender(),
         email_manager: crate::email_manager::EmailManager {
             db_pool: pool.clone(),
             smtp_user: env::var("SMTP_USER").expect("SMTP_USER must be said to the SMTP user"),

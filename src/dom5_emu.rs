@@ -1,14 +1,16 @@
 use crate::diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use crate::models::{Game, Map, Nation, PlayerTurn, Turn};
-use crate::msgbus::{Msg, PktMsg};
+use crate::msgbus::{MapChangedMsg, Msg, NewTurnMsg, OrdersSubmittedMsg, PktMsg, TurnHostStartMsg};
 use crate::packets::BodyContents;
 use crate::packets::{
-    AstralPacketResp, DisconnectResp, GameInfoResp, MapFileResp, MapImageFileResp, MapResp,
-    MapWinterFileResp, PAResp, Packet, PasswordsResp, Submit2hResp, TrnResp, TwoHCrcResp, TwoHResp,
+    AstralPacketResp, DisconnectResp, DmFileResp, GameInfoResp, LoadingMessageResp, MapFileResp,
+    MapImageFileResp, MapResp, MapWinterFileResp, ModFileResp, PAResp, Packet, PasswordsResp,
+    Submit2hResp, TrnResp, TwoHCrcResp, TwoHResp,
 };
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use std::env;
+use std::io::Read;
 use std::ops::Add;
 pub struct Dom5Emu {
     game_id: i32,
@@ -42,8 +44,8 @@ impl Dom5Emu {
             .get_result(&db)
             .unwrap();
         let players = crate::models::Player::get_players(game_id, &db).unwrap();
-        let turn = Turn::current_turn(&[game_id], &db);
-        let turn_statuses = if let Some(t) = turn.get(0) {
+        let turn = Turn::get(game_id, &db);
+        let turn_statuses = if let Ok(t) = &turn {
             let player_turns = t.get_player_turns(&db).unwrap();
             player_turns
                 .iter()
@@ -65,7 +67,7 @@ impl Dom5Emu {
         };
         let resp = GameInfoResp {
             unk1: 0,
-            game_state: if turn.len() > 0 { 2 } else { 1 },
+            game_state: if turn.is_ok() { 2 } else { 1 },
             game_name: game.name,
             era: game.era,
             unk2: 0,
@@ -82,19 +84,19 @@ impl Dom5Emu {
                 },
             ),
             remaining: vec![],
-            turn_number: match turn.get(0) {
-                None => 0,
-                Some(t) => t.turn_number as u32,
+            turn_number: match &turn {
+                Err(_) => 0,
+                Ok(t) => t.turn_number as u32,
             },
-            turnkey: match turn.get(0) {
-                Some(t) => {
+            turnkey: match &turn {
+                Ok(t) => {
                     let fthlnd = t.get_ftherlnd(&db).unwrap();
                     let fthrlnd_read =
                         crate::twoh::TwoH::read_contents(std::io::Cursor::new(&fthlnd.filebinary))
                             .unwrap();
                     fthrlnd_read.turnkey
                 }
-                None => 0,
+                Err(_) => 0,
             },
         };
         return resp;
@@ -149,16 +151,89 @@ impl Dom5Emu {
     }
 
     pub fn launch(self) {
+        let db_pool = self.db_pool.clone();
+        let mapcrc_cache: std::sync::Arc<std::sync::Mutex<MapResp>> =
+            std::sync::Arc::new(std::sync::Mutex::new({
+                let db = db_pool.get().unwrap();
+                let game = Game::get(self.game_id, &db).unwrap();
+                let map = Map::get(game.map_id, &db).unwrap();
+                let (mapfile, imagefile, winterfile) = map.get_files(&db).unwrap();
+                match winterfile {
+                    Some(wf) => MapResp::new(
+                        mapfile.filename,
+                        mapfile.filebinary,
+                        imagefile.filename,
+                        imagefile.filebinary,
+                        Some(wf.filename),
+                        Some(wf.filebinary),
+                    ),
+                    None => MapResp::new(
+                        mapfile.filename,
+                        mapfile.filebinary,
+                        imagefile.filename,
+                        imagefile.filebinary,
+                        None,
+                        None,
+                    ),
+                }
+            }));
+        let rx_clone = self.bus_rx.new_recv();
+        let db_pool = self.db_pool.clone();
+        let mapcrc_cache_clone = mapcrc_cache.clone();
+        std::thread::spawn(move || {
+            while let Ok(msg) = rx_clone.recv() {
+                match msg {
+                    /*
+                     * At a game server wide level (instead of connection level below) we receive
+                     * map changes and recalculate the map CRC cache
+                     */
+                    Msg::MapChanged(MapChangedMsg { game_id, .. }) => {
+                        let db = db_pool.get().unwrap();
+                        let game = Game::get(game_id, &db).unwrap();
+                        let map = Map::get(game.map_id, &db).unwrap();
+                        if let Ok((mapfile, imagefile, winterfile)) = map.get_files(&db) {
+                            let mut mapcrc_cache_lock = mapcrc_cache_clone.lock().unwrap();
+                            *mapcrc_cache_lock = match winterfile {
+                                Some(wf) => MapResp::new(
+                                    mapfile.filename,
+                                    mapfile.filebinary,
+                                    imagefile.filename,
+                                    imagefile.filebinary,
+                                    Some(wf.filename),
+                                    Some(wf.filebinary),
+                                ),
+                                None => MapResp::new(
+                                    mapfile.filename,
+                                    mapfile.filebinary,
+                                    imagefile.filename,
+                                    imagefile.filebinary,
+                                    None,
+                                    None,
+                                ),
+                            };
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        });
+        let mapcrc_cache_clone = mapcrc_cache.clone();
         std::thread::spawn(move || {
             let port = self.fetch_port();
             let recv_sock = std::net::TcpListener::bind(format!("0.0.0.0:{}", port)).unwrap();
+            let mods = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::<
+                i32,
+                zip::ZipArchive<std::io::Cursor<Vec<u8>>>,
+            >::new()));
             loop {
-                if let Ok((mut conn, client_addr)) = recv_sock.accept() {
+                let mods_clone = mods.clone();
+                if let Ok((conn, client_addr)) = recv_sock.accept() {
                     let mut socket_send_clone = conn.try_clone().unwrap();
+                    let mut buffered_conn = std::io::BufReader::new(conn);
                     let tx_clone = self.bus_tx.clone();
                     let rx_clone = self.bus_rx.new_recv();
                     std::thread::spawn(move || loop {
-                        let packet = Packet::from_reader(&mut conn);
+                        let packet = Packet::from_reader(&mut buffered_conn);
                         tx_clone
                             .send(Msg::Pkt(PktMsg {
                                 addr: client_addr,
@@ -169,12 +244,59 @@ impl Dom5Emu {
                     let pool_clone = self.db_pool.clone();
                     let game_id = self.game_id.clone();
                     let tx_clone = self.bus_tx.clone();
+                    let mut waiting_for_pa_resp = false;
+                    let mapcrc_cache_clone = mapcrc_cache_clone.clone();
                     std::thread::spawn(move || {
                         while let Ok(msg) = rx_clone.recv() {
                             match msg {
+                                /*
+                                 * When a turn starts hosting, we should send the client a message
+                                 * notifying them the process has begun.
+                                 * This should work at any time, however its unsafe to send it
+                                 * outside a PA loading phase, as it tends to collide with
+                                 * unrelated client request/response pairs
+                                 */
+                                Msg::TurnHostStart(TurnHostStartMsg {
+                                    game_id: new_turn_game_id,
+                                    turn_number,
+                                }) if new_turn_game_id == game_id => {
+                                    if waiting_for_pa_resp {
+                                        LoadingMessageResp {
+                                            message: if turn_number == 1 {
+                                                "Game starting".to_owned()
+                                            } else {
+                                                format!("Hosting turn {}", turn_number)
+                                            },
+                                        }
+                                        .write_packet(&mut socket_send_clone);
+                                    }
+                                }
+                                /*
+                                 * When a new turn finishes resolving, the client may be waiting
+                                 * for a PA resp, if so, they must be notified of the turn now
+                                 * being available
+                                 */
+                                Msg::NewTurn(NewTurnMsg {
+                                    game_id: new_turn_game_id,
+                                    turn_number,
+                                }) if new_turn_game_id == game_id => {
+                                    if waiting_for_pa_resp {
+                                        LoadingMessageResp {
+                                            message: "".to_owned(),
+                                        }
+                                        .write_packet(&mut socket_send_clone);
+                                        PAResp {}.write_packet(&mut socket_send_clone);
+                                        waiting_for_pa_resp = false;
+                                    }
+                                }
                                 Msg::Pkt(PktMsg { addr, pkt }) if client_addr == addr => {
                                     log::debug!("Packet: {:x?}", pkt);
                                     match pkt {
+                                        /*
+                                         * Player has hit the "Start Game" button. Expects the
+                                         * countdown timer to be initiated with something
+                                         * reasonably soon.
+                                         */
                                         crate::packets::Body::StartGameReq(_) => {
                                             let db = pool_clone.get().unwrap();
                                             let game = Game::get(game_id, &db).unwrap();
@@ -190,34 +312,109 @@ impl Dom5Emu {
                                                 ))
                                                 .unwrap();
                                         }
+                                        /*
+                                         * Player is fucking off, expects an ack
+                                         */
                                         crate::packets::Body::DisconnectReq(_) => {
                                             DisconnectResp {}.write_packet(&mut socket_send_clone);
                                         }
+                                        /*
+                                         * Player wants to set or overwrite a newlord
+                                         */
                                         crate::packets::Body::UploadPretenderReq(pkt) => {
                                             let db = pool_clone.get().unwrap();
                                             Self::accept_pretender(game_id, pkt, &db);
                                         }
+                                        /*
+                                         * Seems to be some kind of keepalive
+                                         */
                                         crate::packets::Body::HeartbeatReq(_) => {
                                             let db = pool_clone.get().unwrap();
                                             Self::generate_gameinfo(game_id, db)
                                                 .write_packet(&mut socket_send_clone);
                                         }
+                                        /*
+                                         * Client wants to know what mods are currently enabled
+                                         */
                                         crate::packets::Body::AstralPacketReq(_) => {
-                                            AstralPacketResp {}
-                                                .write_packet(&mut socket_send_clone);
+                                            let db = pool_clone.get().unwrap();
+                                            let game = Game::get(game_id, &db).unwrap();
+                                            let mods = game.get_mods(&db).unwrap();
+                                            let mut modcache = mods_clone.lock().unwrap();
+                                            AstralPacketResp {
+                                                dmfiles: mods
+                                                    .into_iter()
+                                                    .map(|m| {
+                                                        let hash = match modcache.get_mut(&m.id) {
+                                                            Some(archive) => {
+                                                                crate::util::calculate_crc(
+                                                                    archive
+                                                                        .by_name(&m.dm_filename)
+                                                                        .unwrap(),
+                                                                )
+                                                            }
+                                                            None => {
+                                                                let mut archive =
+                                                                    zip::ZipArchive::new(
+                                                                        std::io::Cursor::new(
+                                                                            m.get_archive(&db)
+                                                                                .unwrap()
+                                                                                .filebinary,
+                                                                        ),
+                                                                    )
+                                                                    .unwrap();
+                                                                crate::util::calculate_crc(
+                                                                    archive
+                                                                        .by_name(&m.dm_filename)
+                                                                        .unwrap(),
+                                                                )
+                                                            }
+                                                        };
+                                                        (m.dm_filename, hash)
+                                                    })
+                                                    .collect(),
+                                            }
+                                            .write_packet(&mut socket_send_clone);
                                         }
+                                        /*
+                                         * Regularly sent request for current game state. The
+                                         * client does not like it if a game goes from active to
+                                         * unstarted (turn >0 to turn =0).
+                                         */
                                         crate::packets::Body::GameInfoReq(_) => {
                                             let db = pool_clone.get().unwrap();
                                             Self::generate_gameinfo(game_id, db)
                                                 .write_packet(&mut socket_send_clone);
                                         }
+                                        /*
+                                         * Loading initiation message. Subscribes to a PAResp which
+                                         * will notify the client that the loading is finished.
+                                         * Seems to be for when a game starts, as the client will
+                                         * wait to receive a PA response before asking for turns,
+                                         * at which point the server *must* send one (the PAResp
+                                         * ends up being a guarantee there will be a turn to send).
+                                         */
                                         crate::packets::Body::PAReq(_) => {
-                                            PAResp {}.write_packet(&mut socket_send_clone);
+                                            let db = pool_clone.get().unwrap();
+                                            if Turn::get(game_id, &db).is_ok() {
+                                                PAResp {}.write_packet(&mut socket_send_clone);
+                                            } else {
+                                                waiting_for_pa_resp = true;
+                                            }
                                         }
+                                        /*
+                                         * Player wants to know which nations require passwords, so
+                                         * that it may prompt the user to enter them
+                                         */
                                         crate::packets::Body::PasswordsReq(_) => {
                                             PasswordsResp::new(&[])
                                                 .write_packet(&mut socket_send_clone);
                                         }
+                                        /*
+                                         * Client wants the CRCs for all orders for the currently
+                                         * active turn for the purpose of uploading local turns or
+                                         * downloading turns from the remote server (us).
+                                         */
                                         crate::packets::Body::TwoHCrcReq(_) => {
                                             let db = pool_clone.get().unwrap();
                                             let crcs = match Turn::get(game_id, &db) {
@@ -231,7 +428,7 @@ impl Dom5Emu {
                                                                 acc.insert(
                                                                     t.nation_id as u16,
                                                                     crate::util::calculate_crc(
-                                                                        &twoh.filebinary,
+                                                                        &twoh.filebinary[..],
                                                                     ),
                                                                 );
                                                             }
@@ -244,74 +441,77 @@ impl Dom5Emu {
                                             TwoHCrcResp { crcs }
                                                 .write_packet(&mut socket_send_clone);
                                         }
+                                        /*
+                                         * Client wants the .trn for a specified nation for the
+                                         * current turn.
+                                         */
                                         crate::packets::Body::TrnReq(pkt) => {
                                             log::debug!(
                                                 "Client requested trn file for nation {}",
                                                 pkt.nation_desired
                                             );
                                             let db = pool_clone.get().unwrap();
-                                            let (_turn, file) = PlayerTurn::get(
+                                            match PlayerTurn::get(
                                                 game_id,
                                                 pkt.nation_desired as i32,
                                                 &db,
-                                            )
-                                            .unwrap();
-                                            TrnResp {
-                                                trn_contents: file.filebinary,
-                                            }
-                                            .write_packet(&mut socket_send_clone);
-                                        }
-                                        crate::packets::Body::MapReq(_) => {
-                                            let db = pool_clone.get().unwrap();
-                                            let game = Game::get(game_id, &db).unwrap();
-                                            let map = Map::get(game.map_id, &db).unwrap();
-                                            if let Ok((
-                                                Some(mapfile),
-                                                Some(imagefile),
-                                                Some(winterfile),
-                                            )) = map.get_files(&db)
-                                            {
-                                                MapResp {
-                                                    map: Some((
-                                                        mapfile.filename,
-                                                        mapfile.filebinary,
-                                                    )),
-                                                    image: Some((
-                                                        imagefile.filename,
-                                                        imagefile.filebinary,
-                                                    )),
-                                                    winter_image: Some((
-                                                        winterfile.filename,
-                                                        winterfile.filebinary,
-                                                    )),
+                                            ) {
+                                                Ok((_turn, file)) => TrnResp {
+                                                    trn_contents: file.filebinary,
                                                 }
-                                                .write_packet(&mut socket_send_clone);
-                                            }
+                                                .write_packet(&mut socket_send_clone),
+                                                Err(_) => TrnResp {
+                                                    trn_contents: vec![],
+                                                }
+                                                .write_packet(&mut socket_send_clone),
+                                            };
                                         }
+                                        /*
+                                         * Client wants to know what the map configuration for the
+                                         * game currently is. We preactively generate this packet
+                                         * and store it in a cache. FIXME: If this fails to send it
+                                         * will panic, poison the lock, and put the server into an
+                                         * undefined state.
+                                         */
+                                        crate::packets::Body::MapReq(_) => {
+                                            mapcrc_cache_clone
+                                                .lock()
+                                                .unwrap()
+                                                .write_packet(&mut socket_send_clone);
+                                        }
+                                        /*
+                                         * Client wants the .map for the currently active map
+                                         */
                                         crate::packets::Body::MapFileReq(_) => {
                                             let db = pool_clone.get().unwrap();
                                             let game = Game::get(game_id, &db).unwrap();
                                             let map = Map::get(game.map_id, &db).unwrap();
-                                            if let Ok((Some(mapfile), _, _)) = map.get_files(&db) {
+                                            if let Ok((mapfile, _, _)) = map.get_files(&db) {
                                                 MapFileResp {
                                                     map_contents: mapfile.filebinary,
                                                 }
                                                 .write_packet(&mut socket_send_clone);
                                             }
                                         }
+                                        /*
+                                         * Client wants the normal image file for the currently
+                                         * active map.
+                                         */
                                         crate::packets::Body::MapImageFileReq(_) => {
                                             let db = pool_clone.get().unwrap();
                                             let game = Game::get(game_id, &db).unwrap();
                                             let map = Map::get(game.map_id, &db).unwrap();
-                                            if let Ok((_, Some(mapimagefile), _)) =
-                                                map.get_files(&db)
-                                            {
+                                            if let Ok((_, mapimagefile, _)) = map.get_files(&db) {
                                                 MapImageFileResp {
                                                     image_contents: mapimagefile.filebinary,
                                                 }
                                                 .write_packet(&mut socket_send_clone);
                                             }
                                         }
+                                        /*
+                                         * Client wants the winter image file for the currently
+                                         * active map
+                                         */
                                         crate::packets::Body::MapWinterFileReq(_) => {
                                             let db = pool_clone.get().unwrap();
                                             let game = Game::get(game_id, &db).unwrap();
@@ -325,30 +525,55 @@ impl Dom5Emu {
                                                 .write_packet(&mut socket_send_clone);
                                             }
                                         }
+                                        /*
+                                         * Player has uploaded a turn. It should be for the current
+                                         * turn but it might not. No response data is required, so
+                                         * for any case success or otherwise, an empty packet
+                                         * should be sent back. The turn should be checked to ensure
+                                         * that it is for the currently active turn and ditched if
+                                         * it is not (time travelling pretenders are not allowed).
+                                         */
                                         crate::packets::Body::Submit2hReq(pkt) => {
                                             let twoh = crate::twoh::TwoH::read_contents(
                                                 std::io::Cursor::new(&pkt.twoh_contents),
                                             )
                                             .unwrap();
                                             let db = pool_clone.get().unwrap();
-                                            let (trn, _) =
+                                            if let Ok((trn, _)) =
                                                 PlayerTurn::get(game_id, twoh.nationid, &db)
+                                            {
+                                                if trn.turn_number == twoh.turnnumber {
+                                                    let nation = crate::models::Nation::get(
+                                                        game_id,
+                                                        twoh.nationid,
+                                                        &db,
+                                                    )
                                                     .unwrap();
-                                            let nation = crate::models::Nation::get(
-                                                game_id,
-                                                twoh.nationid,
-                                                &db,
-                                            )
-                                            .unwrap();
-                                            let fname = &format!("{}.2h", nation.filename);
-                                            let twohfile = crate::models::NewFile::new(
-                                                fname,
-                                                &twoh.file_contents,
-                                            );
-                                            trn.save_2h(twohfile, &db).unwrap();
-                                            log::debug!("Submitted 2h {:?}", twoh);
+                                                    let fname = &format!("{}.2h", nation.filename);
+                                                    let twohfile = crate::models::NewFile::new(
+                                                        fname,
+                                                        &twoh.file_contents,
+                                                    );
+                                                    trn.save_2h(twohfile, &db).unwrap();
+                                                    log::debug!("Submitted 2h {:?}", twoh);
+                                                    tx_clone
+                                                        .send(Msg::OrdersSubmitted(
+                                                            OrdersSubmittedMsg {
+                                                                game_id,
+                                                                turn_id: trn.turn_number,
+                                                                nation_id: trn.nation_id,
+                                                            },
+                                                        ))
+                                                        .unwrap();
+                                                }
+                                            }
                                             Submit2hResp {}.write_packet(&mut socket_send_clone);
                                         }
+                                        /*
+                                         * Player wants the current twoh file for a given turn and
+                                         * nation, as they have been notified that there are already
+                                         * orders submitted via the twoh crcs packet.
+                                         */
                                         crate::packets::Body::TwoHReq(pkt) => {
                                             let db = pool_clone.get().unwrap();
                                             let (turn, _file) = PlayerTurn::get(
@@ -363,6 +588,114 @@ impl Dom5Emu {
                                                 twoh_contents: twoh.filebinary,
                                             }
                                             .write_packet(&mut socket_send_clone);
+                                        }
+                                        /*
+                                         * Player wants a mod image file, it may be a file from any mod
+                                         * enabled as reported by the astral packet.
+                                         */
+                                        crate::packets::Body::ModFileReq(pkt) => {
+                                            let db = pool_clone.get().unwrap();
+                                            let game = Game::get(game_id, &db).unwrap();
+                                            let mut mods = mods_clone.lock().unwrap();
+                                            let mut archive = None;
+                                            let mut buf = vec![];
+                                            let normalized_filename =
+                                                pkt.filename.replace("./", "");
+                                            for a in mods.values_mut() {
+                                                if a.by_name(&normalized_filename).is_ok() {
+                                                    archive = Some(a);
+                                                    break;
+                                                }
+                                            }
+                                            match archive {
+                                                None => {
+                                                    let game_mods = game.get_mods(&db).unwrap();
+                                                    for gm in game_mods {
+                                                        let mut ziparchive = zip::ZipArchive::new(
+                                                            std::io::Cursor::new(
+                                                                gm.get_archive(&db)
+                                                                    .unwrap()
+                                                                    .filebinary,
+                                                            ),
+                                                        )
+                                                        .unwrap();
+                                                        if ziparchive
+                                                            .by_name(&normalized_filename)
+                                                            .is_ok()
+                                                        {
+                                                            let mut f = ziparchive
+                                                                .by_name(&normalized_filename)
+                                                                .unwrap();
+                                                            f.read_to_end(&mut buf).unwrap();
+                                                            drop(f);
+                                                            mods.insert(gm.id, ziparchive);
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                                Some(a) => {
+                                                    let mut f =
+                                                        a.by_name(&normalized_filename).unwrap();
+                                                    f.read_to_end(&mut buf).unwrap();
+                                                }
+                                            }
+                                            if buf.len() == 0 {
+                                                panic!(
+                                                    "Failed to find file {} in any enabled mods",
+                                                    pkt.filename
+                                                );
+                                            }
+                                            ModFileResp::new(buf)
+                                                .write_packet(&mut socket_send_clone);
+                                        }
+                                        /*
+                                         * Player wants a mod definition file for one of the mods
+                                         * enabled for the game as reported by the astral packet.
+                                         */
+                                        crate::packets::Body::DmFileReq(pkt) => {
+                                            let db = pool_clone.get().unwrap();
+                                            let game = Game::get(game_id, &db).unwrap();
+                                            let ourmod = game
+                                                .get_mods(&db)
+                                                .unwrap()
+                                                .into_iter()
+                                                .find(|m| m.dm_filename == pkt.filename)
+                                                .unwrap();
+                                            let mut mods = mods_clone.lock().unwrap();
+                                            match mods.get_mut(&ourmod.id) {
+                                                Some(archive) => DmFileResp {
+                                                    contents: {
+                                                        let mut buf: Vec<u8> = vec![];
+                                                        archive
+                                                            .by_name(&ourmod.dm_filename)
+                                                            .unwrap()
+                                                            .read_to_end(&mut buf)
+                                                            .unwrap();
+                                                        buf
+                                                    },
+                                                }
+                                                .write_packet(&mut socket_send_clone),
+                                                None => {
+                                                    let modfile = ourmod.get_archive(&db).unwrap();
+                                                    let mut archive = zip::ZipArchive::new(
+                                                        std::io::Cursor::new(modfile.filebinary),
+                                                    )
+                                                    .unwrap();
+                                                    DmFileResp {
+                                                        contents: {
+                                                            let mut buf = vec![];
+                                                            archive
+                                                                .by_name(&ourmod.dm_filename)
+                                                                .unwrap()
+                                                                .read_to_end(&mut buf)
+                                                                .unwrap();
+                                                            buf
+                                                        },
+                                                    }
+                                                    .write_packet(&mut socket_send_clone);
+                                                    mods.insert(ourmod.id, archive);
+                                                }
+                                            };
                                         }
                                         _ => {}
                                     }
