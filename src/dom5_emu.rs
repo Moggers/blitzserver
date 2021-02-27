@@ -1,6 +1,8 @@
 use crate::diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use crate::models::{Game, Map, Nation, PlayerTurn, Turn};
-use crate::msgbus::{MapChangedMsg, Msg, NewTurnMsg, OrdersSubmittedMsg, PktMsg, TurnHostStartMsg};
+use crate::msgbus::{
+    ClientDiscMsg, MapChangedMsg, Msg, NewTurnMsg, OrdersSubmittedMsg, PktMsg, TurnHostStartMsg,
+};
 use crate::packets::BodyContents;
 use crate::packets::{
     AstralPacketResp, DisconnectResp, DmFileResp, GameInfoResp, LoadingMessageResp, MapFileResp,
@@ -34,7 +36,11 @@ impl Dom5Emu {
         }
     }
 
-    fn generate_gameinfo<D>(game_id: i32, db: D) -> GameInfoResp
+    fn generate_gameinfo<D>(
+        game_id: i32,
+        connlist: &std::collections::HashMap<i32, std::sync::Weak<()>>,
+        db: D,
+    ) -> GameInfoResp
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
@@ -76,6 +82,15 @@ impl Dom5Emu {
             milliseconds_to_host: next_turn,
             unk4: 0,
             turn_statuses: turn_statuses,
+            conn_statuses: connlist.iter().fold(
+                std::collections::HashMap::new(),
+                |mut acc, (key, cur)| {
+                    if let Some(_) = cur.upgrade() {
+                        acc.insert(*key, 1);
+                    }
+                    acc
+                },
+            ),
             nation_statuses: players.iter().fold(
                 std::collections::HashMap::new(),
                 |mut accumulator, current| {
@@ -151,74 +166,76 @@ impl Dom5Emu {
     }
 
     pub fn launch(self) {
-        let db_pool = self.db_pool.clone();
-        let mapcrc_cache: std::sync::Arc<std::sync::Mutex<MapResp>> =
-            std::sync::Arc::new(std::sync::Mutex::new({
-                let db = db_pool.get().unwrap();
-                let game = Game::get(self.game_id, &db).unwrap();
-                let map = Map::get(game.map_id, &db).unwrap();
-                let (mapfile, imagefile, winterfile) = map.get_files(&db).unwrap();
-                match winterfile {
-                    Some(wf) => MapResp::new(
-                        mapfile.filename,
-                        mapfile.filebinary,
-                        imagefile.filename,
-                        imagefile.filebinary,
-                        Some(wf.filename),
-                        Some(wf.filebinary),
-                    ),
-                    None => MapResp::new(
-                        mapfile.filename,
-                        mapfile.filebinary,
-                        imagefile.filename,
-                        imagefile.filebinary,
-                        None,
-                        None,
-                    ),
-                }
-            }));
+        let mut connlist: std::sync::Arc<
+            std::sync::Mutex<std::collections::HashMap<i32, std::sync::Weak<()>>>,
+        > = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
         let rx_clone = self.bus_rx.new_recv();
         let db_pool = self.db_pool.clone();
-        let mapcrc_cache_clone = mapcrc_cache.clone();
         std::thread::spawn(move || {
-            while let Ok(msg) = rx_clone.recv() {
-                match msg {
-                    /*
-                     * At a game server wide level (instead of connection level below) we receive
-                     * map changes and recalculate the map CRC cache
-                     */
-                    Msg::MapChanged(MapChangedMsg { game_id, .. }) => {
-                        let db = db_pool.get().unwrap();
-                        let game = Game::get(game_id, &db).unwrap();
-                        let map = Map::get(game.map_id, &db).unwrap();
-                        if let Ok((mapfile, imagefile, winterfile)) = map.get_files(&db) {
-                            let mut mapcrc_cache_lock = mapcrc_cache_clone.lock().unwrap();
-                            *mapcrc_cache_lock = match winterfile {
-                                Some(wf) => MapResp::new(
-                                    mapfile.filename,
-                                    mapfile.filebinary,
-                                    imagefile.filename,
-                                    imagefile.filebinary,
-                                    Some(wf.filename),
-                                    Some(wf.filebinary),
-                                ),
-                                None => MapResp::new(
-                                    mapfile.filename,
-                                    mapfile.filebinary,
-                                    imagefile.filename,
-                                    imagefile.filebinary,
-                                    None,
-                                    None,
-                                ),
-                            };
-                        }
+            let mapcrc_cache: std::sync::Arc<std::sync::Mutex<MapResp>> =
+                std::sync::Arc::new(std::sync::Mutex::new({
+                    let db = db_pool.get().unwrap();
+                    let game = Game::get(self.game_id, &db).unwrap();
+                    let map = Map::get(game.map_id, &db).unwrap();
+                    let (mapfile, imagefile, winterfile) = map.get_files(&db).unwrap();
+                    match winterfile {
+                        Some(wf) => MapResp::new(
+                            mapfile.filename,
+                            mapfile.filebinary,
+                            imagefile.filename,
+                            imagefile.filebinary,
+                            Some(wf.filename),
+                            Some(wf.filebinary),
+                        ),
+                        None => MapResp::new(
+                            mapfile.filename,
+                            mapfile.filebinary,
+                            imagefile.filename,
+                            imagefile.filebinary,
+                            None,
+                            None,
+                        ),
                     }
-                    _ => {}
+                }));
+            let mapcrc_cache_clone = mapcrc_cache.clone();
+            std::thread::spawn(move || {
+                let mapcrc_cache_clone = mapcrc_cache.clone();
+                while let Ok(msg) = rx_clone.recv() {
+                    match msg {
+                        /*
+                         * At a game server wide level (instead of connection level below) we receive
+                         * map changes and recalculate the map CRC cache
+                         */
+                        Msg::MapChanged(MapChangedMsg { game_id, .. }) => {
+                            let db = db_pool.get().unwrap();
+                            let game = Game::get(game_id, &db).unwrap();
+                            let map = Map::get(game.map_id, &db).unwrap();
+                            if let Ok((mapfile, imagefile, winterfile)) = map.get_files(&db) {
+                                let mut mapcrc_cache_lock = mapcrc_cache_clone.lock().unwrap();
+                                *mapcrc_cache_lock = match winterfile {
+                                    Some(wf) => MapResp::new(
+                                        mapfile.filename,
+                                        mapfile.filebinary,
+                                        imagefile.filename,
+                                        imagefile.filebinary,
+                                        Some(wf.filename),
+                                        Some(wf.filebinary),
+                                    ),
+                                    None => MapResp::new(
+                                        mapfile.filename,
+                                        mapfile.filebinary,
+                                        imagefile.filename,
+                                        imagefile.filebinary,
+                                        None,
+                                        None,
+                                    ),
+                                };
+                            }
+                        }
+                        _ => {}
+                    }
                 }
-            }
-        });
-        let mapcrc_cache_clone = mapcrc_cache.clone();
-        std::thread::spawn(move || {
+            });
             let port = self.fetch_port();
             let recv_sock = std::net::TcpListener::bind(format!("0.0.0.0:{}", port)).unwrap();
             let mods = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::<
@@ -232,13 +249,17 @@ impl Dom5Emu {
                     let mut buffered_conn = std::io::BufReader::new(conn);
                     let tx_clone = self.bus_tx.clone();
                     let rx_clone = self.bus_rx.new_recv();
-                    std::thread::spawn(move || loop {
-                        let packet = Packet::from_reader(&mut buffered_conn);
+                    std::thread::spawn(move || {
+                        while let Ok(packet) = Packet::from_reader(&mut buffered_conn) {
+                            tx_clone
+                                .send(Msg::Pkt(PktMsg {
+                                    addr: client_addr,
+                                    pkt: packet.body,
+                                }))
+                                .unwrap();
+                        }
                         tx_clone
-                            .send(Msg::Pkt(PktMsg {
-                                addr: client_addr,
-                                pkt: packet.body,
-                            }))
+                            .send(Msg::ClientDisc(ClientDiscMsg { addr: client_addr }))
                             .unwrap();
                     });
                     let pool_clone = self.db_pool.clone();
@@ -246,9 +267,15 @@ impl Dom5Emu {
                     let tx_clone = self.bus_tx.clone();
                     let mut waiting_for_pa_resp = false;
                     let mapcrc_cache_clone = mapcrc_cache_clone.clone();
+                    let connlist_clone = connlist.clone();
                     std::thread::spawn(move || {
+                        let mut nation_holders: Vec<std::sync::Arc<()>> = vec![];
                         while let Ok(msg) = rx_clone.recv() {
                             match msg {
+                                Msg::ClientDisc(ClientDiscMsg { addr }) if client_addr == addr => {
+                                    log::debug!("Client {:?} disconnect", addr);
+                                    break;
+                                }
                                 /*
                                  * When a turn starts hosting, we should send the client a message
                                  * notifying them the process has begun.
@@ -290,7 +317,7 @@ impl Dom5Emu {
                                     }
                                 }
                                 Msg::Pkt(PktMsg { addr, pkt }) if client_addr == addr => {
-                                    log::debug!("Packet: {:x?}", pkt);
+                                    log::debug!("Pkt:{}=>{:x?}", client_addr, pkt);
                                     match pkt {
                                         /*
                                          * Player has hit the "Start Game" button. Expects the
@@ -329,9 +356,15 @@ impl Dom5Emu {
                                          * Seems to be some kind of keepalive
                                          */
                                         crate::packets::Body::HeartbeatReq(_) => {
+                                            let connlist_clone_lock =
+                                                connlist_clone.lock().unwrap();
                                             let db = pool_clone.get().unwrap();
-                                            Self::generate_gameinfo(game_id, db)
-                                                .write_packet(&mut socket_send_clone);
+                                            Self::generate_gameinfo(
+                                                game_id,
+                                                &*connlist_clone_lock,
+                                                db,
+                                            )
+                                            .write_packet(&mut socket_send_clone);
                                         }
                                         /*
                                          * Client wants to know what mods are currently enabled
@@ -383,8 +416,12 @@ impl Dom5Emu {
                                          */
                                         crate::packets::Body::GameInfoReq(_) => {
                                             let db = pool_clone.get().unwrap();
-                                            Self::generate_gameinfo(game_id, db)
-                                                .write_packet(&mut socket_send_clone);
+                                            Self::generate_gameinfo(
+                                                game_id,
+                                                &*connlist_clone.lock().unwrap(),
+                                                db,
+                                            )
+                                            .write_packet(&mut socket_send_clone);
                                         }
                                         /*
                                          * Loading initiation message. Subscribes to a PAResp which
@@ -394,12 +431,37 @@ impl Dom5Emu {
                                          * at which point the server *must* send one (the PAResp
                                          * ends up being a guarantee there will be a turn to send).
                                          */
-                                        crate::packets::Body::PAReq(_) => {
+                                        crate::packets::Body::PAReq(pkt) => {
                                             let db = pool_clone.get().unwrap();
                                             if Turn::get(game_id, &db).is_ok() {
                                                 PAResp {}.write_packet(&mut socket_send_clone);
                                             } else {
                                                 waiting_for_pa_resp = true;
+                                            }
+
+                                            let mut connlist_clone_lock =
+                                                connlist_clone.lock().unwrap();
+                                            for n in pkt.nations_selected {
+                                                match connlist_clone_lock.entry(n) {
+                                                    std::collections::hash_map::Entry::Vacant(
+                                                        v,
+                                                    ) => {
+                                                        let l = std::sync::Arc::new(());
+                                                        v.insert(std::sync::Arc::downgrade(&l));
+                                                        nation_holders.push(l);
+                                                    }
+                                                    std::collections::hash_map::Entry::Occupied(
+                                                        mut o,
+                                                    ) => {
+                                                        if let Some(l) = o.get().upgrade() {
+                                                            nation_holders.push(l);
+                                                        } else {
+                                                            let l = std::sync::Arc::new(());
+                                                            o.insert(std::sync::Arc::downgrade(&l));
+                                                            nation_holders.push(l);
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                         /*
@@ -486,12 +548,11 @@ impl Dom5Emu {
                                             let db = pool_clone.get().unwrap();
                                             let game = Game::get(game_id, &db).unwrap();
                                             let map = Map::get(game.map_id, &db).unwrap();
-                                            if let Ok((mapfile, _, _)) = map.get_files(&db) {
-                                                MapFileResp {
-                                                    map_contents: mapfile.filebinary,
-                                                }
-                                                .write_packet(&mut socket_send_clone);
+                                            let (mapfile, _, _) = map.get_files(&db).unwrap();
+                                            MapFileResp {
+                                                map_contents: mapfile.filebinary,
                                             }
+                                            .write_packet(&mut socket_send_clone);
                                         }
                                         /*
                                          * Client wants the normal image file for the currently
@@ -501,12 +562,11 @@ impl Dom5Emu {
                                             let db = pool_clone.get().unwrap();
                                             let game = Game::get(game_id, &db).unwrap();
                                             let map = Map::get(game.map_id, &db).unwrap();
-                                            if let Ok((_, mapimagefile, _)) = map.get_files(&db) {
-                                                MapImageFileResp {
-                                                    image_contents: mapimagefile.filebinary,
-                                                }
-                                                .write_packet(&mut socket_send_clone);
+                                            let (_, mapimagefile, _) = map.get_files(&db).unwrap();
+                                            MapImageFileResp {
+                                                image_contents: mapimagefile.filebinary,
                                             }
+                                            .write_packet(&mut socket_send_clone);
                                         }
                                         /*
                                          * Client wants the winter image file for the currently
@@ -521,6 +581,11 @@ impl Dom5Emu {
                                             {
                                                 MapWinterFileResp {
                                                     winter_contents: winterimagefile.filebinary,
+                                                }
+                                                .write_packet(&mut socket_send_clone);
+                                            } else {
+                                                MapWinterFileResp {
+                                                    winter_contents: vec![],
                                                 }
                                                 .write_packet(&mut socket_send_clone);
                                             }
@@ -555,7 +620,6 @@ impl Dom5Emu {
                                                         &twoh.file_contents,
                                                     );
                                                     trn.save_2h(twohfile, &db).unwrap();
-                                                    log::debug!("Submitted 2h {:?}", twoh);
                                                     tx_clone
                                                         .send(Msg::OrdersSubmitted(
                                                             OrdersSubmittedMsg {

@@ -9,6 +9,12 @@ pub enum Msg {
     TurnHostStart(TurnHostStartMsg),
     OrdersSubmitted(OrdersSubmittedMsg),
     MapChanged(MapChangedMsg),
+    ClientDisc(ClientDiscMsg)
+}
+
+#[derive(Clone)]
+pub struct ClientDiscMsg {
+    pub addr: std::net::SocketAddr
 }
 
 #[derive(Clone)]

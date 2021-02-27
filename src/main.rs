@@ -15,6 +15,7 @@ extern crate image;
 extern crate num_derive;
 extern crate num_traits;
 extern crate zip;
+extern crate thiserror;
 
 use self::diesel::prelude::*;
 use self::models::*;

@@ -12,6 +12,7 @@ pub struct GameInfoResp {
     pub unk4: u16,
     pub nation_statuses: std::collections::HashMap<i32, u8>,
     pub turn_statuses: std::collections::HashMap<i32, u8>,
+    pub conn_statuses: std::collections::HashMap<i32, u8>,
     pub remaining: Vec<u8>,
     pub turn_number: u32,
     pub turnkey: u32,
@@ -62,6 +63,16 @@ impl GameInfoResp {
                 _ => {}
             }
         }
+        let mut conn_statuses: std::collections::HashMap<i32, u8> =
+            std::collections::HashMap::new();
+        for i in 1..=250 {
+            match r.read_u8() {
+                Ok(1) => {
+                    conn_statuses.insert(i, 1);
+                }
+                _ => {}
+            }
+        }
         let mut remaining = vec![];
         r.read_to_end(&mut remaining).unwrap();
         GameInfoResp {
@@ -77,6 +88,7 @@ impl GameInfoResp {
             unk4,
             nation_statuses,
             turn_statuses,
+            conn_statuses,
             turn_number: 0,
             turnkey: 0,
         }
@@ -109,13 +121,20 @@ impl crate::packets::BodyContents for GameInfoResp {
                 _ => w.write_u8(0).unwrap(),
             }
         }
-        for i in 1..250 {
+        for i in 1..251 {
             match self.turn_statuses.get(&i) {
                 Some(t) => w.write_u8(*t).unwrap(),
                 _ => w.write_u8(0).unwrap(),
             }
         }
-        w.write_all(&[0; 250]).unwrap();
+        for i in 1..250 {
+            match self.conn_statuses.get(&i) {
+                Some(t) => {
+                    w.write_u8(*t).unwrap();
+                },
+                _ => w.write_u8(0).unwrap(),
+            }
+        }
         match self.turn_number {
             0 => {
                 w.write_all(&[0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00])

@@ -1,9 +1,12 @@
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 #[derive(Debug, Clone)]
 pub struct MapResp {
-    pub map: (String, Vec<u8>),
-    pub image: (String, Vec<u8>),
-    pub winter_image: Option<(String, Vec<u8>)>,
+    pub map_name: String,
+    pub image_name: String,
+    pub winter_name: Option<String>,
+    map_len: u32,
+    image_len: u32,
+    winter_len: Option<u32>,
     map_crc: u32,
     image_crc: u32,
     winter_crc: Option<u32>,
@@ -19,17 +22,23 @@ impl MapResp {
         winter_contents: Option<Vec<u8>>,
     ) -> Self {
         Self {
+            map_name: map_name,
+            map_len: map_contents.len() as u32,
             map_crc: crate::util::calculate_crc(&map_contents[..]),
+            image_name: image_name,
+            image_len: image_contents.len() as u32,
             image_crc: crate::util::calculate_crc(&image_contents[..]),
+            winter_name: match winter_name {
+                Some(winter_name) => Some(winter_name),
+                _ => None,
+            },
             winter_crc: match &winter_contents {
                 Some(wc) => Some(crate::util::calculate_crc(&wc[..])),
                 None => None,
             },
-            map: (map_name, map_contents),
-            image: (image_name, image_contents),
-            winter_image: match (winter_name, winter_contents) {
-                (Some(winter_name), Some(winter_contents)) => Some((winter_name, winter_contents)),
-                _ => None,
+            winter_len: match winter_contents {
+                Some(winter_contents) => Some(winter_contents.len() as u32),
+                None => None,
             },
         }
     }
@@ -70,27 +79,26 @@ impl MapResp {
 impl crate::packets::BodyContents for MapResp {
     const ID: u8 = 0x14;
     fn write<W: std::io::Write>(&self, w: &mut W) {
-        let ((map_name, map_contents), (image_name, image_contents)) = (&self.map, &self.image);
-        w.write_all(map_name.as_bytes()).unwrap();
+        w.write_all(self.map_name.as_bytes()).unwrap();
         w.write_u8(0).unwrap();
-        w.write_u32::<LittleEndian>(map_contents.len() as u32)
+        w.write_u32::<LittleEndian>(self.map_len)
             .unwrap();
         w.write_u32::<LittleEndian>(self.map_crc).unwrap();
 
-        w.write_all(image_name.as_bytes()).unwrap();
+        w.write_all(self.image_name.as_bytes()).unwrap();
         w.write_u8(0).unwrap();
-        w.write_u32::<LittleEndian>(image_contents.len() as u32)
+        w.write_u32::<LittleEndian>(self.image_len)
             .unwrap();
         w.write_u32::<LittleEndian>(self.image_crc).unwrap();
 
-        if let (Some((winter_name, winter_contents)), Some(crc)) =
-            (&self.winter_image, &self.winter_crc)
+        if let (Some(winter_name), Some(winter_len), Some(winter_crc)) = 
+            (&self.winter_name, &self.winter_len, &self.winter_crc)
         {
             w.write_all(winter_name.as_bytes()).unwrap();
             w.write_u8(0).unwrap();
-            w.write_u32::<LittleEndian>(winter_contents.len() as u32)
+            w.write_u32::<LittleEndian>(*winter_len)
                 .unwrap();
-            w.write_u32::<LittleEndian>(*crc).unwrap();
+            w.write_u32::<LittleEndian>(*winter_crc).unwrap();
         }
     }
 }

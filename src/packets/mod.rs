@@ -4,6 +4,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
 use std::io::Write;
+use thiserror::Error;
 
 pub mod astralpacket_req;
 pub mod astralpacket_resp;
@@ -77,6 +78,14 @@ pub use twohcrc_resp::TwoHCrcResp;
 pub use unknown_req::UnknownReq;
 pub use uploadpretender_req::UploadPretenderReq;
 
+#[derive(Error, Debug)]
+pub enum PacketError {
+    #[error("No more data")]
+    Disconnect(#[from] std::io::Error),
+}
+
+pub type PacketResult<T> = Result<T, PacketError>;
+
 #[derive(Debug, Clone)]
 pub struct Packet {
     pub header: Header,
@@ -84,8 +93,8 @@ pub struct Packet {
 }
 
 impl Packet {
-    pub fn from_reader<R: std::io::Read>(r: &mut R) -> Packet {
-        let header = Header::from_reader(r);
+    pub fn from_reader<R: std::io::Read>(r: &mut R) -> PacketResult<Packet> {
+        let header = Header::from_reader(r)?;
         let mut body_buf: Vec<u8> = vec![0u8; header.length as usize];
         r.read_exact(&mut body_buf).unwrap();
         let mut reader = &body_buf[..];
@@ -95,7 +104,7 @@ impl Packet {
         } else {
             Body::from_reader(&mut reader)
         };
-        Packet { header, body }
+        Ok(Packet { header, body })
     }
 }
 
@@ -113,15 +122,15 @@ pub struct Header {
 }
 
 impl Header {
-    pub fn from_reader<R: std::io::Read>(r: &mut R) -> Header {
-        let unk: u8 = r.read_u8().unwrap();
-        let compression = FromPrimitive::from_u8(r.read_u8().unwrap()).unwrap();
-        let length: u32 = r.read_u32::<LittleEndian>().unwrap();
-        Header {
+    pub fn from_reader<R: std::io::Read>(r: &mut R) -> PacketResult<Header> {
+        let unk: u8 = r.read_u8()?;
+        let compression = FromPrimitive::from_u8(r.read_u8()?).unwrap();
+        let length: u32 = r.read_u32::<LittleEndian>()?;
+        Ok(Header {
             unk,
             compression,
             length,
-        }
+        })
     }
     pub fn write<W: std::io::Write>(&self, w: &mut W) {
         w.write_u8(0x66).unwrap();
@@ -254,12 +263,16 @@ impl Body {
     }
 }
 
-pub trait BodyContents {
+pub trait BodyContents
+where
+    Self: std::fmt::Debug,
+{
     const ID: u8;
 
     fn write<W: std::io::Write>(&self, w: &mut W);
 
     fn write_packet<W: std::io::Write>(&self, w: &mut W) {
+        log::debug!("<={:?}", self);
         let mut full: Vec<u8> = vec![];
 
         // Create body
