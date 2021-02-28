@@ -203,9 +203,15 @@ h1 {
 }
 .submitted {
 	color: green;
+	font-weight: 600;
 }
 .unsubmitted {
 	color: #B00;
+	font-weight: 600;
+}
+.unfinished {
+	color: #ffa500;
+	font-weight: 600;
 }
 .row .tail {
 	margin-left: auto;
@@ -404,6 +410,9 @@ h3 {
 }
 .bg-submitted {
 	background: green;
+}
+.bg-unfinished {
+	background: #ffa500;
 }
 .bg-unsubmitted {
 	background: red;

@@ -11,6 +11,7 @@ pub struct TwoH {
     pub password: String,
     pub master_password: String,
     pub file_contents: Vec<u8>,
+    pub status: i32,
 }
 
 #[cfg(test)]
@@ -70,8 +71,8 @@ impl TwoH {
         let mut unk: [u8; 8] = [0; 8];
         file.read_exact(&mut unk).unwrap();
         let nationid = file.read_i32::<LittleEndian>().unwrap();
-        let mut unk1: [u8; 8] = [0; 8];
-        file.read_exact(&mut unk1).unwrap();
+        let status = file.read_i32::<LittleEndian>().unwrap();
+        file.read_i32::<LittleEndian>().unwrap();
         let mut game_name_bytes: Vec<u8> = vec![];
         loop {
             let c: u8 = file.read_u8().unwrap();
@@ -112,6 +113,7 @@ impl TwoH {
             cdkey,
             nationid,
             turnkey,
+            status,
             file_contents: contents,
             password: String::from_utf8_lossy(&password_bytes).to_string(),
             master_password: String::from_utf8_lossy(&master_password_bytes).to_string(),

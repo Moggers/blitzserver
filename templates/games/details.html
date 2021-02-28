@@ -33,14 +33,28 @@
 							{% if self.turn_number > 0 %} 
 								<td class="turn-markers">
 									{% for turn in Self::get_turn_pips(turns.get(player.id).unwrap_or(Vec::new())) %}
-									{% if turn.twohfile_id.is_some() %}
-									<section class="submitted">■</section>
+									{% match turn.status %}
+									{% when 0 %}
+										<section class="unsubmitted">■</section>
+									{% when 1 %}
+										<section class="unfinished">■</section>
+									{% when 2 %}
+										<section class="submitted">■</section>
 									{% else %}
-									<section class="unsubmitted">■</section>
-									{% endif %}
+										<section class="unsubmitted">■</section>
+									{% endmatch %}
 									{% endfor %}
 								</td>
-								{% if player.submitted %}<td class="submitted">submitted</td>{% else %}<td class="unsubmitted">unsubmitted</td>{% endif %}
+								{% match player.status %}
+								{% when 0 %}
+									<td class="unsubmitted">unsubmitted</td>
+								{% when 1 %}
+									<td class="unfinished">unfinished</td>
+								{% when 2 %}
+									<td class="submitted">submitted</td>
+								{% else %}
+									<td class="unsubmitted">unsubmitted</td>
+								{% endmatch %}
 							{% else %}
 								<td></td>
 								<td>
@@ -105,7 +119,16 @@
 								<tr>
 									<td>Turn {{turn+1}}</td>
 									{% for player in players %}
-									<td {% if self.get_turn_submitted(player.id, turn) %} class="bg-submitted" {% else %} class="bg-unsubmitted" {% endif %}</td>
+									{% match self.get_turn_status(player.id, turn) %}
+									{% when 0 %}
+										<td class="bg-unsubmitted"></td>
+									{% when 1 %}
+										<td class="bg-unfinished"></td>
+									{% when 2 %}
+										<td class="bg-submitted"></td>
+									{% else %}
+										<td class="bg-unsubmitted"></td>
+									{% endmatch %}
 									{% endfor %}
 									<td>
 								</tr>

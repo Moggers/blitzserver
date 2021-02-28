@@ -56,9 +56,7 @@ impl Dom5Emu {
             player_turns
                 .iter()
                 .fold(std::collections::HashMap::new(), |mut acc, t| {
-                    if t.twohfile_id.is_some() {
-                        acc.insert(t.nation_id, 2);
-                    }
+                    acc.insert(t.nation_id, t.status as u8);
                     acc
                 })
         } else {
@@ -166,7 +164,7 @@ impl Dom5Emu {
     }
 
     pub fn launch(self) {
-        let mut connlist: std::sync::Arc<
+        let connlist: std::sync::Arc<
             std::sync::Mutex<std::collections::HashMap<i32, std::sync::Weak<()>>>,
         > = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
         let rx_clone = self.bus_rx.new_recv();
@@ -619,7 +617,13 @@ impl Dom5Emu {
                                                         fname,
                                                         &twoh.file_contents,
                                                     );
-                                                    trn.save_2h(twohfile, &db).unwrap();
+                                                    log::debug!("TwoH: {:?}", twoh);
+                                                    trn.save_2h(
+                                                        twohfile,
+                                                        if twoh.status == 1 { 1 } else { 2 },
+                                                        &db,
+                                                    )
+                                                    .unwrap();
                                                     tx_clone
                                                         .send(Msg::OrdersSubmitted(
                                                             OrdersSubmittedMsg {

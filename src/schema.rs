@@ -110,6 +110,7 @@ table! {
         trnfile_id -> Int4,
         twohfile_id -> Nullable<Int4>,
         archived -> Bool,
+        status -> Int4,
     }
 }
 

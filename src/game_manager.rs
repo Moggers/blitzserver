@@ -75,7 +75,7 @@ impl GameManager {
         sender
             .send(Msg::TurnHostStart(TurnHostStartMsg {
                 game_id: game.id,
-                turn_number: turn_n+1,
+                turn_number: turn_n + 1,
             }))
             .unwrap();
         let dom5_proc = Dom5Proc::new(game, db_pool.clone());
@@ -119,7 +119,7 @@ impl GameManager {
                             let db = db_pool.get().unwrap();
                             let turn = Turn::get(launch_id, &db).unwrap();
                             let player_turns = turn.get_player_turns(&db).unwrap();
-                            if player_turns.iter().all(|pt| pt.twohfile_id.is_some()) {
+                            if player_turns.iter().all(|pt| pt.status == 2) {
                                 timeout = Self::host_turn(launch_id, &bus_tx, db_pool.clone());
                             }
                         }

@@ -208,7 +208,7 @@ struct EmailFormEntry {
 struct PlayerSummary {
     name: String,
     id: i32,
-    submitted: bool,
+    status: i32,
 }
 #[derive(Template)]
 #[template(path = "games/details.html")]
@@ -240,10 +240,10 @@ impl<'a> GameDetailsTemplate<'a> {
                     .name
             })
     }
-    fn get_turn_submitted(&self, nation_id: &i32, turn_number: &i32) -> bool {
-        self.turns.get(nation_id).map_or(false, |t| {
+    fn get_turn_status(&self, nation_id: &i32, turn_number: &i32) -> i32 {
+        self.turns.get(nation_id).map_or(0, |t| {
             t.get(*turn_number as usize)
-                .map_or(false, |t| t.twohfile_id.is_some())
+                .map_or(0, |t| t.status)
         })
     }
     fn get_turn_pips(turns: &[PlayerTurn]) -> Vec<&PlayerTurn> {
@@ -516,9 +516,9 @@ async fn details(
                 .map(|(_, nation)| PlayerSummary {
                     id: nation.nation_id,
                     name: nation.name.clone(),
-                    submitted: match player_turn_map.get(&nation.nation_id) {
-                        Some(t) => t.last().map_or(false, |t| t.twohfile_id.is_some()),
-                        None => false,
+                    status: match player_turn_map.get(&nation.nation_id) {
+                        Some(t) => t.last().map_or(0, |t| t.status),
+                        None => 0,
                     },
                 })
                 .collect(),

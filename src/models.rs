@@ -372,10 +372,7 @@ impl Map {
         maps_dsl::maps.filter(maps_dsl::id.eq(id)).get_result(db)
     }
 
-    pub fn get_files<D>(
-        &self,
-        db: &D,
-    ) -> Result<(File, File, Option<File>), diesel::result::Error>
+    pub fn get_files<D>(&self, db: &D) -> Result<(File, File, Option<File>), diesel::result::Error>
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
@@ -564,7 +561,11 @@ impl Turn {
     {
         use crate::schema::turns::dsl as turns_dsl;
         turns_dsl::turns
-            .filter(turns_dsl::game_id.eq(game_id).and(turns_dsl::archived.eq(false)))
+            .filter(
+                turns_dsl::game_id
+                    .eq(game_id)
+                    .and(turns_dsl::archived.eq(false)),
+            )
             .order(turns_dsl::turn_number.desc())
             .limit(1)
             .get_result(db)
@@ -642,6 +643,7 @@ pub struct PlayerTurn {
     pub trnfile_id: i32,
     pub twohfile_id: Option<i32>,
     pub archived: bool,
+    pub status: i32,
 }
 
 impl PlayerTurn {
@@ -657,7 +659,12 @@ impl PlayerTurn {
             None => Err(diesel::result::Error::NotFound),
         }
     }
-    pub fn save_2h<D>(&self, twoh: NewFile, db: &D) -> Result<PlayerTurn, diesel::result::Error>
+    pub fn save_2h<D>(
+        &self,
+        twoh: NewFile,
+        status: i32,
+        db: &D,
+    ) -> Result<PlayerTurn, diesel::result::Error>
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
@@ -665,7 +672,7 @@ impl PlayerTurn {
         use crate::schema::player_turns::dsl as pt_dsl;
         diesel::update(pt_dsl::player_turns)
             .filter(pt_dsl::id.eq(self.id))
-            .set(pt_dsl::twohfile_id.eq(file.id))
+            .set((pt_dsl::status.eq(status), pt_dsl::twohfile_id.eq(file.id)))
             .get_result(db)
     }
     pub fn get<D>(
