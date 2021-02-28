@@ -101,6 +101,7 @@ async fn main() -> std::io::Result<()> {
         msgbus_sender: bus.sender.clone(),
         pool: pool.clone(),
         email_manager: crate::email_manager::EmailManager {
+            msgbus_recv: bus.new_recv(),
             db_pool: pool.clone(),
             smtp_user: env::var("SMTP_USER").expect("SMTP_USER must be said to the SMTP user"),
             smtp_pass: env::var("SMTP_PASS").expect("SMTP_PASS must be said to the SMTP password"),

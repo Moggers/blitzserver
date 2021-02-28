@@ -1,8 +1,14 @@
-
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct TrnResp {
     pub trn_contents: Vec<u8>,
+}
+impl std::fmt::Debug for TrnResp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TwoHResp")
+            .field("trn_contents[0..32]", &self.trn_contents[0..32].iter())
+            .finish()
+    }
 }
 
 impl TrnResp {

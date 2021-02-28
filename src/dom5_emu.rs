@@ -506,10 +506,6 @@ impl Dom5Emu {
                                          * current turn.
                                          */
                                         crate::packets::Body::TrnReq(pkt) => {
-                                            log::debug!(
-                                                "Client requested trn file for nation {}",
-                                                pkt.nation_desired
-                                            );
                                             let db = pool_clone.get().unwrap();
                                             match PlayerTurn::get(
                                                 game_id,
@@ -617,7 +613,6 @@ impl Dom5Emu {
                                                         fname,
                                                         &twoh.file_contents,
                                                     );
-                                                    log::debug!("TwoH: {:?}", twoh);
                                                     trn.save_2h(
                                                         twohfile,
                                                         if twoh.status == 1 { 1 } else { 2 },

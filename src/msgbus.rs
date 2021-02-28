@@ -9,7 +9,8 @@ pub enum Msg {
     TurnHostStart(TurnHostStartMsg),
     OrdersSubmitted(OrdersSubmittedMsg),
     MapChanged(MapChangedMsg),
-    ClientDisc(ClientDiscMsg)
+    ClientDisc(ClientDiscMsg),
+    ModsChanged(ModsChangedMsg)
 }
 
 #[derive(Clone)]
@@ -50,6 +51,11 @@ pub struct TurnHostStartMsg {
 pub struct MapChangedMsg {
     pub game_id: i32,
     pub map_id: i32,
+}
+
+#[derive(Clone)]
+pub struct ModsChangedMsg {
+    pub game_id: i32,
 }
 
 #[derive(Clone)]
@@ -100,9 +106,16 @@ impl MsgBus {
     }
 }
 
+
 pub struct MsgBusRx {
     rx: crossbeam_channel::Receiver<Msg>,
     broadcasts: Arc<Mutex<Vec<crossbeam_channel::Sender<Msg>>>>,
+}
+
+impl Clone for MsgBusRx {
+    fn clone(&self) -> Self {
+        self.new_recv()
+    }
 }
 
 impl MsgBusRx {

@@ -1,10 +1,17 @@
-
-
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct TwoHResp {
     pub nation_id: u16,
     pub twoh_contents: Vec<u8>,
+}
+
+impl std::fmt::Debug for TwoHResp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TwoHResp")
+            .field("nation_id", &self.nation_id)
+            .field("twoh_contents[0..32]", &self.twoh_contents[0..32].iter())
+            .finish()
+    }
 }
 
 impl TwoHResp {
@@ -14,7 +21,10 @@ impl TwoHResp {
         let _len = r.read_u32::<LittleEndian>().unwrap();
         r.read_u16::<LittleEndian>().unwrap();
         r.read_to_end(&mut twoh_contents).unwrap();
-        TwoHResp { nation_id, twoh_contents }
+        TwoHResp {
+            nation_id,
+            twoh_contents,
+        }
     }
 }
 

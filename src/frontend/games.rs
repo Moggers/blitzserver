@@ -5,7 +5,7 @@ use crate::diesel::prelude::*;
 use crate::models::{
     EmailConfig, Game, GameMod, Map, Mod, Nation, NewGame, NewGameMod, Player, PlayerTurn, Turn,
 };
-use crate::msgbus::{CreateGameMsg, GameScheduleMsg, MapChangedMsg, Msg};
+use crate::msgbus::{CreateGameMsg, GameScheduleMsg, MapChangedMsg, ModsChangedMsg, Msg};
 use crate::StartGame;
 use actix_web::http::header;
 use actix_web::{get, post, web, HttpResponse, Result};
@@ -241,10 +241,9 @@ impl<'a> GameDetailsTemplate<'a> {
             })
     }
     fn get_turn_status(&self, nation_id: &i32, turn_number: &i32) -> i32 {
-        self.turns.get(nation_id).map_or(0, |t| {
-            t.get(*turn_number as usize)
-                .map_or(0, |t| t.status)
-        })
+        self.turns
+            .get(nation_id)
+            .map_or(0, |t| t.get(*turn_number as usize).map_or(0, |t| t.status))
     }
     fn get_turn_pips(turns: &[PlayerTurn]) -> Vec<&PlayerTurn> {
         let len = turns.len();
@@ -690,6 +689,7 @@ async fn settings_post(
             .finish());
     }
     let old_game = Game::get(*path_id, &db).unwrap();
+    let old_mods = old_game.get_mods(&db).unwrap();
     let game: Game = db
         .transaction::<_, diesel::result::Error, _>(|| {
             let game: Game = {
@@ -746,6 +746,17 @@ async fn settings_post(
             Ok(game)
         })
         .unwrap();
+    let mods = old_game.get_mods(&db).unwrap();
+    if mods.len() != old_mods.len()
+        || mods
+            .iter()
+            .any(|m| !old_mods.iter().any(|om| om.id == m.id))
+    {
+        app_data
+            .msgbus_sender
+            .send(Msg::ModsChanged(ModsChangedMsg { game_id: game.id }))
+            .unwrap();
+    }
     app_data
         .msgbus_sender
         .send(Msg::MapChanged(MapChangedMsg {

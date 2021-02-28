@@ -103,6 +103,7 @@ impl Dom5Proc {
                 .get_results::<(GameMod, Mod)>(&db)
                 .unwrap();
             mods.iter()
+                //.flat_map(|(_, m)| vec![String::from("-M"), m.dm_filename.clone()])
                 .flat_map(|(_, m)| vec![String::from("-M"), m.dm_filename.clone()])
                 .collect::<Vec<String>>()
         };
@@ -159,7 +160,7 @@ impl Dom5Proc {
             std::thread::sleep(std::time::Duration::from_secs(1));
         }
         let nation_info_regex = regex::Regex::new(
-            r#"Nation\t([0-9]+)\t[0-9]+\t[0-9]+\t[0-9]+\t[0-9]+\t([a-zA-Z_]+)\t([^ ]+)\t([^$]+)"#,
+            r#"Nation\t([0-9]+)\t[0-9]+\t[0-9]+\t[0-9]+\t[0-9]+\t([a-zA-Z_0-9]+)\t([^ ]+)\t([^$]+)"#,
         )
         .unwrap();
         if let Some(mut statusdump) = statusdump {

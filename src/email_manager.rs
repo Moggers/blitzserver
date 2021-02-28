@@ -1,4 +1,5 @@
 use crate::diesel::prelude::*;
+use crate::msgbus::MsgBusRx;
 use crate::models::{EmailConfig, Game, NewEmailConfig, Turn};
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
@@ -12,6 +13,7 @@ pub struct EmailManager {
     pub smtp_pass: String,
     pub smtp_server: String,
     pub hostname: String,
+    pub msgbus_recv: MsgBusRx,
 }
 
 impl EmailManager {
