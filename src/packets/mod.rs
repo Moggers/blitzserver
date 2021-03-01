@@ -26,7 +26,6 @@ pub mod mapwinterfile_req;
 pub mod mapwinterfile_resp;
 pub mod modfile_req;
 pub mod modfile_resp;
-pub mod pa_req;
 pub mod pa_resp;
 pub mod passwords_req;
 pub mod passwords_resp;
@@ -39,8 +38,9 @@ pub mod twoh_req;
 pub mod twoh_resp;
 pub mod twohcrc_req;
 pub mod twohcrc_resp;
-pub mod unknown_req;
+pub mod pa_req;
 pub mod uploadpretender_req;
+pub mod nationsselected_req;
 
 pub use astralpacket_req::AstralPacketReq;
 pub use astralpacket_resp::AstralPacketResp;
@@ -62,7 +62,7 @@ pub use mapwinterfile_req::MapWinterFileReq;
 pub use mapwinterfile_resp::MapWinterFileResp;
 pub use modfile_req::ModFileReq;
 pub use modfile_resp::ModFileResp;
-pub use pa_req::PAReq;
+pub use nationsselected_req::NationsSelectedReq;
 pub use pa_resp::PAResp;
 pub use passwords_req::PasswordsReq;
 pub use passwords_resp::PasswordsResp;
@@ -75,7 +75,7 @@ pub use twoh_req::TwoHReq;
 pub use twoh_resp::TwoHResp;
 pub use twohcrc_req::TwoHCrcReq;
 pub use twohcrc_resp::TwoHCrcResp;
-pub use unknown_req::UnknownReq;
+pub use pa_req::PAReq;
 pub use uploadpretender_req::UploadPretenderReq;
 
 #[derive(Error, Debug)]
@@ -149,10 +149,10 @@ pub enum Body {
     GameInfoResp(GameInfoResp),
     DisconnectReq(DisconnectReq),
     StartGameReq(StartGameReq),
-    PAReq(PAReq),
+    NationsSelectedReq(NationsSelectedReq),
     PAResp(PAResp),
     LoadingMessageResp(LoadingMessageResp),
-    UnknownReq(UnknownReq),
+    PAReq(PAReq),
     PasswordsReq(PasswordsReq),
     TwoHCrcReq(TwoHCrcReq),
     PasswordsResp(PasswordsResp),
@@ -188,9 +188,8 @@ impl Body {
             AstralPacketReq::ID => Body::AstralPacketReq(AstralPacketReq::from_reader(r)),
             StartGameReq::ID => Body::StartGameReq(StartGameReq::from_reader(r)),
             DisconnectReq::ID => Body::DisconnectReq(DisconnectReq::from_reader(r)),
-            PAReq::ID => Body::PAReq(PAReq::from_reader(r)),
             PAResp::ID => Body::PAResp(PAResp::from_reader(r)),
-            UnknownReq::ID => Body::UnknownReq(UnknownReq::from_reader(r)),
+            PAReq::ID => Body::PAReq(PAReq::from_reader(r)),
             PasswordsReq::ID => Body::PasswordsReq(PasswordsReq::from_reader(r)),
             TwoHCrcReq::ID => Body::TwoHCrcReq(TwoHCrcReq::from_reader(r)),
             PasswordsResp::ID => Body::PasswordsResp(PasswordsResp::from_reader(r)),
@@ -213,6 +212,7 @@ impl Body {
             DmFileResp::ID => Body::DmFileResp(DmFileResp::from_reader(r)),
             ModFileReq::ID => Body::ModFileReq(ModFileReq::from_reader(r)),
             ModFileResp::ID => Body::ModFileResp(ModFileResp::from_reader(r)),
+            NationsSelectedReq::ID => Body::NationsSelectedReq(NationsSelectedReq::from_reader(r)),
 
             d => {
                 let mut v = vec![];
@@ -225,7 +225,7 @@ impl Body {
     }
     pub fn write<W: std::io::Write>(&self, w: &mut W) {
         match self {
-            Self::PAReq(p) => p.write(w),
+            Self::NationsSelectedReq(p) => p.write(w),
             Self::PAResp(p) => p.write(w),
             Self::DisconnectReq(p) => p.write(w),
             Self::UploadPretenderReq(p) => p.write(w),
@@ -235,7 +235,7 @@ impl Body {
             Self::GameInfoReq(p) => p.write(w),
             Self::GameInfoResp(p) => p.write(w),
             Self::StartGameReq(p) => p.write(w),
-            Self::UnknownReq(p) => p.write(w),
+            Self::PAReq(p) => p.write(w),
             Self::PasswordsReq(p) => p.write(w),
             Self::TwoHCrcReq(p) => p.write(w),
             Self::PasswordsResp(p) => p.write(w),

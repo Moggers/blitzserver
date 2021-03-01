@@ -379,7 +379,7 @@ impl Dom5Emu {
                                             )
                                             .write_packet(&mut socket_send_clone);
                                         }
-                                        crate::packets::Body::UnknownReq(pkt) => {
+                                        crate::packets::Body::PAReq(pkt) => {
                                             let db = pool_clone.get().unwrap();
                                             if Turn::get(game_id, &db).is_ok() {
                                                 PAResp {}.write_packet(&mut socket_send_clone);
@@ -387,7 +387,7 @@ impl Dom5Emu {
                                                 waiting_for_pa_resp = true;
                                             }
                                         }
-                                        crate::packets::Body::PAReq(pkt) => {
+                                        crate::packets::Body::NationsSelectedReq(pkt) => {
                                             let mut connlist_clone_lock =
                                                 connlist_clone.lock().unwrap();
                                             for n in pkt.nations_selected {
