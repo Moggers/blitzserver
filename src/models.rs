@@ -659,6 +659,15 @@ impl PlayerTurn {
             None => Err(diesel::result::Error::NotFound),
         }
     }
+    pub fn get_trn<D>(&self, db: &D) -> Result<File, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::files::dsl as files_dsl;
+        files_dsl::files
+            .filter(files_dsl::id.eq(self.trnfile_id))
+            .get_result(db)
+    }
     pub fn save_2h<D>(
         &self,
         twoh: NewFile,

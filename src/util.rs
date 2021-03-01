@@ -35,7 +35,7 @@ pub fn calculate_crc<R: std::io::Read>(data: R) -> u32 {
         let dat_u32 = dat.unwrap() as u32;
         register = register.rotate_left(6);
         register = (std::num::Wrapping(register ^ dat_u32)
-            + (std::num::Wrapping((dat_u32 + 1)) * std::num::Wrapping(index as u32) << 8))
+            + (std::num::Wrapping(dat_u32 + 1) * std::num::Wrapping(index as u32) << 8))
         .0;
     }
     return register;

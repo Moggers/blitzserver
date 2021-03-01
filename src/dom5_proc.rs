@@ -4,8 +4,8 @@ use std::ops::Add;
 
 use super::diesel::prelude::*;
 use super::models::{
-    File, Game, GameMod, Map, Mod, Nation, NewFile, NewNation, NewPlayerTurn,
-    Player, PlayerTurn, Turn,
+    File, Game, GameMod, Map, Mod, Nation, NewFile, NewNation, NewPlayerTurn, Player, PlayerTurn,
+    Turn,
 };
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
@@ -103,20 +103,11 @@ impl Dom5Proc {
                 .get_results::<(GameMod, Mod)>(&db)
                 .unwrap();
             mods.iter()
-                //.flat_map(|(_, m)| vec![String::from("-M"), m.dm_filename.clone()])
                 .flat_map(|(_, m)| vec![String::from("-M"), m.dm_filename.clone()])
                 .collect::<Vec<String>>()
         };
         let db = self.db_pool.get().expect("Unable to connect to database");
-        use crate::schema::files::dsl as files_dsl;
-        use crate::schema::games::dsl as games_dsl;
-        use crate::schema::maps::dsl as maps_dsl;
-        let (game, _map, _file) = games_dsl::games
-            .filter(games_dsl::id.eq(self.game_id))
-            .inner_join(maps_dsl::maps.on(maps_dsl::id.eq(games_dsl::map_id)))
-            .inner_join(files_dsl::files.on(files_dsl::id.eq(maps_dsl::mapfile_id)))
-            .get_result::<(Game, Map, File)>(&db)
-            .unwrap();
+        let game = Game::get(self.game_id, &db).unwrap();
         arguments.append(&mut vec![
             "--statusdump".to_string(),
             "--port".to_string(),
@@ -484,8 +475,12 @@ impl Dom5Proc {
         }
         match game.timer {
             Some(timer) => {
-                game.schedule_turn(std::time::SystemTime::now().add(std::time::Duration::from_secs((60*timer) as u64)), &db)
-                    .unwrap();
+                game.schedule_turn(
+                    std::time::SystemTime::now()
+                        .add(std::time::Duration::from_secs((60 * timer) as u64)),
+                    &db,
+                )
+                .unwrap();
             }
             None => {
                 game.remove_timer(&db).unwrap();

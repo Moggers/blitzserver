@@ -6,7 +6,7 @@ pub struct DmFileResp {
 
 impl DmFileResp {
     pub fn from_reader<R: std::io::Read>(r: &mut R) -> DmFileResp {
-        let len = r.read_u32::<LittleEndian>().unwrap();
+        let _len = r.read_u32::<LittleEndian>().unwrap();
         let mut contents = vec![];
         r.read_to_end(&mut contents).unwrap();
         DmFileResp { contents }

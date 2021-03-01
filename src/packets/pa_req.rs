@@ -1,4 +1,4 @@
-use byteorder::{LittleEndian, ReadBytesExt};
+use byteorder::ReadBytesExt;
 #[derive(Debug, Clone)]
 pub struct PAReq {
     pub nations_selected: Vec<i32>,

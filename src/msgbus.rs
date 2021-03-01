@@ -10,7 +10,8 @@ pub enum Msg {
     OrdersSubmitted(OrdersSubmittedMsg),
     MapChanged(MapChangedMsg),
     ClientDisc(ClientDiscMsg),
-    ModsChanged(ModsChangedMsg)
+    ModsChanged(ModsChangedMsg),
+    GameArchived(GameArchivedMsg)
 }
 
 #[derive(Clone)]
@@ -31,6 +32,11 @@ pub struct GameScheduleMsg {
 
 #[derive(Clone)]
 pub struct CreateGameMsg {
+    pub game_id: i32,
+}
+
+#[derive(Clone)]
+pub struct GameArchivedMsg {
     pub game_id: i32,
 }
 

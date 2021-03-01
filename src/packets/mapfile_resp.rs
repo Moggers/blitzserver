@@ -1,8 +1,15 @@
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct MapFileResp {
     pub map_contents: Vec<u8>,
+}
+impl std::fmt::Debug for MapFileResp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Submit2hReq")
+         .field("map_contents[0..32]", &self.map_contents[0..32].iter())
+         .finish()
+    }
 }
 
 impl MapFileResp {

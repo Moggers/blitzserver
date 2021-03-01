@@ -1,7 +1,8 @@
 use crate::diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use crate::models::{Game, Map, Nation, PlayerTurn, Turn};
 use crate::msgbus::{
-    ClientDiscMsg, MapChangedMsg, Msg, NewTurnMsg, OrdersSubmittedMsg, PktMsg, TurnHostStartMsg,
+    ClientDiscMsg, GameArchivedMsg, MapChangedMsg, Msg, NewTurnMsg, OrdersSubmittedMsg, PktMsg,
+    TurnHostStartMsg,
 };
 use crate::packets::BodyContents;
 use crate::packets::{
@@ -169,80 +170,51 @@ impl Dom5Emu {
         > = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
         let rx_clone = self.bus_rx.new_recv();
         let db_pool = self.db_pool.clone();
+        let launch_id = self.game_id;
         std::thread::spawn(move || {
-            let mapcrc_cache: std::sync::Arc<std::sync::Mutex<MapResp>> =
-                std::sync::Arc::new(std::sync::Mutex::new({
-                    let db = db_pool.get().unwrap();
-                    let game = Game::get(self.game_id, &db).unwrap();
-                    let map = Map::get(game.map_id, &db).unwrap();
-                    let (mapfile, imagefile, winterfile) = map.get_files(&db).unwrap();
-                    match winterfile {
-                        Some(wf) => MapResp::new(
-                            mapfile.filename,
-                            mapfile.filebinary,
-                            imagefile.filename,
-                            imagefile.filebinary,
-                            Some(wf.filename),
-                            Some(wf.filebinary),
-                        ),
-                        None => MapResp::new(
-                            mapfile.filename,
-                            mapfile.filebinary,
-                            imagefile.filename,
-                            imagefile.filebinary,
-                            None,
-                            None,
-                        ),
-                    }
-                }));
+            let mapcrc_cache = MapCrcCache::new(launch_id, db_pool.clone());
+            mapcrc_cache.populate();
             let mapcrc_cache_clone = mapcrc_cache.clone();
+            let port = self.fetch_port();
+            let recv_addr = format!("0.0.0.0:{}", port);
+            let shutdown = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let shutdown_tx = shutdown.clone();
+            let recv_addr_tx = format!("0.0.0.0:{}", port);
             std::thread::spawn(move || {
                 let mapcrc_cache_clone = mapcrc_cache.clone();
                 while let Ok(msg) = rx_clone.recv() {
                     match msg {
                         /*
+                         * Kill the listen thread to free the port once a game is archived
+                         */
+                        Msg::GameArchived(GameArchivedMsg { game_id }) if game_id == launch_id => {
+                            shutdown_tx.swap(true, std::sync::atomic::Ordering::AcqRel);
+                            std::net::TcpStream::connect(recv_addr_tx).unwrap();
+                            break;
+                        }
+                        /*
                          * At a game server wide level (instead of connection level below) we receive
                          * map changes and recalculate the map CRC cache
                          */
-                        Msg::MapChanged(MapChangedMsg { game_id, .. }) => {
-                            let db = db_pool.get().unwrap();
-                            let game = Game::get(game_id, &db).unwrap();
-                            let map = Map::get(game.map_id, &db).unwrap();
-                            if let Ok((mapfile, imagefile, winterfile)) = map.get_files(&db) {
-                                let mut mapcrc_cache_lock = mapcrc_cache_clone.lock().unwrap();
-                                *mapcrc_cache_lock = match winterfile {
-                                    Some(wf) => MapResp::new(
-                                        mapfile.filename,
-                                        mapfile.filebinary,
-                                        imagefile.filename,
-                                        imagefile.filebinary,
-                                        Some(wf.filename),
-                                        Some(wf.filebinary),
-                                    ),
-                                    None => MapResp::new(
-                                        mapfile.filename,
-                                        mapfile.filebinary,
-                                        imagefile.filename,
-                                        imagefile.filebinary,
-                                        None,
-                                        None,
-                                    ),
-                                };
-                            }
+                        Msg::MapChanged(MapChangedMsg { game_id, .. }) if game_id == launch_id => {
+                            mapcrc_cache_clone.populate();
                         }
                         _ => {}
                     }
                 }
             });
-            let port = self.fetch_port();
-            let recv_sock = std::net::TcpListener::bind(format!("0.0.0.0:{}", port)).unwrap();
+            let recv_sock = std::net::TcpListener::bind(recv_addr).unwrap();
             let mods = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::<
                 i32,
                 zip::ZipArchive<std::io::Cursor<Vec<u8>>>,
             >::new()));
             loop {
                 let mods_clone = mods.clone();
+                let shutdown_rx = shutdown.clone();
                 if let Ok((conn, client_addr)) = recv_sock.accept() {
+                    if shutdown_rx.fetch_or(false, std::sync::atomic::Ordering::AcqRel) == true {
+                        break;
+                    }
                     let mut socket_send_clone = conn.try_clone().unwrap();
                     let mut buffered_conn = std::io::BufReader::new(conn);
                     let tx_clone = self.bus_tx.clone();
@@ -270,6 +242,18 @@ impl Dom5Emu {
                         let mut nation_holders: Vec<std::sync::Arc<()>> = vec![];
                         while let Ok(msg) = rx_clone.recv() {
                             match msg {
+                                /*
+                                 * Game has been archived, Force disconnect the client
+                                 */
+                                Msg::GameArchived(GameArchivedMsg {
+                                    game_id: inc_game_id,
+                                }) if game_id == inc_game_id => {
+                                    DisconnectResp {}.write_packet(&mut socket_send_clone);
+                                    break;
+                                }
+                                /*
+                                 * Client has gone away, we can simply exit
+                                 */
                                 Msg::ClientDisc(ClientDiscMsg { addr }) if client_addr == addr => {
                                     log::debug!("Client {:?} disconnect", addr);
                                     break;
@@ -303,7 +287,7 @@ impl Dom5Emu {
                                  */
                                 Msg::NewTurn(NewTurnMsg {
                                     game_id: new_turn_game_id,
-                                    turn_number,
+                                    ..
                                 }) if new_turn_game_id == game_id => {
                                     if waiting_for_pa_resp {
                                         LoadingMessageResp {
@@ -421,22 +405,16 @@ impl Dom5Emu {
                                             )
                                             .write_packet(&mut socket_send_clone);
                                         }
-                                        /*
-                                         * Loading initiation message. Subscribes to a PAResp which
-                                         * will notify the client that the loading is finished.
-                                         * Seems to be for when a game starts, as the client will
-                                         * wait to receive a PA response before asking for turns,
-                                         * at which point the server *must* send one (the PAResp
-                                         * ends up being a guarantee there will be a turn to send).
-                                         */
-                                        crate::packets::Body::PAReq(pkt) => {
+                                        crate::packets::Body::UnknownReq(pkt) => {
                                             let db = pool_clone.get().unwrap();
                                             if Turn::get(game_id, &db).is_ok() {
                                                 PAResp {}.write_packet(&mut socket_send_clone);
                                             } else {
                                                 waiting_for_pa_resp = true;
                                             }
-
+                                        }
+                                        crate::packets::Body::PAReq(pkt) => {
+                                            let db = pool_clone.get().unwrap();
                                             let mut connlist_clone_lock =
                                                 connlist_clone.lock().unwrap();
                                             for n in pkt.nations_selected {
@@ -467,7 +445,22 @@ impl Dom5Emu {
                                          * that it may prompt the user to enter them
                                          */
                                         crate::packets::Body::PasswordsReq(_) => {
-                                            PasswordsResp::new(&[])
+                                            let db = pool_clone.get().unwrap();
+                                            let trn = Turn::get(launch_id, &db).unwrap();
+                                            let pts = trn.get_player_turns(&db).unwrap();
+                                            let passworded_nations: Vec<i32> = pts.iter().filter_map(|pt| {
+                                                let turn = pt.get_trn(&db).unwrap();
+                                                let trn = crate::twoh::TwoH::read_contents(
+                                                    std::io::Cursor::new(turn.filebinary),
+                                                )
+                                                .unwrap();
+                                                if trn.password != "".to_string() {
+                                                    return Some(trn.nationid);
+                                                } else {
+                                                    return None;
+                                                }
+                                            }).collect();
+                                            PasswordsResp::new(&passworded_nations[..])
                                                 .write_packet(&mut socket_send_clone);
                                         }
                                         /*
@@ -525,16 +518,17 @@ impl Dom5Emu {
                                         /*
                                          * Client wants to know what the map configuration for the
                                          * game currently is. We preactively generate this packet
-                                         * and store it in a cache. FIXME: If this fails to send it
-                                         * will panic, poison the lock, and put the server into an
-                                         * undefined state.
+                                         * and store it in a cache. If the map cache has not
+                                         * generated by the time we get here, it will retry five
+                                         * times, before giving up and killing the connection.
                                          */
-                                        crate::packets::Body::MapReq(_) => {
-                                            mapcrc_cache_clone
-                                                .lock()
-                                                .unwrap()
-                                                .write_packet(&mut socket_send_clone);
-                                        }
+                                        crate::packets::Body::MapReq(_) => match mapcrc_cache_clone
+                                            .fetch(5)
+                                        {
+                                            Some(pkt) => pkt.write_packet(&mut socket_send_clone),
+                                            None => DisconnectResp {}
+                                                .write_packet(&mut socket_send_clone),
+                                        },
                                         /*
                                          * Client wants the .map for the currently active map
                                          */
@@ -770,5 +764,73 @@ impl Dom5Emu {
                 }
             }
         });
+    }
+}
+
+#[derive(Clone)]
+struct MapCrcCache {
+    cache: std::sync::Arc<std::sync::Mutex<Option<MapResp>>>,
+    db_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
+    game_id: i32,
+}
+
+impl MapCrcCache {
+    pub fn new(game_id: i32, db_pool: r2d2::Pool<ConnectionManager<PgConnection>>) -> Self {
+        Self {
+            game_id,
+            db_pool,
+            cache: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        }
+    }
+
+    /**
+     * Asynchronously populate the map cache within a child thread
+     */
+    pub fn populate(&self) {
+        let db = self.db_pool.get().unwrap();
+        let cache = self.cache.clone();
+        let game_id = self.game_id;
+        std::thread::spawn(move || {
+            let mut cache = cache.lock().unwrap();
+            let game = Game::get(game_id, &db).unwrap();
+            let map = Map::get(game.map_id, &db).unwrap();
+            let (mapfile, imagefile, winterfile) = map.get_files(&db).unwrap();
+            *cache = match winterfile {
+                Some(wf) => Some(MapResp::new(
+                    mapfile.filename,
+                    mapfile.filebinary,
+                    imagefile.filename,
+                    imagefile.filebinary,
+                    Some(wf.filename),
+                    Some(wf.filebinary),
+                )),
+                None => Some(MapResp::new(
+                    mapfile.filename,
+                    mapfile.filebinary,
+                    imagefile.filename,
+                    imagefile.filebinary,
+                    None,
+                    None,
+                )),
+            }
+        });
+    }
+    /**
+     * Fetch the packet out of the map cache, specify the number of attempts between each try
+     */
+    pub fn fetch(&self, mut tries: i32) -> Option<MapResp> {
+        while tries > 0 {
+            let pkt = self.cache.lock().unwrap().clone();
+            match pkt {
+                None => {
+                    tries -= 1;
+                    std::thread::sleep(std::time::Duration::from_secs(4));
+                }
+                Some(pkt) => {
+                    return Some(pkt);
+                }
+            }
+        }
+        return None;
     }
 }

@@ -5,7 +5,9 @@ use crate::diesel::prelude::*;
 use crate::models::{
     EmailConfig, Game, GameMod, Map, Mod, Nation, NewGame, NewGameMod, Player, PlayerTurn, Turn,
 };
-use crate::msgbus::{CreateGameMsg, GameScheduleMsg, MapChangedMsg, ModsChangedMsg, Msg};
+use crate::msgbus::{
+    CreateGameMsg, GameArchivedMsg, GameScheduleMsg, MapChangedMsg, ModsChangedMsg, Msg,
+};
 use crate::StartGame;
 use actix_web::http::header;
 use actix_web::{get, post, web, HttpResponse, Result};
@@ -423,14 +425,14 @@ async fn details(
             session
                 .set(&format!("auth_{}", game.id), AuthStatus::AuthSuccess)
                 .unwrap();
-            return Ok(HttpResponse::PermanentRedirect()
+            return Ok(HttpResponse::TemporaryRedirect()
                 .header(header::LOCATION, format!("/game/{}/{}", game.id, tab))
                 .finish());
         } else {
             session
                 .set(&format!("auth_{}", game.id), AuthStatus::AuthFail)
                 .unwrap();
-            return Ok(HttpResponse::PermanentRedirect()
+            return Ok(HttpResponse::TemporaryRedirect()
                 .header(header::LOCATION, format!("/game/{}/{}", game.id, tab))
                 .finish());
         }
@@ -855,6 +857,10 @@ pub async fn archive_post(
             games_dsl::port.eq::<Option<i32>>(None),
         ))
         .execute(&db)
+        .unwrap();
+    app_data
+        .msgbus_sender
+        .send(Msg::GameArchived(GameArchivedMsg { game_id: *path_id}))
         .unwrap();
     return Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}/schedule", path_id))
