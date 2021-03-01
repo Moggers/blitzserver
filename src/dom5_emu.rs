@@ -1,7 +1,7 @@
 use crate::diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
 use crate::models::{Game, Map, Nation, PlayerTurn, Turn};
 use crate::msgbus::{
-    ClientDiscMsg, GameArchivedMsg, MapChangedMsg, Msg, NewTurnMsg, OrdersSubmittedMsg, PktMsg,
+    ModsChangedMsg, ClientDiscMsg, GameArchivedMsg, MapChangedMsg, Msg, NewTurnMsg, OrdersSubmittedMsg, PktMsg,
     TurnHostStartMsg,
 };
 use crate::packets::BodyContents;
@@ -172,9 +172,12 @@ impl Dom5Emu {
         let db_pool = self.db_pool.clone();
         let launch_id = self.game_id;
         std::thread::spawn(move || {
+            let modcrc_cache = ModCrcCache::new(launch_id, db_pool.clone());
             let mapcrc_cache = MapCrcCache::new(launch_id, db_pool.clone());
             mapcrc_cache.populate();
+            modcrc_cache.populate();
             let mapcrc_cache_clone = mapcrc_cache.clone();
+            let modcrc_cache_clone = modcrc_cache.clone();
             let port = self.fetch_port();
             let recv_addr = format!("0.0.0.0:{}", port);
             let shutdown = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -182,6 +185,7 @@ impl Dom5Emu {
             let recv_addr_tx = format!("0.0.0.0:{}", port);
             std::thread::spawn(move || {
                 let mapcrc_cache_clone = mapcrc_cache.clone();
+                let modcrc_cache_clone = modcrc_cache.clone();
                 while let Ok(msg) = rx_clone.recv() {
                     match msg {
                         /*
@@ -198,6 +202,12 @@ impl Dom5Emu {
                          */
                         Msg::MapChanged(MapChangedMsg { game_id, .. }) if game_id == launch_id => {
                             mapcrc_cache_clone.populate();
+                        }
+                        /*
+                         * Recalculate the mod crc cache on mod change
+                         */
+                        Msg::ModsChanged(ModsChangedMsg { game_id, .. }) if game_id == launch_id => {
+                            modcrc_cache_clone.populate();
                         }
                         _ => {}
                     }
@@ -237,6 +247,7 @@ impl Dom5Emu {
                     let tx_clone = self.bus_tx.clone();
                     let mut waiting_for_pa_resp = false;
                     let mapcrc_cache_clone = mapcrc_cache_clone.clone();
+                    let modcrc_cache_clone = modcrc_cache_clone.clone();
                     let connlist_clone = connlist.clone();
                     std::thread::spawn(move || {
                         let mut nation_holders: Vec<std::sync::Arc<()>> = vec![];
@@ -352,44 +363,7 @@ impl Dom5Emu {
                                          * Client wants to know what mods are currently enabled
                                          */
                                         crate::packets::Body::AstralPacketReq(_) => {
-                                            let db = pool_clone.get().unwrap();
-                                            let game = Game::get(game_id, &db).unwrap();
-                                            let mods = game.get_mods(&db).unwrap();
-                                            let mut modcache = mods_clone.lock().unwrap();
-                                            AstralPacketResp {
-                                                dmfiles: mods
-                                                    .into_iter()
-                                                    .map(|m| {
-                                                        let hash = match modcache.get_mut(&m.id) {
-                                                            Some(archive) => {
-                                                                crate::util::calculate_crc(
-                                                                    archive
-                                                                        .by_name(&m.dm_filename)
-                                                                        .unwrap(),
-                                                                )
-                                                            }
-                                                            None => {
-                                                                let mut archive =
-                                                                    zip::ZipArchive::new(
-                                                                        std::io::Cursor::new(
-                                                                            m.get_archive(&db)
-                                                                                .unwrap()
-                                                                                .filebinary,
-                                                                        ),
-                                                                    )
-                                                                    .unwrap();
-                                                                crate::util::calculate_crc(
-                                                                    archive
-                                                                        .by_name(&m.dm_filename)
-                                                                        .unwrap(),
-                                                                )
-                                                            }
-                                                        };
-                                                        (m.dm_filename, hash)
-                                                    })
-                                                    .collect(),
-                                            }
-                                            .write_packet(&mut socket_send_clone);
+                                            modcrc_cache_clone.fetch(4).unwrap().write_packet(&mut socket_send_clone);
                                         }
                                         /*
                                          * Regularly sent request for current game state. The
@@ -414,7 +388,6 @@ impl Dom5Emu {
                                             }
                                         }
                                         crate::packets::Body::PAReq(pkt) => {
-                                            let db = pool_clone.get().unwrap();
                                             let mut connlist_clone_lock =
                                                 connlist_clone.lock().unwrap();
                                             for n in pkt.nations_selected {
@@ -448,18 +421,21 @@ impl Dom5Emu {
                                             let db = pool_clone.get().unwrap();
                                             let trn = Turn::get(launch_id, &db).unwrap();
                                             let pts = trn.get_player_turns(&db).unwrap();
-                                            let passworded_nations: Vec<i32> = pts.iter().filter_map(|pt| {
-                                                let turn = pt.get_trn(&db).unwrap();
-                                                let trn = crate::twoh::TwoH::read_contents(
-                                                    std::io::Cursor::new(turn.filebinary),
-                                                )
-                                                .unwrap();
-                                                if trn.password != "".to_string() {
-                                                    return Some(trn.nationid);
-                                                } else {
-                                                    return None;
-                                                }
-                                            }).collect();
+                                            let passworded_nations: Vec<i32> = pts
+                                                .iter()
+                                                .filter_map(|pt| {
+                                                    let turn = pt.get_trn(&db).unwrap();
+                                                    let trn = crate::twoh::TwoH::read_contents(
+                                                        std::io::Cursor::new(turn.filebinary),
+                                                    )
+                                                    .unwrap();
+                                                    if trn.password != "".to_string() {
+                                                        return Some(trn.nationid);
+                                                    } else {
+                                                        return None;
+                                                    }
+                                                })
+                                                .collect();
                                             PasswordsResp::new(&passworded_nations[..])
                                                 .write_packet(&mut socket_send_clone);
                                         }
@@ -819,6 +795,68 @@ impl MapCrcCache {
      * Fetch the packet out of the map cache, specify the number of attempts between each try
      */
     pub fn fetch(&self, mut tries: i32) -> Option<MapResp> {
+        while tries > 0 {
+            let pkt = self.cache.lock().unwrap().clone();
+            match pkt {
+                None => {
+                    tries -= 1;
+                    std::thread::sleep(std::time::Duration::from_secs(4));
+                }
+                Some(pkt) => {
+                    return Some(pkt);
+                }
+            }
+        }
+        return None;
+    }
+}
+
+#[derive(Clone)]
+struct ModCrcCache {
+    cache: std::sync::Arc<std::sync::Mutex<Option<AstralPacketResp>>>,
+    db_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
+    game_id: i32,
+}
+
+impl ModCrcCache {
+    pub fn new(game_id: i32, db_pool: r2d2::Pool<ConnectionManager<PgConnection>>) -> Self {
+        Self {
+            game_id,
+            db_pool,
+            cache: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        }
+    }
+
+    /**
+     * Asynchronously populate the astralpacket cache within a child thread
+     */
+    pub fn populate(&self) {
+        let db = self.db_pool.get().unwrap();
+        let game = Game::get(self.game_id, &db).unwrap();
+        let cache = self.cache.clone();
+        std::thread::spawn(move || {
+            let mods = game.get_mods(&db).unwrap();
+            let mut modcache = cache.lock().unwrap();
+            *modcache = Some(AstralPacketResp {
+                dmfiles: mods
+                    .into_iter()
+                    .map(|m| {
+                        let mut archive = zip::ZipArchive::new(std::io::Cursor::new(
+                            m.get_archive(&db).unwrap().filebinary,
+                        ))
+                        .unwrap();
+                        let hash =
+                            crate::util::calculate_crc(archive.by_name(&m.dm_filename).unwrap());
+                        (m.dm_filename, hash)
+                    })
+                    .collect(),
+            });
+        });
+    }
+    /**
+     * Fetch the packet out of the astralpacket cache, specify the number of attempts between each try
+     */
+    pub fn fetch(&self, mut tries: i32) -> Option<AstralPacketResp> {
         while tries > 0 {
             let pkt = self.cache.lock().unwrap().clone();
             match pkt {

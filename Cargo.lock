@@ -561,7 +561,7 @@ dependencies = [
 
 [[package]]
 name = "blitzserver"
-version = "0.6.2"
+version = "0.6.4"
 dependencies = [
  "actix-files",
  "actix-multipart",
@@ -722,15 +722,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "12f8e7987cbd042a63249497f41aed09f8e65add917ea6566effbc56578d6801"
 dependencies = [
  "generic-array",
-]
-
-[[package]]
-name = "cmake"
-version = "0.1.45"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb6210b637171dfba4cda12e579ac6dc73f5165ad56133e5d72ef3131f320855"
-dependencies = [
- "cc",
 ]
 
 [[package]]
@@ -1607,8 +1598,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "602113192b08db8f38796c4e85c39e960c145965140e918018bcde1952429655"
 dependencies = [
  "cc",
- "cmake",
- "libc",
  "pkg-config",
  "vcpkg",
 ]

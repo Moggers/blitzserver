@@ -425,17 +425,14 @@ async fn details(
             session
                 .set(&format!("auth_{}", game.id), AuthStatus::AuthSuccess)
                 .unwrap();
-            return Ok(HttpResponse::TemporaryRedirect()
-                .header(header::LOCATION, format!("/game/{}/{}", game.id, tab))
-                .finish());
         } else {
             session
                 .set(&format!("auth_{}", game.id), AuthStatus::AuthFail)
                 .unwrap();
-            return Ok(HttpResponse::TemporaryRedirect()
-                .header(header::LOCATION, format!("/game/{}/{}", game.id, tab))
-                .finish());
         }
+        return Ok(HttpResponse::TemporaryRedirect()
+            .header(header::LOCATION, format!("/game/{}/{}", game.id, tab))
+            .finish());
     }
     let authed: AuthStatus = session
         .get(&format!("auth_{}", game.id))
@@ -860,7 +857,7 @@ pub async fn archive_post(
         .unwrap();
     app_data
         .msgbus_sender
-        .send(Msg::GameArchived(GameArchivedMsg { game_id: *path_id}))
+        .send(Msg::GameArchived(GameArchivedMsg { game_id: *path_id }))
         .unwrap();
     return Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}/schedule", path_id))
