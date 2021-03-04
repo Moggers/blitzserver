@@ -11,12 +11,12 @@ pub enum Msg {
     MapChanged(MapChangedMsg),
     ClientDisc(ClientDiscMsg),
     ModsChanged(ModsChangedMsg),
-    GameArchived(GameArchivedMsg)
+    GameArchived(GameArchivedMsg),
 }
 
 #[derive(Clone)]
 pub struct ClientDiscMsg {
-    pub addr: std::net::SocketAddr
+    pub addr: std::net::SocketAddr,
 }
 
 #[derive(Clone)]
@@ -82,10 +82,11 @@ impl MsgBus {
             Arc::new(Mutex::new(vec![]));
         let cloned_broadcast = broadcasts.clone();
         std::thread::spawn(move || loop {
-            if let Ok(m) = rx.recv() {
-                if let Ok(mut broadcasters) = cloned_broadcast.lock() {
-                    broadcasters.drain_filter(|broadcaster| !broadcaster.send(m.clone()).is_ok());
-                }
+            let m = rx
+                .recv()
+                .expect("Msgbus failed to receive broadcast request (send channel hosed?");
+            if let Ok(mut broadcasters) = cloned_broadcast.lock() {
+                broadcasters.drain_filter(|broadcaster| !broadcaster.send(m.clone()).is_ok());
             }
         });
         MsgBus {
@@ -111,7 +112,6 @@ impl MsgBus {
         self.sender.send(msg).unwrap();
     }
 }
-
 
 pub struct MsgBusRx {
     rx: crossbeam_channel::Receiver<Msg>,

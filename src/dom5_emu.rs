@@ -1,8 +1,8 @@
 use crate::diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
-use crate::models::{Game, Map, Nation, PlayerTurn, Turn};
+use crate::models::{Game, Map, Nation, Player, PlayerTurn, Turn};
 use crate::msgbus::{
-    ModsChangedMsg, ClientDiscMsg, GameArchivedMsg, MapChangedMsg, Msg, NewTurnMsg, OrdersSubmittedMsg, PktMsg,
-    TurnHostStartMsg,
+    ClientDiscMsg, GameArchivedMsg, MapChangedMsg, ModsChangedMsg, Msg, NewTurnMsg,
+    OrdersSubmittedMsg, PktMsg, TurnHostStartMsg,
 };
 use crate::packets::BodyContents;
 use crate::packets::{
@@ -144,13 +144,24 @@ impl Dom5Emu {
         }
     }
 
-    fn accept_pretender<D>(game_id: i32, req: crate::packets::UploadPretenderReq, db: &D)
+    fn accept_pretender<D>(game_id: i32, req: crate::packets::UploadPretenderReq, db: &D) -> i32
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
         use crate::models::{File, NewFile, NewPlayer};
         use crate::twoh::TwoH;
         let twoh = TwoH::read_contents(std::io::Cursor::new(&req.pretender_contents[..])).unwrap();
+        let existing = Player::get_players(game_id, db)
+            .unwrap()
+            .into_iter()
+            .find(|p| p.nationid == twoh.nationid);
+        if let Some(existing) = existing {
+            let file = existing.get_newlord(db).unwrap();
+            let existing_twoh = TwoH::read_contents(std::io::Cursor::new(file.filebinary)).unwrap();
+            if existing_twoh.cdkey != twoh.cdkey {
+                return 1;
+            }
+        }
         let nation: Nation = Nation::get(game_id, twoh.nationid, db).unwrap();
         let file: File =
             NewFile::new(&format!("{}.2h", nation.filename), &req.pretender_contents).insert(db);
@@ -162,6 +173,7 @@ impl Dom5Emu {
         }
         .insert(db)
         .unwrap();
+        return 0;
     }
 
     pub fn launch(self) {
@@ -206,12 +218,15 @@ impl Dom5Emu {
                         /*
                          * Recalculate the mod crc cache on mod change
                          */
-                        Msg::ModsChanged(ModsChangedMsg { game_id, .. }) if game_id == launch_id => {
+                        Msg::ModsChanged(ModsChangedMsg { game_id, .. })
+                            if game_id == launch_id =>
+                        {
                             modcrc_cache_clone.populate();
                         }
                         _ => {}
                     }
                 }
+                log::error!("Game {} server msgbus failure.", launch_id);
             });
             let recv_sock = std::net::TcpListener::bind(recv_addr).unwrap();
             let mods = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::<
@@ -343,7 +358,20 @@ impl Dom5Emu {
                                          */
                                         crate::packets::Body::UploadPretenderReq(pkt) => {
                                             let db = pool_clone.get().unwrap();
-                                            Self::accept_pretender(game_id, pkt, &db);
+                                            if Self::accept_pretender(game_id, pkt, &db) == 1 {
+                                                log::debug!("Sending messages");
+                                                for i in (1..10).rev() {
+                                                    log::debug!("Sending message");
+                                                    LoadingMessageResp { message: format!("This nation is already claimed by another player, your submission has been discarded. ({} seconds)", i)}.write_packet(&mut socket_send_clone);
+                                                    std::thread::sleep(
+                                                        std::time::Duration::from_secs(1),
+                                                    );
+                                                }
+                                                LoadingMessageResp {
+                                                    message: "".to_string(),
+                                                }
+                                                .write_packet(&mut socket_send_clone);
+                                            }
                                         }
                                         /*
                                          * Seems to be some kind of keepalive
@@ -363,7 +391,10 @@ impl Dom5Emu {
                                          * Client wants to know what mods are currently enabled
                                          */
                                         crate::packets::Body::AstralPacketReq(_) => {
-                                            modcrc_cache_clone.fetch(4).unwrap().write_packet(&mut socket_send_clone);
+                                            modcrc_cache_clone
+                                                .fetch(4)
+                                                .unwrap()
+                                                .write_packet(&mut socket_send_clone);
                                         }
                                         /*
                                          * Regularly sent request for current game state. The

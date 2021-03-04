@@ -426,6 +426,16 @@ impl Player {
             .filter(players_dsl::game_id.eq(game_id))
             .get_results(db)
     }
+
+    pub fn get_newlord<D>(&self, db: &D) -> Result<File, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::files::dsl as files_dsl;
+        files_dsl::files
+            .filter(files_dsl::id.eq(self.file_id))
+            .get_result(db)
+    }
 }
 
 #[derive(Insertable)]
