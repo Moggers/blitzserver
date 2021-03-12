@@ -25,50 +25,11 @@
 	<div>
 		<section class="tabsection">
 			<div class="game-details">
-				<div>
-					<table class="striped-table">
-						{% for player in players %}
-						<tr>
-							<td class="wide-column">{{ player.name }}</td>
-							{% if self.turn_number > 0 %} 
-								<td class="turn-markers">
-									{% for turn in Self::get_turn_pips(turns.get(player.id).unwrap_or(Vec::new())) %}
-									{% match turn.status %}
-									{% when 0 %}
-										<section class="unsubmitted">■</section>
-									{% when 1 %}
-										<section class="unfinished">■</section>
-									{% when 2 %}
-										<section class="submitted">■</section>
-									{% else %}
-										<section class="unsubmitted">■</section>
-									{% endmatch %}
-									{% endfor %}
-								</td>
-								{% match player.status %}
-								{% when 0 %}
-									<td class="unsubmitted">unsubmitted</td>
-								{% when 1 %}
-									<td class="unfinished">unfinished</td>
-								{% when 2 %}
-									<td class="submitted">submitted</td>
-								{% else %}
-									<td class="unsubmitted">unsubmitted</td>
-								{% endmatch %}
-							{% else %}
-								<td></td>
-								<td>
-									{% if self.authed == AuthStatus::AuthSuccess %}
-										<form action="remove/{{player.id}}" method="POST">
-											<input type="submit" class="btn btn-block btn-danger" value="Remove"/>
-										</form>
-									{% endif %}
-								</td>
-							{% endif %}
-						</tr>
-						{% endfor %}
-					</table>
-				</div>
+				{% if game.teamgame == true %}
+					{% include "disciple_list.html" %}
+				{% else %}
+					{% include "player_list.html" %}
+				{% endif %}
 				<div>
 					<div>
 						<a href="{{format!("/map/{}", self.game.map_id)}}">
@@ -109,7 +70,7 @@
 							<thead>
 								<tr>
 									<th></th>
-									{% for player in players %}
+									{% for player in self.get_joined_nations() %}
 									<th class="rotate"><div><span>{{player.name}}</span></div></th>
 									{% endfor %}
 								</tr>
@@ -118,8 +79,8 @@
 								{% for turn in 0..self.turn_number %}
 								<tr>
 									<td>Turn {{turn+1}}</td>
-									{% for player in players %}
-									{% match self.get_turn_status(player.id, turn) %}
+									{% for player in self.get_joined_nations() %}
+									{% match self.get_turn_status(player.nation_id, turn) %}
 									{% when 0 %}
 										<td class="bg-unsubmitted"></td>
 									{% when 1 %}
@@ -185,7 +146,7 @@
 					<input type="hidden" name="loaded" value="1" />
 					<fieldset {% if self.game.archived || self.turn_number != 0 || self.authed != AuthStatus::AuthSuccess %}disabled="disabled"{% endif %}>
 						{% include "settings.html" %}
-						<input type="submit" class="btn btn-primary btn-block" value="Save Settings And Reboot Server" />
+						<input type="submit" class="btn btn-primary btn-block" value="Save Settings" />
 					</fieldset>
 				</form>
 			</div>

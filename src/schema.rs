@@ -1,4 +1,14 @@
 table! {
+    disciples (id) {
+        id -> Int4,
+        game_id -> Int4,
+        nation_id -> Int4,
+        is_disciple -> Int4,
+        team -> Nullable<Int4>,
+    }
+}
+
+table! {
     email_configs (id) {
         id -> Int4,
         nation_id -> Int4,
@@ -120,6 +130,7 @@ table! {
         nationid -> Int4,
         game_id -> Int4,
         file_id -> Int4,
+        name -> Varchar,
     }
 }
 
@@ -141,6 +152,7 @@ joinable!(players -> files (file_id));
 joinable!(turns -> files (file_id));
 
 allow_tables_to_appear_in_same_query!(
+    disciples,
     email_configs,
     files,
     game_mods,

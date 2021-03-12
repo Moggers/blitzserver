@@ -1,5 +1,5 @@
 use crate::diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
-use crate::models::{Game, Map, Nation, Player, PlayerTurn, Turn};
+use crate::models::{Disciple, Game, Map, Nation, Player, PlayerTurn, Turn};
 use crate::msgbus::{
     ClientDiscMsg, GameArchivedMsg, MapChangedMsg, ModsChangedMsg, Msg, NewTurnMsg,
     OrdersSubmittedMsg, PktMsg, TurnHostStartMsg,
@@ -70,6 +70,7 @@ impl Dom5Emu {
             },
             None => None,
         };
+        let discs = Disciple::get_all(game.id, &db).unwrap();
         let resp = GameInfoResp {
             unk1: 0,
             game_state: if turn.is_ok() { 2 } else { 1 },
@@ -95,6 +96,22 @@ impl Dom5Emu {
                 |mut accumulator, current| {
                     accumulator.insert(current.nationid, 1);
                     accumulator
+                },
+            ),
+            nation_teams: discs.iter().fold(
+                std::collections::HashMap::new(),
+                |mut acc, current| {
+                    if let Some(team) = current.team {
+                        acc.insert(current.nation_id, team as u8);
+                    }
+                    acc
+                },
+            ),
+            nation_discs: discs.iter().fold(
+                std::collections::HashMap::new(),
+                |mut acc, current| {
+                    acc.insert(current.nation_id, current.is_disciple as u8);
+                    acc
                 },
             ),
             remaining: vec![],
@@ -166,10 +183,16 @@ impl Dom5Emu {
         let file: File =
             NewFile::new(&format!("{}.2h", nation.filename), &req.pretender_contents).insert(db);
 
-        &NewPlayer {
+        let name = if let crate::twoh::FileBody::OrdersFile(o) = twoh.body {
+            o.pretender_name
+        } else {
+            "".to_string()
+        };
+        NewPlayer {
             file_id: file.id,
             nationid: req.nation_id as i32,
             game_id: game_id,
+            name: name,
         }
         .insert(db)
         .unwrap();
@@ -282,6 +305,7 @@ impl Dom5Emu {
                                  */
                                 Msg::ClientDisc(ClientDiscMsg { addr }) if client_addr == addr => {
                                     log::debug!("Client {:?} disconnect", addr);
+                                    socket_send_clone.shutdown(std::net::Shutdown::Both).expect("Failure while shutting down socket after unclean disconnection");
                                     break;
                                 }
                                 /*
@@ -313,15 +337,15 @@ impl Dom5Emu {
                                  */
                                 Msg::NewTurn(NewTurnMsg {
                                     game_id: new_turn_game_id,
-                                    ..
+                                    turn_number,
                                 }) if new_turn_game_id == game_id => {
-                                    if waiting_for_pa_resp {
+                                    if waiting_for_pa_resp && turn_number == 1 {
                                         LoadingMessageResp {
                                             message: "".to_owned(),
                                         }
                                         .write_packet(&mut socket_send_clone);
                                         PAResp {}.write_packet(&mut socket_send_clone);
-                                        waiting_for_pa_resp = false;
+                                        waiting_for_pa_resp = true;
                                     }
                                 }
                                 Msg::Pkt(PktMsg { addr, pkt }) if client_addr == addr => {
@@ -352,6 +376,7 @@ impl Dom5Emu {
                                          */
                                         crate::packets::Body::DisconnectReq(_) => {
                                             DisconnectResp {}.write_packet(&mut socket_send_clone);
+                                            socket_send_clone.shutdown(std::net::Shutdown::Both).expect("Failure while shutting down socket after client disconnect negotiation");
                                         }
                                         /*
                                          * Player wants to set or overwrite a newlord
@@ -359,7 +384,6 @@ impl Dom5Emu {
                                         crate::packets::Body::UploadPretenderReq(pkt) => {
                                             let db = pool_clone.get().unwrap();
                                             if Self::accept_pretender(game_id, pkt, &db) == 1 {
-                                                log::debug!("Sending messages");
                                                 for i in (1..10).rev() {
                                                     log::debug!("Sending message");
                                                     LoadingMessageResp { message: format!("This nation is already claimed by another player, your submission has been discarded. ({} seconds)", i)}.write_packet(&mut socket_send_clone);
@@ -377,9 +401,9 @@ impl Dom5Emu {
                                          * Seems to be some kind of keepalive
                                          */
                                         crate::packets::Body::HeartbeatReq(_) => {
+                                            let db = pool_clone.get().unwrap();
                                             let connlist_clone_lock =
                                                 connlist_clone.lock().unwrap();
-                                            let db = pool_clone.get().unwrap();
                                             Self::generate_gameinfo(
                                                 game_id,
                                                 &*connlist_clone_lock,
@@ -711,6 +735,28 @@ impl Dom5Emu {
                                             }
                                             ModFileResp::new(buf)
                                                 .write_packet(&mut socket_send_clone);
+                                        }
+                                        /*
+                                         * Player is trying to set the nation of a disciple (pr
+                                         * disciple pretender)
+                                         */
+                                        crate::packets::Body::SetTeamReq(pkt) => {
+                                            let db = pool_clone.get().unwrap();
+                                            let disc =
+                                                Disciple::get(launch_id, pkt.nation_id as i32, &db)
+                                                    .unwrap();
+                                            if pkt.team == 0 {
+                                                disc.unset_team(&db).unwrap();
+                                            } else {
+                                                disc.set_team(pkt.team as i32, &db).unwrap();
+                                            }
+                                        }
+                                        crate::packets::Body::SetDiscReq(pkt) => {
+                                            let db = pool_clone.get().unwrap();
+                                            let disc =
+                                                Disciple::get(launch_id, pkt.nation_id as i32, &db)
+                                                    .unwrap();
+                                            disc.set_disc(pkt.is_disc as i32, &db).unwrap();
                                         }
                                         /*
                                          * Player wants a mod definition file for one of the mods

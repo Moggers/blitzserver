@@ -1,5 +1,6 @@
 use super::schema::{
-    email_configs, files, game_mods, games, maps, mods, nations, player_turns, players, turns,
+    disciples, email_configs, files, game_mods, games, maps, mods, nations, player_turns, players,
+    turns,
 };
 use crate::diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl};
 use crate::diesel::{JoinOnDsl, RunQueryDsl};
@@ -414,6 +415,7 @@ pub struct Player {
     pub nationid: i32,
     pub game_id: i32,
     pub file_id: i32,
+    pub name: String,
 }
 
 impl Player {
@@ -444,6 +446,7 @@ pub struct NewPlayer {
     pub nationid: i32,
     pub game_id: i32,
     pub file_id: i32,
+    pub name: String,
 }
 
 impl NewPlayer {
@@ -456,7 +459,7 @@ impl NewPlayer {
             .values(self)
             .on_conflict((game_id, nationid))
             .do_update()
-            .set(file_id.eq(self.file_id))
+            .set((file_id.eq(self.file_id), name.eq(&self.name)))
             .get_result(db)
     }
 }
@@ -485,6 +488,15 @@ impl Nation {
                     .and(nations_dsl::nation_id.eq(nation_id)),
             )
             .get_result(db)
+    }
+    pub fn get_all<D>(game_id: i32, db: &D) -> Result<Vec<Nation>, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::nations::dsl as nations_dsl;
+        nations_dsl::nations
+            .filter(nations_dsl::game_id.eq(game_id))
+            .get_results(db)
     }
 }
 
@@ -642,7 +654,7 @@ impl NewTurn {
     }
 }
 
-#[derive(Identifiable, QueryableByName, Queryable, Associations)]
+#[derive(Debug, Identifiable, QueryableByName, Queryable, Associations)]
 #[table_name = "player_turns"]
 #[belongs_to(parent = "File", foreign_key = "trnfile_id")]
 pub struct PlayerTurn {
@@ -836,4 +848,168 @@ pub struct NewEmailConfig {
     pub subject: String,
     pub body: String,
     pub is_reminder: bool,
+}
+
+#[derive(Queryable, Debug, Identifiable)]
+#[table_name = "disciples"]
+pub struct Disciple {
+    id: i32,
+    pub game_id: i32,
+    pub nation_id: i32,
+    pub is_disciple: i32,
+    pub team: Option<i32>,
+}
+
+impl Disciple {
+    pub fn get<D>(game_id: i32, nation_id: i32, db: &D) -> Result<Disciple, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use disciples::dsl as d_dsl;
+        match d_dsl::disciples
+            .filter(
+                d_dsl::game_id
+                    .eq(game_id)
+                    .and(d_dsl::nation_id.eq(nation_id)),
+            )
+            .get_result(db)
+        {
+            Ok(d) => Ok(d),
+            Err(diesel::result::Error::NotFound) => Ok(NewDisciple {
+                game_id: game_id,
+                nation_id: nation_id,
+                is_disciple: 0,
+                team: None,
+            }
+            .insert(db)?),
+            Err(e) => Err(e),
+        }
+    }
+    pub fn get_all<D>(game_id: i32, db: &D) -> Result<Vec<Disciple>, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use disciples::dsl as d_dsl;
+        d_dsl::disciples
+            .filter(d_dsl::game_id.eq(game_id))
+            .get_results(db)
+    }
+
+    pub fn remove<D>(&self, db: &D) -> Result<usize, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use disciples::dsl as d_dsl;
+        diesel::delete(d_dsl::disciples.filter(d_dsl::nation_id.eq(self.nation_id).and(d_dsl::game_id.eq(self.game_id)))).execute(db)
+    }
+
+    pub fn create_team<D>(&self, db: &D) -> Result<Disciple, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use disciples::dsl as d_dsl;
+        let new_team = match d_dsl::disciples
+            .filter(d_dsl::game_id.eq(self.game_id).and(diesel::dsl::not(d_dsl::team.is_null())))
+            .order(d_dsl::team.desc())
+            .limit(1)
+            .get_result::<Disciple>(db)
+        {
+            Err(_) => 1,
+            Ok(biggest) => biggest.team.unwrap_or(0) + 1,
+        };
+        self.set_team(new_team, db)?.set_disc(0, db)
+    }
+
+    pub fn set_team<D>(&self, team: i32, db: &D) -> Result<Disciple, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use disciples::dsl as d_dsl;
+        let make_disc = if d_dsl::disciples
+            .filter(
+                d_dsl::game_id
+                    .eq(self.game_id)
+                    .and(d_dsl::team.eq(team))
+                    .and(d_dsl::is_disciple.eq(0)),
+            )
+            .get_results::<Disciple>(db)?
+            .len()
+            > 0
+        {
+            1
+        } else {
+            self.is_disciple
+        };
+        diesel::update(
+            d_dsl::disciples.filter(
+                d_dsl::game_id
+                    .eq(self.game_id)
+                    .and(d_dsl::nation_id.eq(self.nation_id)),
+            ),
+        )
+        .set((d_dsl::team.eq(team), d_dsl::is_disciple.eq(make_disc)))
+        .get_result(db)
+    }
+    pub fn unset_team<D>(&self, db: &D) -> Result<Disciple, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use disciples::dsl as d_dsl;
+        diesel::update(
+            d_dsl::disciples.filter(
+                d_dsl::game_id
+                    .eq(self.game_id)
+                    .and(d_dsl::nation_id.eq(self.nation_id)),
+            ),
+        )
+        .set(d_dsl::team.eq::<Option<i32>>(None))
+        .get_result(db)
+    }
+    pub fn set_disc<D>(&self, is_disc: i32, db: &D) -> Result<Disciple, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use disciples::dsl as d_dsl;
+        if is_disc == 0 && self.team.is_some() {
+            diesel::update(
+                d_dsl::disciples.filter(
+                    d_dsl::game_id
+                        .eq(self.game_id)
+                        .and(d_dsl::team.eq(self.team.unwrap())),
+                ),
+            )
+            .set(d_dsl::is_disciple.eq(1))
+            .execute(db)?;
+        }
+        diesel::update(
+            d_dsl::disciples.filter(
+                d_dsl::game_id
+                    .eq(self.game_id)
+                    .and(d_dsl::nation_id.eq(self.nation_id)),
+            ),
+        )
+        .set(d_dsl::is_disciple.eq(is_disc))
+        .get_result(db)
+    }
+}
+
+#[derive(Insertable)]
+#[table_name = "disciples"]
+pub struct NewDisciple {
+    game_id: i32,
+    nation_id: i32,
+    is_disciple: i32,
+    team: Option<i32>,
+}
+
+impl NewDisciple {
+    pub fn insert<D>(&self, db: &D) -> Result<Disciple, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use disciples::dsl as d_dsl;
+        diesel::insert_into(d_dsl::disciples)
+            .values(self)
+            .get_result(db)
+    }
 }

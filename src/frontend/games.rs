@@ -3,7 +3,8 @@ use super::AppData;
 use crate::diesel::prelude::*;
 
 use crate::models::{
-    EmailConfig, Game, GameMod, Map, Mod, Nation, NewGame, NewGameMod, Player, PlayerTurn, Turn,
+    Disciple, EmailConfig, Game, GameMod, Map, Mod, Nation, NewGame, NewGameMod, Player,
+    PlayerTurn, Turn,
 };
 use crate::msgbus::{
     CreateGameMsg, GameArchivedMsg, GameScheduleMsg, MapChangedMsg, ModsChangedMsg, Msg,
@@ -149,7 +150,7 @@ impl From<(&Game, &[Mod])> for GameSettings {
     }
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct EmailForm {
+pub struct EmailForm {
     #[serde(default)]
     email_address: String,
     #[serde(default)]
@@ -164,6 +165,12 @@ struct EmailForm {
     hours_remaining: i32,
     #[serde(default)]
     is_reminder: bool,
+}
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TeamForm {
+    team: i32,
+    nation: i32,
+    disciple: i32,
 }
 impl Default for EmailForm {
     fn default() -> Self {
@@ -206,11 +213,15 @@ struct EmailFormEntry {
     pub remaining_hours: Option<i32>,
 }
 
-// === Templates ===
+#[derive(Debug)]
 struct PlayerSummary {
     name: String,
+    epithet: String,
+    pretender_name: String,
     id: i32,
     status: i32,
+    is_disciple: bool,
+    team: i32,
 }
 #[derive(Template)]
 #[template(path = "games/details.html")]
@@ -222,13 +233,128 @@ struct GameDetailsTemplate<'a> {
     turn_number: i32,
     turns: HashMap<i32, Vec<PlayerTurn>>,
     hostname: String,
-    players: &'a Vec<PlayerSummary>,
+    players: &'a Vec<Player>,
+    disciples: &'a Vec<Disciple>,
+    nations: &'a Vec<Nation>,
     mods: &'a Vec<Mod>,
     maps: &'a Vec<Map>,
     tab: String,
     authed: AuthStatus,
 }
 impl<'a> GameDetailsTemplate<'a> {
+    fn get_team_leaders(&self) -> Vec<(i32, PlayerSummary)> {
+        let mut teams = self
+            .disciples
+            .iter()
+            .filter_map(|d| {
+                if d.team.unwrap_or(0) > 0 {
+                    d.team
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<i32>>();
+        teams.sort_unstable();
+        teams.dedup();
+        let mut disc: Vec<(i32, PlayerSummary)> = teams
+            .into_iter()
+            .filter_map(|t| {
+                match self
+                    .disciples
+                    .iter()
+                    .find(|d| d.team.unwrap_or(0) == t && d.is_disciple == 0)
+                {
+                    Some(d) => Some((d.team.unwrap_or(0), self.get_player_summary(t, d.nation_id))),
+                    None => Some((t, self.get_player_summary(t, 0))),
+                }
+            })
+            .collect();
+        disc.sort_unstable_by(|a, b| match a.0 - b.0 {
+            a if a > 0 => std::cmp::Ordering::Greater,
+            a if a < 0 => std::cmp::Ordering::Less,
+            a if a == 0 => std::cmp::Ordering::Equal,
+            _ => std::cmp::Ordering::Greater,
+        });
+        disc
+    }
+    fn get_team_disciples(&self, team: &i32) -> Vec<PlayerSummary> {
+        self.disciples
+            .iter()
+            .filter_map(|d| {
+                if self.turn_number != 0
+                    && !self
+                        .players
+                        .iter()
+                        .find(|p| p.nationid == d.nation_id)
+                        .is_some()
+                    || d.is_disciple == 0
+                    || d.team.unwrap_or(0) != *team
+                {
+                    return None;
+                }
+                Some(self.get_player_summary(d.team.unwrap_or(0), d.nation_id))
+            })
+            .collect()
+    }
+    fn get_player_summary(&self, team: i32, nation_id: i32) -> PlayerSummary {
+        match self.nations.iter().find(|n| n.nation_id == nation_id) {
+            Some(n) => {
+                let is_disciple = match self.disciples.iter().find(|d| d.nation_id == nation_id) {
+                    Some(d) => d.is_disciple > 0,
+                    None => true,
+                };
+                match self.players.iter().find(|p| p.nationid == nation_id) {
+                    Some(p) => PlayerSummary {
+                        name: n.name.clone(),
+                        epithet: n.epithet.clone(),
+                        pretender_name: p.name.clone(),
+                        id: n.nation_id,
+                        team,
+                        status: self
+                            .turns
+                            .get(&n.nation_id)
+                            .map_or(0, |ts| ts.last().map_or(0, |t| t.status)),
+                        is_disciple,
+                    },
+                    None => PlayerSummary {
+                        name: n.name.clone(),
+                        epithet: n.epithet.clone(),
+                        pretender_name: "Nation has not joined".to_string(),
+                        id: n.nation_id,
+                        status: -1,
+                        team,
+                        is_disciple,
+                    },
+                }
+            }
+            None => PlayerSummary {
+                name: "Not Selected".to_string(),
+                epithet: "".to_string(),
+                pretender_name: "Nation has not joined".to_string(),
+                id: 0,
+                team,
+                status: -1,
+                is_disciple: false,
+            },
+        }
+    }
+    fn get_joined_nations(&self) -> Vec<&Nation> {
+        self.nations
+            .iter()
+            .filter(|n| {
+                self.players
+                    .iter()
+                    .find(|p| p.nationid == n.nation_id)
+                    .is_some()
+            })
+            .collect()
+    }
+    fn get_player_summaries(&self) -> Vec<PlayerSummary> {
+        self.players
+            .iter()
+            .map(|p| self.get_player_summary(0, p.nationid))
+            .collect()
+    }
     fn get_email_config_nation_name(&self, id: &i32) -> &str {
         self.email_configs
             .iter()
@@ -247,18 +373,23 @@ impl<'a> GameDetailsTemplate<'a> {
             .get(nation_id)
             .map_or(0, |t| t.get(*turn_number as usize).map_or(0, |t| t.status))
     }
-    fn get_turn_pips(turns: &[PlayerTurn]) -> Vec<&PlayerTurn> {
-        let len = turns.len();
-        if len > 0 {
-            turns
-                .iter()
-                .rev()
-                .take(10)
-                .rev()
-                .take(if len < 9 { len - 1 } else { 9 })
-                .collect()
-        } else {
-            vec![]
+    fn get_turn_pips(&self, nation_id: &i32) -> Vec<&PlayerTurn> {
+        match self.turns.get(&nation_id) {
+            Some(turns) => {
+                let len = turns.len();
+                if len > 0 {
+                    turns
+                        .iter()
+                        .rev()
+                        .take(10)
+                        .rev()
+                        .take(if len < 9 { len - 1 } else { 9 })
+                        .collect()
+                } else {
+                    vec![]
+                }
+            }
+            None => vec![],
         }
     }
     fn get_current_mods(&self) -> Vec<&Mod> {
@@ -438,17 +569,9 @@ async fn details(
         .get(&format!("auth_{}", game.id))
         .unwrap_or(Some(AuthStatus::Unauthed))
         .unwrap_or(AuthStatus::Unauthed);
-    let game_players: Vec<(Player, Nation)> = {
-        use crate::schema::players::dsl::*;
-        Player::belonging_to(&game)
-            .inner_join(
-                crate::schema::nations::dsl::nations.on(crate::schema::nations::dsl::game_id
-                    .eq(game.id)
-                    .and(crate::schema::nations::dsl::nation_id.eq(nationid))),
-            )
-            .get_results(&db)
-            .unwrap()
-    };
+    let players = Player::get_players(game.id, &db).unwrap();
+    let nations = Nation::get_all(game.id, &db).unwrap();
+    let disciples = Disciple::get_all(game.id, &db).unwrap();
     let player_turn_map = crate::models::PlayerTurn::get_player_turns(game.id, &db);
     use crate::schema::turns::dsl as turns_dsl;
     let turns: Vec<Turn> = {
@@ -509,17 +632,9 @@ async fn details(
             maps: &maps,
             mods: &mods,
             game,
-            players: &game_players
-                .iter()
-                .map(|(_, nation)| PlayerSummary {
-                    id: nation.nation_id,
-                    name: nation.name.clone(),
-                    status: match player_turn_map.get(&nation.nation_id) {
-                        Some(t) => t.last().map_or(0, |t| t.status),
-                        None => 0,
-                    },
-                })
-                .collect(),
+            players: &players,
+            disciples: &disciples,
+            nations: &nations,
             turns: player_turn_map,
             hostname: std::env::var("HOSTNAME").unwrap(),
         })
@@ -960,5 +1075,45 @@ pub async fn unstart_post(
     let _game = game.remove_timer(&db).unwrap();
     return Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}/schedule", path_id))
+        .finish());
+}
+#[post("/game/{id}/assign-team")]
+pub async fn assign_team(
+    (app_data, web::Path(path_id), session, form): (
+        web::Data<AppData>,
+        web::Path<i32>,
+        actix_session::Session,
+        web::Form<TeamForm>,
+    ),
+) -> Result<HttpResponse> {
+    if session
+        .get(&format!("auth_{}", path_id))
+        .unwrap_or(Some(AuthStatus::Unauthed))
+        .unwrap_or(AuthStatus::Unauthed)
+        == AuthStatus::Unauthed
+    {
+        return Ok(HttpResponse::Unauthorized()
+            .header(header::LOCATION, format!("/game/{}/status", path_id))
+            .finish());
+    }
+    let db = app_data.pool.get().expect("Unable to connect to database");
+    let disciple = Disciple::get(path_id, form.nation, &db).unwrap();
+    if form.team == 0 {
+        log::debug!("What");
+        if form.disciple == 0 {
+            disciple.create_team(&db).unwrap();
+        } else {
+            log::debug!("Removing");
+            disciple.remove(&db).unwrap();
+        }
+    } else {
+        disciple
+            .set_team(form.team, &db)
+            .unwrap()
+            .set_disc(form.disciple, &db)
+            .unwrap();
+    }
+    return Ok(HttpResponse::Found()
+        .header(header::LOCATION, format!("/game/{}/status", path_id))
         .finish());
 }

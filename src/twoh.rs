@@ -10,6 +10,7 @@ pub struct TwoH {
     pub turnkey: u32,
     pub password: String,
     pub master_password: String,
+    pub body: FileBody,
     pub file_contents: Vec<u8>,
     pub status: i32,
 }
@@ -52,6 +53,20 @@ mod tests {
     }
 }
 
+#[derive(Debug)]
+pub struct OrdersContents {
+    pub pretender_id: u16,
+    pub pretender_name: String,
+}
+#[derive(Debug)]
+pub struct TrnContents {}
+
+#[derive(Debug)]
+pub enum FileBody {
+    TurnFile(TrnContents),
+    OrdersFile(OrdersContents),
+}
+
 impl TwoH {
     fn read_magic_marker<R: std::io::Read>(mut file: R) -> String {
         let mut magic: [u8; 3] = [0, 0, 0];
@@ -68,8 +83,8 @@ impl TwoH {
         Self::read_magic_marker(&mut file);
         let cdkey = file.read_u64::<LittleEndian>().unwrap();
         let turnnumber = file.read_i32::<LittleEndian>().unwrap();
-        let mut unk: [u8; 8] = [0; 8];
-        file.read_exact(&mut unk).unwrap();
+        let file_type = file.read_u32::<LittleEndian>().unwrap();
+        let _unk = file.read_u32::<LittleEndian>().unwrap();
         let nationid = file.read_i32::<LittleEndian>().unwrap();
         let status = file.read_i32::<LittleEndian>().unwrap();
         file.read_i32::<LittleEndian>().unwrap();
@@ -102,6 +117,27 @@ impl TwoH {
             master_password_bytes.push(c);
         }
         let turnkey = file.read_u32::<LittleEndian>().unwrap();
+        let body = match file_type {
+            1 => FileBody::TurnFile(TrnContents {}),
+            0 => {
+                let mut unk: [u8; 40] = [0; 40];
+                file.read_exact(&mut unk).unwrap();
+                let mut pretender_id = file.read_u16::<LittleEndian>().unwrap();
+                let mut unk: [u8; 45] = [0; 45];
+                file.read_exact(&mut unk).unwrap();
+                let mut name = vec![];
+                while let c @ 1..=255 = file.read_u8().unwrap() ^ 79 {
+                    name.push(c);
+                }
+                let mut remainder = vec![];
+                file.read_to_end(&mut remainder).unwrap();
+                FileBody::OrdersFile(OrdersContents {
+                    pretender_name: String::from_utf8(name).unwrap_or("".to_string()),
+                    pretender_id,
+                })
+            }
+            unk @ _ => panic!("Unknown filetype {:?}", unk),
+        };
 
         let mut contents = vec![];
         file.seek(SeekFrom::Start(0)).unwrap();
@@ -117,6 +153,7 @@ impl TwoH {
             file_contents: contents,
             password: String::from_utf8_lossy(&password_bytes).to_string(),
             master_password: String::from_utf8_lossy(&master_password_bytes).to_string(),
+            body,
         })
     }
 

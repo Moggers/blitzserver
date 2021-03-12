@@ -151,7 +151,7 @@ impl Dom5Proc {
             std::thread::sleep(std::time::Duration::from_secs(1));
         }
         let nation_info_regex = regex::Regex::new(
-            r#"Nation\t([0-9]+)\t[0-9]+\t[0-9]+\t[0-9]+\t[0-9]+\t([a-zA-Z_0-9]+)\t([^ ]+)\t([^$]+)"#,
+            r#"Nation\t([0-9]+)\t[0-9]+\t[0-9]+\t[0-9]+\t[0-9]+\t([a-zA-Z_0-9]+)\t([^\t]+)\t([^$]+)"#,
         )
         .unwrap();
         if let Some(mut statusdump) = statusdump {
@@ -361,6 +361,19 @@ impl Dom5Proc {
             .inner_join(files_dsl::files.on(files_dsl::id.eq(maps_dsl::mapfile_id)))
             .get_result::<(Game, Map, File)>(&db)
             .unwrap();
+        let disciples = crate::models::Disciple::get_all(self.game_id, &db).unwrap();
+        arguments.append(disciples.into_iter().fold(&mut Vec::new(), |acc, d| {
+            acc.append(&mut vec![
+                "--team".to_string(),
+                d.nation_id.to_string(),
+                match d.team {
+                    Some(d) => d.to_string(),
+                    None => "0".to_string(),
+                },
+                (1+d.is_disciple).to_string(),
+            ]);
+            acc
+        }));
         arguments.append(&mut vec![
             "--noclientstart".to_string(),
             "--thrones".to_string(),
@@ -443,6 +456,7 @@ impl Dom5Proc {
             String::from("-g"),
             format!("{}", self.name),
         ]);
+        log::debug!("Turn host args {:?}", arguments);
         let result = std::process::Command::new(std::path::PathBuf::from(
             std::env::var("DOM5_BIN")
                 .expect("DOM5_BIN not specified")

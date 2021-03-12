@@ -219,6 +219,7 @@ h1 {
 .turn-markers {
 	display: flex;
 	justify-content: flex-end;
+	padding-top: 10px;
 }
 .turn-markers > :last-child() {
 	width: 150px;
@@ -587,4 +588,53 @@ fieldset {
 .auth-input input {
 	min-width: 1px;
 	max-width: 150px;
+}
+.nation-name :nth-child(1) {
+	font-size: 16px;
+}
+.nation-name section:nth-child(2) {
+	font-size: 14px;
+	padding-left: 20px;
+	font-style: italic;
+}
+
+.team-header {
+	padding-top: 20px;
+	display: table;
+	width: 100%;
+	white-space: nowrap;
+	margin-left: 0px;
+	font-style: italic;
+	font-weight: 100;
+	color: grey;
+}
+.team-header:before, .team-header:after {
+	border-top: 1px solid #ccc;
+	content: '';
+	display: table-cell;
+	position: relative;
+	top: 0.7em;
+	pointer-events: none;
+}
+.team-header:before { 
+	right: 2%;
+	width: 10%;
+}
+.team-header:after { 
+	right: 0%;
+	width: 80%;
+}
+
+.unjoined .nation-name section {
+	color: grey;
+}
+.disciple td:nth-child(1) {
+	padding-left: 30px;
+}
+.pretender .nation-name select:nth-child(1), .pretender .nation-name section:nth-child(1) {
+	font-weight: bold;
+}
+.nation-name .input-group {
+	margin-bottom: 0px;
+	max-width: 200px;
 }

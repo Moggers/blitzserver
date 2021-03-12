@@ -41,6 +41,8 @@ pub mod twohcrc_resp;
 pub mod pa_req;
 pub mod uploadpretender_req;
 pub mod nationsselected_req;
+pub mod setteam_req;
+pub mod setdisc_req;
 
 pub use astralpacket_req::AstralPacketReq;
 pub use astralpacket_resp::AstralPacketResp;
@@ -77,6 +79,8 @@ pub use twohcrc_req::TwoHCrcReq;
 pub use twohcrc_resp::TwoHCrcResp;
 pub use pa_req::PAReq;
 pub use uploadpretender_req::UploadPretenderReq;
+pub use setteam_req::SetTeamReq;
+pub use setdisc_req::SetDiscReq;
 
 #[derive(Error, Debug)]
 pub enum PacketError {
@@ -175,6 +179,8 @@ pub enum Body {
     DmFileResp(DmFileResp),
     ModFileReq(ModFileReq),
     ModFileResp(ModFileResp),
+    SetTeamReq(SetTeamReq),
+    SetDiscReq(SetDiscReq),
 }
 
 impl Body {
@@ -213,6 +219,8 @@ impl Body {
             ModFileReq::ID => Body::ModFileReq(ModFileReq::from_reader(r)),
             ModFileResp::ID => Body::ModFileResp(ModFileResp::from_reader(r)),
             NationsSelectedReq::ID => Body::NationsSelectedReq(NationsSelectedReq::from_reader(r)),
+            SetTeamReq::ID => Body::SetTeamReq(SetTeamReq::from_reader(r)),
+            SetDiscReq::ID => Body::SetDiscReq(SetDiscReq::from_reader(r)),
 
             d => {
                 let mut v = vec![];
@@ -259,6 +267,8 @@ impl Body {
             Self::DmFileResp(p) => p.write(w),
             Self::ModFileReq(p) => p.write(w),
             Self::ModFileResp(p) => p.write(w),
+            Self::SetTeamReq(p) => p.write(w),
+            Self::SetDiscReq(p) => p.write(w),
         }
     }
 }
