@@ -194,6 +194,14 @@ impl Game {
             )
             .set(pt_dsl::archived.eq(true))
             .execute(db)?;
+        diesel::update(pt_dsl::player_turns)
+            .filter(
+                pt_dsl::game_id
+                    .eq(self.id)
+                    .and(pt_dsl::turn_number.eq(turn.turn_number-1)),
+            )
+            .set(pt_dsl::status.eq(1))
+            .execute(db)?;
         Ok(turn)
     }
 
