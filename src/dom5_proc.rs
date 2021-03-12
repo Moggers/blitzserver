@@ -474,7 +474,7 @@ impl Dom5Proc {
         NewGameLog {
             game_id: game.id,
             datetime: std::time::SystemTime::now(),
-            turn_number: (turns.len() - 1) as i32,
+            turn_number: turns.len() as i32,
             output: &output,
             error: &error,
         }

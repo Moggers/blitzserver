@@ -561,7 +561,7 @@ dependencies = [
 
 [[package]]
 name = "blitzserver"
-version = "0.6.10"
+version = "0.6.11"
 dependencies = [
  "actix-files",
  "actix-multipart",
@@ -571,7 +571,7 @@ dependencies = [
  "byteorder",
  "chrono",
  "crc",
- "crossbeam-channel 0.5.0",
+ "crossbeam-channel 0.4.4",
  "diesel",
  "dotenv",
  "env_logger",
