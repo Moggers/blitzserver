@@ -471,10 +471,11 @@ impl Dom5Proc {
         ));
         let output = String::from_utf8_lossy(&result.stdout);
         let error = String::from_utf8_lossy(&result.stderr);
+        let turn_number = turns.last().map(|t| t.turn_number).unwrap_or(0);
         NewGameLog {
             game_id: game.id,
             datetime: std::time::SystemTime::now(),
-            turn_number: turns.len() as i32,
+            turn_number: turn_number,
             output: &output,
             error: &error,
         }

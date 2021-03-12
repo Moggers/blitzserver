@@ -5,7 +5,7 @@ pub struct MapFileResp {
 }
 impl std::fmt::Debug for MapFileResp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Submit2hReq")
+        f.debug_struct("MapFileResp")
             .field(
                 "map_contents[0..32]",
                 &self
