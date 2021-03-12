@@ -9,10 +9,18 @@ pub struct Submit2hReq {
 impl std::fmt::Debug for Submit2hReq {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Submit2hReq")
-         .field("nation_id", &self.nation_id)
-         .field("unk", &self.unk)
-         .field("twoh_contents[0..32]", &self.twoh_contents[0..32].iter())
-         .finish()
+            .field("nation_id", &self.nation_id)
+            .field("unk", &self.unk)
+            .field(
+                "twoh_contents[0..32]",
+                &self
+                    .twoh_contents
+                    .iter()
+                    .take(32)
+                    .map(|d| *d)
+                    .collect::<Vec<u8>>(),
+            )
+            .finish()
     }
 }
 
