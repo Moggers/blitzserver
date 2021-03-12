@@ -12,7 +12,9 @@
 		<label class="tab css-tab-label tab2" for="css-tab-schedule">schedule</label>
 		<label class="tab css-tab-label tab3" for="css-tab-settings">settings</label>
 		<label class="tab css-tab-label tab4" for="css-tab-emails">emails</label>
-		<label class="tab css-tab-label tab5" for="css-tab-logs">logs</label>
+		{% if self.authed == AuthStatus::AuthSuccess %}
+			<label class="tab css-tab-label tab5" for="css-tab-logs">logs</label>
+		{% endif %}
 		<div class="auth-input">
 			<form action="/game/{{game.id}}/status" method="get">
 				<div class="input-group">
@@ -156,6 +158,11 @@
 				{% include "email.html" %}
 			</fieldset>
 		</section>
+		{% if self.authed == AuthStatus::AuthSuccess %}
+			<section class="tabsection">
+				{% include "logs.html" %}
+			</section>
+		{% endif %}
 	</div>
 </div>
 {% endblock %}

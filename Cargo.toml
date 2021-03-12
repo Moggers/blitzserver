@@ -33,6 +33,6 @@ flate2 = { version = "1.0.17", features = ["zlib"], default-features = false }
 num-traits = "*"
 num-derive = "*"
 thiserror = "*"
-
+chrono = "*"
 crc = "*"
 fletcher = "*"

@@ -3,8 +3,8 @@ use super::AppData;
 use crate::diesel::prelude::*;
 
 use crate::models::{
-    Disciple, EmailConfig, Game, GameMod, Map, Mod, Nation, NewGame, NewGameMod, Player,
-    PlayerTurn, Turn,
+    Disciple, EmailConfig, Game, GameLogLite, GameMod, Map, Mod, Nation, NewGame, NewGameMod,
+    Player, PlayerTurn, Turn,
 };
 use crate::msgbus::{
     CreateGameMsg, GameArchivedMsg, GameScheduleMsg, MapChangedMsg, ModsChangedMsg, Msg,
@@ -197,6 +197,8 @@ struct GameDetailsPayload {
     #[serde(flatten)]
     email_form: EmailForm,
     password: Option<String>,
+    log_errors: Option<i32>,
+    log_output: Option<i32>,
 }
 #[derive(Debug, Deserialize)]
 struct CreateGame {
@@ -240,6 +242,8 @@ struct GameDetailsTemplate<'a> {
     maps: &'a Vec<Map>,
     tab: String,
     authed: AuthStatus,
+    logs: Vec<GameLogLite>,
+    focused_log: (i32, String),
 }
 impl<'a> GameDetailsTemplate<'a> {
     fn get_team_leaders(&self) -> Vec<(i32, PlayerSummary)> {
@@ -621,8 +625,18 @@ async fn details(
         )
         .get_results(&db)
         .unwrap();
+    let logs = GameLogLite::get_all(game.id, &db).unwrap();
+    let mut logs_detail = (0, String::new());
+    if let Some(output_id) = payload.log_output {
+        logs_detail = (output_id, logs.iter().find(|l| l.id == output_id).unwrap().get_output(&db).unwrap());
+    }
+    if let Some(errors_id) = payload.log_errors {
+        logs_detail = (errors_id, logs.iter().find(|l| l.id == errors_id).unwrap().get_errors(&db).unwrap());
+    }
     Ok(HttpResponse::Ok().content_type("text/html").body(
         (GameDetailsTemplate {
+            logs: GameLogLite::get_all(game.id, &db).unwrap(),
+            focused_log: logs_detail,
             settings: settings,
             authed: authed,
             email_form: (*email_form).clone(),

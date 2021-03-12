@@ -561,7 +561,7 @@ dependencies = [
 
 [[package]]
 name = "blitzserver"
-version = "0.6.9"
+version = "0.6.10"
 dependencies = [
  "actix-files",
  "actix-multipart",
@@ -569,8 +569,9 @@ dependencies = [
  "actix-web",
  "askama",
  "byteorder",
+ "chrono",
  "crc",
- "crossbeam-channel 0.4.4",
+ "crossbeam-channel 0.5.0",
  "diesel",
  "dotenv",
  "env_logger",
@@ -714,6 +715,19 @@ name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
+
+[[package]]
+name = "chrono"
+version = "0.4.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "670ad68c9088c2a963aaa298cb369688cf3f9465ce5e2d4ca10e6e0098a1ce73"
+dependencies = [
+ "libc",
+ "num-integer",
+ "num-traits",
+ "time 0.1.44",
+ "winapi 0.3.9",
+]
 
 [[package]]
 name = "cipher"

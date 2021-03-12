@@ -32,6 +32,17 @@ table! {
 }
 
 table! {
+    game_logs (id) {
+        id -> Int4,
+        game_id -> Int4,
+        datetime -> Timestamp,
+        turn_number -> Int4,
+        output -> Varchar,
+        error -> Varchar,
+    }
+}
+
+table! {
     game_mods (id) {
         id -> Int4,
         game_id -> Int4,
@@ -155,6 +166,7 @@ allow_tables_to_appear_in_same_query!(
     disciples,
     email_configs,
     files,
+    game_logs,
     game_mods,
     games,
     maps,

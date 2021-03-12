@@ -638,3 +638,10 @@ fieldset {
 	margin-bottom: 0px;
 	max-width: 200px;
 }
+table.log-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+.log-table tr:nth-child(odd) {
+	background: var(--col-very-faint);
+}

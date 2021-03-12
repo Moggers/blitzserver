@@ -1,6 +1,6 @@
 use super::schema::{
-    disciples, email_configs, files, game_mods, games, maps, mods, nations, player_turns, players,
-    turns,
+    disciples, email_configs, files, game_logs, game_mods, games, maps, mods, nations,
+    player_turns, players, turns,
 };
 use crate::diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl};
 use crate::diesel::{JoinOnDsl, RunQueryDsl};
@@ -198,7 +198,7 @@ impl Game {
             .filter(
                 pt_dsl::game_id
                     .eq(self.id)
-                    .and(pt_dsl::turn_number.eq(turn.turn_number-1)),
+                    .and(pt_dsl::turn_number.eq(turn.turn_number - 1)),
             )
             .set(pt_dsl::status.eq(1))
             .execute(db)?;
@@ -908,7 +908,14 @@ impl Disciple {
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
         use disciples::dsl as d_dsl;
-        diesel::delete(d_dsl::disciples.filter(d_dsl::nation_id.eq(self.nation_id).and(d_dsl::game_id.eq(self.game_id)))).execute(db)
+        diesel::delete(
+            d_dsl::disciples.filter(
+                d_dsl::nation_id
+                    .eq(self.nation_id)
+                    .and(d_dsl::game_id.eq(self.game_id)),
+            ),
+        )
+        .execute(db)
     }
 
     pub fn create_team<D>(&self, db: &D) -> Result<Disciple, diesel::result::Error>
@@ -917,7 +924,11 @@ impl Disciple {
     {
         use disciples::dsl as d_dsl;
         let new_team = match d_dsl::disciples
-            .filter(d_dsl::game_id.eq(self.game_id).and(diesel::dsl::not(d_dsl::team.is_null())))
+            .filter(
+                d_dsl::game_id
+                    .eq(self.game_id)
+                    .and(diesel::dsl::not(d_dsl::team.is_null())),
+            )
             .order(d_dsl::team.desc())
             .limit(1)
             .get_result::<Disciple>(db)
@@ -1017,6 +1028,91 @@ impl NewDisciple {
     {
         use disciples::dsl as d_dsl;
         diesel::insert_into(d_dsl::disciples)
+            .values(self)
+            .get_result(db)
+    }
+}
+
+#[derive(Queryable, Debug, Identifiable)]
+#[table_name = "game_logs"]
+pub struct GameLog {
+    id: i32,
+    game_id: i32,
+    datetime: std::time::SystemTime,
+    turn_number: i32,
+    output: String,
+    error: String,
+}
+
+#[derive(Queryable, Debug, Identifiable, QueryableByName)]
+#[table_name = "game_logs"]
+pub struct GameLogLite {
+    pub id: i32,
+    pub game_id: i32,
+    pub datetime: std::time::SystemTime,
+    pub turn_number: i32,
+}
+
+impl GameLogLite {
+    pub fn datetime_string(&self) -> String {
+        chrono::DateTime::<chrono::Utc>::from(self.datetime).to_rfc2822()
+    }
+    pub fn get_all<D>(game_id: i32, db: &D) -> Result<Vec<GameLogLite>, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::game_logs::dsl as gl_dsl;
+        gl_dsl::game_logs
+            .select((
+                gl_dsl::id,
+                gl_dsl::game_id,
+                gl_dsl::datetime,
+                gl_dsl::turn_number,
+            ))
+            .filter(gl_dsl::game_id.eq(game_id))
+            .order(gl_dsl::datetime.desc())
+            .get_results(db)
+    }
+
+    pub fn get_output<D>(&self, db: &D) -> Result<String, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::game_logs::dsl as gl_dsl;
+        gl_dsl::game_logs
+            .select(gl_dsl::output)
+            .filter(gl_dsl::id.eq(self.id))
+            .get_result(db)
+    }
+    pub fn get_errors<D>(&self, db: &D) -> Result<String, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::game_logs::dsl as gl_dsl;
+        gl_dsl::game_logs
+            .select(gl_dsl::error)
+            .filter(gl_dsl::id.eq(self.id))
+            .get_result(db)
+    }
+}
+
+#[derive(Insertable)]
+#[table_name = "game_logs"]
+pub struct NewGameLog<'a> {
+    pub game_id: i32,
+    pub datetime: std::time::SystemTime,
+    pub turn_number: i32,
+    pub output: &'a str,
+    pub error: &'a str,
+}
+
+impl<'a> NewGameLog<'a> {
+    pub fn insert<D>(&self, db: &D) -> Result<GameLog, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::game_logs::dsl as gl_dsl;
+        diesel::insert_into(gl_dsl::game_logs)
             .values(self)
             .get_result(db)
     }

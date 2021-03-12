@@ -4,8 +4,8 @@ use std::ops::Add;
 
 use super::diesel::prelude::*;
 use super::models::{
-    File, Game, GameMod, Map, Mod, Nation, NewFile, NewNation, NewPlayerTurn, Player, PlayerTurn,
-    Turn,
+    File, Game, GameMod, Map, Mod, Nation, NewFile, NewGameLog, NewNation, NewPlayerTurn, Player,
+    PlayerTurn, Turn,
 };
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
@@ -370,11 +370,12 @@ impl Dom5Proc {
                     Some(d) => d.to_string(),
                     None => "0".to_string(),
                 },
-                (1+d.is_disciple).to_string(),
+                (1 + d.is_disciple).to_string(),
             ]);
             acc
         }));
         arguments.append(&mut vec![
+            "-d".to_string(),
             "--noclientstart".to_string(),
             "--thrones".to_string(),
             game.thrones_t1.to_string(),
@@ -456,7 +457,6 @@ impl Dom5Proc {
             String::from("-g"),
             format!("{}", self.name),
         ]);
-        log::debug!("Turn host args {:?}", arguments);
         let result = std::process::Command::new(std::path::PathBuf::from(
             std::env::var("DOM5_BIN")
                 .expect("DOM5_BIN not specified")
@@ -469,12 +469,17 @@ impl Dom5Proc {
             "Failed to launch dom5 binary for game {}",
             self.name
         ));
-        log::debug!(
-            "Status: {}\nOutput: {}\nErrors: {}",
-            result.status,
-            String::from_utf8_lossy(&result.stdout),
-            String::from_utf8_lossy(&result.stderr)
-        );
+        let output = String::from_utf8_lossy(&result.stdout);
+        let error = String::from_utf8_lossy(&result.stderr);
+        NewGameLog {
+            game_id: game.id,
+            datetime: std::time::SystemTime::now(),
+            turn_number: (turns.len() - 1) as i32,
+            output: &output,
+            error: &error,
+        }
+        .insert(&db)
+        .unwrap();
         self.handle_new_turn();
         for entry in std::fs::read_dir(&self.savedir).unwrap() {
             if let Ok(entry) = entry {
