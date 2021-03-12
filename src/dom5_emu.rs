@@ -279,6 +279,9 @@ impl Dom5Emu {
                         tx_clone
                             .send(Msg::ClientDisc(ClientDiscMsg { addr: client_addr }))
                             .unwrap();
+                        buffered_conn.into_inner()
+                            .shutdown(std::net::Shutdown::Read)
+                            .expect(&format!("Attempted to shutdown read socket with addr {} but its already dead", client_addr));
                     });
                     let pool_clone = self.db_pool.clone();
                     let game_id = self.game_id.clone();
