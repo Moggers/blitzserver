@@ -81,24 +81,25 @@ impl crate::packets::BodyContents for MapResp {
     fn write<W: std::io::Write>(&self, w: &mut W) {
         w.write_all(self.map_name.as_bytes()).unwrap();
         w.write_u8(0).unwrap();
-        w.write_u32::<LittleEndian>(self.map_len)
-            .unwrap();
+        w.write_u32::<LittleEndian>(self.map_len).unwrap();
         w.write_u32::<LittleEndian>(self.map_crc).unwrap();
 
         w.write_all(self.image_name.as_bytes()).unwrap();
         w.write_u8(0).unwrap();
-        w.write_u32::<LittleEndian>(self.image_len)
-            .unwrap();
+        w.write_u32::<LittleEndian>(self.image_len).unwrap();
         w.write_u32::<LittleEndian>(self.image_crc).unwrap();
 
-        if let (Some(winter_name), Some(winter_len), Some(winter_crc)) = 
+        if let (Some(winter_name), Some(winter_len), Some(winter_crc)) =
             (&self.winter_name, &self.winter_len, &self.winter_crc)
         {
             w.write_all(winter_name.as_bytes()).unwrap();
             w.write_u8(0).unwrap();
-            w.write_u32::<LittleEndian>(*winter_len)
-                .unwrap();
+            w.write_u32::<LittleEndian>(*winter_len).unwrap();
             w.write_u32::<LittleEndian>(*winter_crc).unwrap();
+        } else {
+            w.write_u8(0).unwrap();
+            w.write_u32::<LittleEndian>(0).unwrap();
+            w.write_u32::<LittleEndian>(0).unwrap();
         }
     }
 }
