@@ -1,5 +1,5 @@
 use super::schema::{
-    disciples, email_configs, files, game_logs, game_mods, games, maps, mods, nations,
+    admin_logs, disciples, email_configs, files, game_logs, game_mods, games, maps, mods, nations,
     player_turns, players, turns,
 };
 use crate::diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl};
@@ -157,6 +157,12 @@ impl Game {
             .filter(pt_dsl::game_id.eq(self.id))
             .set(pt_dsl::archived.eq(true))
             .execute(db)?;
+        NewAdminLog {
+            game_id: self.id,
+            datetime: std::time::SystemTime::now(),
+            action: "Returned game to lobby".to_string(),
+        }
+        .insert(db)?;
         Ok(())
     }
 
@@ -202,6 +208,16 @@ impl Game {
             )
             .set(pt_dsl::status.eq(1))
             .execute(db)?;
+        NewAdminLog {
+            game_id: self.id,
+            datetime: std::time::SystemTime::now(),
+            action: format!(
+                "Rolled back turn {}->{}",
+                turn.turn_number,
+                turn.turn_number - 1
+            ),
+        }
+        .insert(db)?;
         Ok(turn)
     }
 
@@ -445,6 +461,24 @@ impl Player {
         files_dsl::files
             .filter(files_dsl::id.eq(self.file_id))
             .get_result(db)
+    }
+
+    pub fn remove<D>(&self, db: &D) -> Result<(), diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::players::dsl as p_dsl;
+        diesel::delete(p_dsl::players)
+            .filter(p_dsl::id.eq(self.id))
+            .execute(db);
+        let nation = Nation::get(self.game_id, self.nationid, db)?;
+        NewAdminLog {
+            game_id: self.game_id,
+            datetime: std::time::SystemTime::now(),
+            action: format!("Removed {}", nation.name),
+        }
+        .insert(db)?;
+        Ok(())
     }
 }
 
@@ -1078,6 +1112,13 @@ impl GameLogLite {
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
+        use crate::schema::admin_logs::dsl as al_dsl;
+        NewAdminLog {
+            game_id: self.game_id,
+            datetime: std::time::SystemTime::now(),
+            action: format!("Viewed turn logs for turn {}", self.turn_number),
+        }
+        .insert(db)?;
         use crate::schema::game_logs::dsl as gl_dsl;
         gl_dsl::game_logs
             .select(gl_dsl::output)
@@ -1115,5 +1156,49 @@ impl<'a> NewGameLog<'a> {
         diesel::insert_into(gl_dsl::game_logs)
             .values(self)
             .get_result(db)
+    }
+}
+
+#[derive(Queryable, Debug, Identifiable)]
+#[table_name = "admin_logs"]
+pub struct AdminLog {
+    id: i32,
+    pub game_id: i32,
+    pub datetime: std::time::SystemTime,
+    pub action: String,
+}
+
+impl AdminLog {
+    pub fn get_all<D>(game_id: i32, db: &D) -> Result<Vec<AdminLog>, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::admin_logs::dsl as al_dsl;
+        al_dsl::admin_logs
+            .filter(al_dsl::game_id.eq(game_id))
+            .order(al_dsl::datetime.desc())
+            .get_results(db)
+    }
+    pub fn datetime_string(&self) -> String {
+        chrono::DateTime::<chrono::Utc>::from(self.datetime).to_rfc2822()
+    }
+}
+
+#[derive(Insertable)]
+#[table_name = "admin_logs"]
+struct NewAdminLog {
+    game_id: i32,
+    datetime: std::time::SystemTime,
+    action: String,
+}
+impl NewAdminLog {
+    pub fn insert<D>(&self, db: &D) -> Result<usize, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::admin_logs::dsl as al_dsl;
+        diesel::insert_into(al_dsl::admin_logs)
+            .values(self)
+            .execute(db)
     }
 }

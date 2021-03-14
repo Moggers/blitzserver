@@ -6,6 +6,7 @@
 	<input name="tabset_1" {% if self.tab=="settings" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-settings" />
 	<input name="tabset_1" {% if self.tab=="emails" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-emails" />
 	<input name="tabset_1" {% if self.tab=="logs" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-logs" />
+	<input name="tabset_1" {% if self.tab=="admin-logs" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-admin-logs" />
 	<nav class="nav tabset_labels tabs css-tab-labels">
 		<h1>{{ game.name }}</h1>
 		<label href="#status" class="tab css-tab-label tab1" for="css-tab-status">status</label>
@@ -15,6 +16,7 @@
 		{% if self.authed == AuthStatus::AuthSuccess %}
 			<label class="tab css-tab-label tab5" for="css-tab-logs">logs</label>
 		{% endif %}
+		<label class="tab css-tab-label tab6" for="css-tab-admin-logs">admin logs</label>
 		<div class="auth-input">
 			<form action="/game/{{game.id}}/status" method="get">
 				<div class="input-group">
@@ -158,11 +160,14 @@
 				{% include "email.html" %}
 			</fieldset>
 		</section>
+		<section class="tabsection">
 		{% if self.authed == AuthStatus::AuthSuccess %}
-			<section class="tabsection">
-				{% include "logs.html" %}
-			</section>
+		{% include "logs.html" %}
 		{% endif %}
+		</section>
+		<section class="tabsection">
+			{% include "admin-logs.html" %}
+		</section>
 	</div>
 </div>
 {% endblock %}

@@ -1,4 +1,13 @@
 table! {
+    admin_logs (id) {
+        id -> Int4,
+        game_id -> Int4,
+        datetime -> Timestamp,
+        action -> Varchar,
+    }
+}
+
+table! {
     disciples (id) {
         id -> Int4,
         game_id -> Int4,
@@ -163,6 +172,7 @@ joinable!(players -> files (file_id));
 joinable!(turns -> files (file_id));
 
 allow_tables_to_appear_in_same_query!(
+    admin_logs,
     disciples,
     email_configs,
     files,

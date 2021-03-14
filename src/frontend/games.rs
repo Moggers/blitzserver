@@ -3,8 +3,8 @@ use super::AppData;
 use crate::diesel::prelude::*;
 
 use crate::models::{
-    Disciple, EmailConfig, Game, GameLogLite, GameMod, Map, Mod, Nation, NewGame, NewGameMod,
-    Player, PlayerTurn, Turn,
+    AdminLog, Disciple, EmailConfig, Game, GameLogLite, GameMod, Map, Mod, Nation, NewGame,
+    NewGameMod, Player, PlayerTurn, Turn,
 };
 use crate::msgbus::{
     CreateGameMsg, GameArchivedMsg, GameScheduleMsg, MapChangedMsg, ModsChangedMsg, Msg,
@@ -244,6 +244,7 @@ struct GameDetailsTemplate<'a> {
     authed: AuthStatus,
     logs: Vec<GameLogLite>,
     focused_log: (i32, String),
+    admin_logs: &'a Vec<AdminLog>,
 }
 impl<'a> GameDetailsTemplate<'a> {
     fn get_team_leaders(&self) -> Vec<(i32, PlayerSummary)> {
@@ -628,11 +629,26 @@ async fn details(
     let logs = GameLogLite::get_all(game.id, &db).unwrap();
     let mut logs_detail = (0, String::new());
     if let Some(output_id) = payload.log_output {
-        logs_detail = (output_id, logs.iter().find(|l| l.id == output_id).unwrap().get_output(&db).unwrap());
+        logs_detail = (
+            output_id,
+            logs.iter()
+                .find(|l| l.id == output_id)
+                .unwrap()
+                .get_output(&db)
+                .unwrap(),
+        );
     }
     if let Some(errors_id) = payload.log_errors {
-        logs_detail = (errors_id, logs.iter().find(|l| l.id == errors_id).unwrap().get_errors(&db).unwrap());
+        logs_detail = (
+            errors_id,
+            logs.iter()
+                .find(|l| l.id == errors_id)
+                .unwrap()
+                .get_errors(&db)
+                .unwrap(),
+        );
     }
+    let admin_logs = AdminLog::get_all(game.id, &db).unwrap();
     Ok(HttpResponse::Ok().content_type("text/html").body(
         (GameDetailsTemplate {
             logs: GameLogLite::get_all(game.id, &db).unwrap(),
@@ -651,6 +667,7 @@ async fn details(
             nations: &nations,
             turns: player_turn_map,
             hostname: std::env::var("HOSTNAME").unwrap(),
+            admin_logs: &admin_logs,
         })
         .render()
         .unwrap(),
@@ -1017,14 +1034,10 @@ pub async fn remove_post(
     // Check if there were no turns found for the vector of games containing only our game, *not*
     // that there were zero games for just ours, this is not a logic error, though it looks odd.
     if turns.len() == 0 {
-        diesel::delete(players_dsl::players)
-            .filter(
-                players_dsl::game_id
-                    .eq(path_id)
-                    .and(players_dsl::nationid.eq(nation_id)),
-            )
-            .execute(&db)
-            .unwrap();
+        let players = Player::get_players(path_id, &db).unwrap();
+        if let Some(player) = players.iter().find(|p| p.nationid == nation_id) {
+            player.remove(&db).unwrap();
+        }
     }
     return Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}/status", path_id))
