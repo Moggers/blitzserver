@@ -1,4 +1,6 @@
 <div class="game-settings">
+	<!-- When hitting enter, the first submit input is used to submit the form. This ensures the first input is a POST, and not a GET -->
+	<input class="hidden" formmethod="POST" type="submit" value="Search" />
 	<div>
 		<h3>Map</h3>
 		<input name="mapfilter" type="search" value="{{settings.mapfilter}}" placeholder="Search" />
@@ -6,10 +8,9 @@
 		<div class="select-sort">
 			{% for map in maps %}
 			<input class="bg-selector" {% if map.id==settings.map %} checked="checked" {% endif %} name="map"
-				id="map-{{map.id}}" type="radio" value="{{map.id}}" />
-			<div 
-				{% if !map.name.contains(settings.mapfilter) %} hidden {% endif %} class="bg-selector"
-				style="background-image: url('/images/maps/{{map.id}}.jpg')">
+																																														 id="map-{{map.id}}" type="radio" value="{{map.id}}" />
+			<div {% if !map.name.contains(settings.mapfilter) %} hidden {% endif %} class="bg-selector"
+																																							style="background-image: url('/images/maps/{{map.id}}.jpg')">
 				<label for="map-{{map.id}}"> {{map.name}} ({{map.province_count}}+{{map.uw_count}})</label>
 				<a class="btn" href="/map/{{map.id}}">Goto</a>
 			</div>
@@ -24,7 +25,7 @@
 		<div class="settings-group">
 			{% for cmod in mods %}
 			<input class="bg-selector" {% if settings.cmods.contains(cmod.id) %} checked="checked" {% endif %} name="cmods[]"
-				id="mod-{{cmod.id}}" type="checkbox" value="{{cmod.id}}" />
+																																																				 id="mod-{{cmod.id}}" type="checkbox" value="{{cmod.id}}" />
 			<div {% if !cmod.name.contains(settings.modfilter) %} hidden {% endif %} class="bg-selector">
 				<label for="mod-{{cmod.id}}">{{cmod.name }}</label>
 				<a class="btn" href="/mod/{{cmod.id}}">Goto</a>
@@ -94,8 +95,8 @@
 			<div class="input-group">
 				<label for="artrest">Artefact Forging</label>
 				<select name="artrest">
-					<option {% if settings.artrest == 0 %} selected {% endif %} value="0">Unlimited</option>
-					<option {% if settings.artrest == 1 %} selected {% endif %} value="1">Limited</option>
+					<option {% if settings.artrest==0 %} selected {% endif %} value="0">Unlimited</option>
+					<option {% if settings.artrest==1 %} selected {% endif %} value="1">Limited</option>
 				</select>
 			</div>
 		</div>
@@ -118,7 +119,7 @@
 			<div class="input-group">
 				<label for="throne_points_required">Throne Points Required</label>
 				<input id="throne_points_required" name="throne_points_required" value="{{settings.throne_points_required}}"
-					type="number" />
+																																				 type="number" />
 			</div>
 		</div>
 	</div>
@@ -153,15 +154,15 @@
 			<div class="input-group">
 				<label for="scoregraphs">Score Graphs</label>
 				<select name="scoregraphs">
-					<option {% if settings.scoregraphs == 0 %} selected {% endif %} value="0">Hidden</option>
-					<option {% if settings.scoregraphs == 1 %} selected {% endif %} value="1">Visible</option>
+					<option {% if settings.scoregraphs==0 %} selected {% endif %} value="0">Hidden</option>
+					<option {% if settings.scoregraphs==1 %} selected {% endif %} value="1">Visible</option>
 				</select>
 			</div>
 			<div class="input-group">
 				<label for="nationinfo">Nation Info</label>
 				<select name="nationinfo" Info</option>
-					<option {% if settings.nationinfo == 0 %} selected {% endif %} value="0">Hidden</option>
-					<option {% if settings.nationinfo == 1 %} selected {% endif %} value="1">Visible</option>
+					<option {% if settings.nationinfo==0 %} selected {% endif %} value="0">Hidden</option>
+					<option {% if settings.nationinfo==1 %} selected {% endif %} value="1">Visible</option>
 				</select>
 			</div>
 		</div>
@@ -172,15 +173,15 @@
 			<div class="input-group">
 				<label for="teamgame">Game Mode</label>
 				<select name="teamgame">
-					<option {% if settings.teamgame == 1 %} selected {% endif %} value="1">Disciples</option>
-					<option {% if settings.teamgame == 0 %} selected {% endif %} value="0">Free For All</option>
+					<option {% if settings.teamgame==1 %} selected {% endif %} value="1">Disciples</option>
+					<option {% if settings.teamgame==0 %} selected {% endif %} value="0">Free For All</option>
 				</select>
 			</div>
 			<div class="input-group">
 				<label for="clustered">Disciple Start Locations</label>
 				<select name="clustered">
-					<option {% if settings.clustered == 0 %} selected {% endif %} value="0">Distributed</option>
-					<option {% if settings.clustered == 1 %} selected {% endif %} value="1">Clustered</option>
+					<option {% if settings.clustered==0 %} selected {% endif %} value="0">Distributed</option>
+					<option {% if settings.clustered==1 %} selected {% endif %} value="1">Clustered</option>
 				</select>
 			</div>
 		</div>
@@ -191,8 +192,8 @@
 			<div class="input-group">
 				<label for="eventrarity">Event Rarity</label>
 				<select name="eventrarity">
-					<option {% if settings.eventrarity == 1 %} selected {% endif %} value="1">Common</option>
-					<option {% if settings.eventrarity == 2 %} selected {% endif %} value="2">Rare</option>
+					<option {% if settings.eventrarity==1 %} selected {% endif %} value="1">Common</option>
+					<option {% if settings.eventrarity==2 %} selected {% endif %} value="2">Rare</option>
 				</select>
 			</div>
 			<div class="input-group">
@@ -211,8 +212,8 @@
 			<div class="input-group">
 				<label for="renaming">Commander Renaming</label>
 				<select name="renaming">
-					<option {% if settings.renaming == 0 %} selected="selected" {% endif %} value="0">Not Allowed</option>
-					<option {% if settings.renaming == 1 %} selected="selected" {% endif %} value="1">Allowed</option>
+					<option {% if settings.renaming==0 %} selected="selected" {% endif %} value="0">Not Allowed</option>
+					<option {% if settings.renaming==1 %} selected="selected" {% endif %} value="1">Allowed</option>
 				</select>
 			</div>
 			<div class="input-group">
@@ -230,9 +231,13 @@
 			<div class="input-group">
 				<label for="newai">Allow Going AI</label>
 				<select name="newai">
-					<option {% if settings.newai == 0 %} selected="selected" {% endif %} value="0">Not Allowed</option>
-					<option {% if settings.newai == 1 %} selected="selected" {% endif %} value="1">Allowed</option>
+					<option {% if settings.newai==0 %} selected="selected" {% endif %} value="0">Not Allowed</option>
+					<option {% if settings.newai==1 %} selected="selected" {% endif %} value="1">Allowed</option>
 				</select>
+			</div>
+			<div class="input-group">
+				<label for="masterpass">Master Password</label>
+				<input type="password" name="masterpass" value="{% if game.masterpass.is_some() %}password{% endif %}" />
 			</div>
 		</div>
 	</div>

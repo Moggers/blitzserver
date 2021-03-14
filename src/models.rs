@@ -50,6 +50,7 @@ pub struct Game {
     pub next_turn: Option<std::time::SystemTime>,
     pub password: String,
     pub archived: bool,
+    pub masterpass: Option<String>,
 }
 
 #[derive(QueryableByName)]
@@ -282,6 +283,7 @@ pub struct NewGame {
     pub newailvl: i32,
     pub newai: bool,
     pub password: String,
+    pub masterpass: Option<String>
 }
 impl Default for NewGame {
     fn default() -> Self {
@@ -315,6 +317,7 @@ impl Default for NewGame {
             newailvl: 2,
             newai: true,
             password: "password".to_string(),
+            masterpass: None,
         }
     }
 }
@@ -470,7 +473,7 @@ impl Player {
         use crate::schema::players::dsl as p_dsl;
         diesel::delete(p_dsl::players)
             .filter(p_dsl::id.eq(self.id))
-            .execute(db);
+            .execute(db)?;
         let nation = Nation::get(self.game_id, self.nationid, db)?;
         NewAdminLog {
             game_id: self.game_id,

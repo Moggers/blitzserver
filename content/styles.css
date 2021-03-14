@@ -645,3 +645,6 @@ table.log-table {
 .log-table tr:nth-child(odd) {
 	background: var(--col-very-faint);
 }
+.hidden {
+	display: none;
+}

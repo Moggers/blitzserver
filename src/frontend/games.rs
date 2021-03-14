@@ -109,6 +109,7 @@ struct GameSettings {
     cmods: Vec<i32>,
     #[serde(default)]
     modfilter: String,
+    masterpass: Option<String>,
     // Marker to tell whether the form is on its first load
     loaded: Option<String>,
 }
@@ -145,6 +146,7 @@ impl From<(&Game, &[Mod])> for GameSettings {
             mapfilter: "".to_string(),
             modfilter: "".to_string(),
             cmods: mods.iter().map(|m| m.id).collect(),
+            masterpass: game.masterpass.clone(),
             loaded: None,
         }
     }
@@ -868,6 +870,7 @@ async fn settings_post(
                         newailvl.eq(body.newailvl),
                         newai.eq(body.newai > 0),
                         map_id.eq(body.map),
+                        masterpass.eq(body.masterpass),
                     ))
                     .get_result(&db)?
             };

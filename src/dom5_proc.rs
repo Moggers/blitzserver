@@ -438,6 +438,9 @@ impl Dom5Proc {
             game.newailvl.to_string(),
             if game.newai { "" } else { "--nonewai" }.to_string(),
         ]);
+        if let Some(masterpass) = game.masterpass.as_ref() {
+            arguments.append(&mut vec!["--masterpass".to_string(), masterpass.clone()]);
+        }
         use crate::schema::turns::dsl as turns_dsl;
         let turns: Vec<Turn> = turns_dsl::turns
             .filter(

@@ -95,6 +95,7 @@ table! {
         next_turn -> Nullable<Timestamp>,
         password -> Varchar,
         archived -> Bool,
+        masterpass -> Nullable<Varchar>,
     }
 }
 
