@@ -269,12 +269,12 @@ impl Dom5Emu {
                     let rx_clone = self.bus_rx.new_recv();
                     std::thread::spawn(move || {
                         while let Ok(packet) = Packet::from_reader(&mut buffered_conn) {
-                            tx_clone
-                                .send(Msg::Pkt(PktMsg {
-                                    addr: client_addr,
-                                    pkt: packet.body,
-                                }))
-                                .unwrap();
+                            if let Err(_) = tx_clone.send(Msg::Pkt(PktMsg {
+                                addr: client_addr,
+                                pkt: packet.body,
+                            })) {
+                                break;
+                            }
                         }
                         tx_clone
                             .send(Msg::ClientDisc(ClientDiscMsg { addr: client_addr }))

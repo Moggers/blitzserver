@@ -1129,7 +1129,6 @@ pub async fn assign_team(
     let db = app_data.pool.get().expect("Unable to connect to database");
     let disciple = Disciple::get(path_id, form.nation, &db).unwrap();
     if form.team == 0 {
-        log::debug!("What");
         if form.disciple == 0 {
             disciple.create_team(&db).unwrap();
         } else {

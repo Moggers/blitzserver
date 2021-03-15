@@ -86,6 +86,8 @@ pub use setdisc_req::SetDiscReq;
 pub enum PacketError {
     #[error("No more data")]
     Disconnect(#[from] std::io::Error),
+    #[error("Invalid header")]
+    InvalidCompressionMethod(u8)
 }
 
 pub type PacketResult<T> = Result<T, PacketError>;
@@ -128,7 +130,8 @@ pub struct Header {
 impl Header {
     pub fn from_reader<R: std::io::Read>(r: &mut R) -> PacketResult<Header> {
         let unk: u8 = r.read_u8()?;
-        let compression = FromPrimitive::from_u8(r.read_u8()?).unwrap();
+        let compression_byte = r.read_u8()?;
+        let compression = FromPrimitive::from_u8(compression_byte).ok_or(PacketError::InvalidCompressionMethod(compression_byte))?;
         let length: u32 = r.read_u32::<LittleEndian>()?;
         Ok(Header {
             unk,
