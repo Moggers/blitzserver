@@ -119,6 +119,12 @@ impl Dom5Proc {
             "-g".to_string(),
             format!("{}", self.name),
         ]);
+        match std::fs::remove_file(self.savedir.join("statusdump.txt")) {
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            },
+            Err(e) => panic!(e),
+            Ok(_) => {}
+        }
         drop(db);
         let mut proc = std::process::Command::new(std::path::PathBuf::from(
             std::env::var("DOM5_BIN")

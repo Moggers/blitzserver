@@ -1,6 +1,6 @@
 use super::diesel::prelude::*;
 use super::models::{Game, Turn};
-use crate::msgbus::{CreateGameMsg, ModsChangedMsg, Msg, MsgBusTx, NewTurnMsg, TurnHostStartMsg};
+use crate::msgbus::{CreateGameMsg, EraChangedMsg, ModsChangedMsg, Msg, MsgBusTx, NewTurnMsg, TurnHostStartMsg};
 use crossbeam_channel::Sender;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
@@ -115,9 +115,10 @@ impl GameManager {
                         Ok(Msg::GameSchedule(schdmsg)) if schdmsg.game_id == launch_id => {
                             timeout = schdmsg.schedule;
                         }
-                        Ok(Msg::ModsChanged(ModsChangedMsg { game_id }))
+                        Ok(Msg::EraChanged(EraChangedMsg { game_id , ..})) | Ok(Msg::ModsChanged(ModsChangedMsg { game_id }))
                             if game_id == launch_id =>
                         {
+                            log::debug!("Regenerating nations");
                             let db = db_pool.get().unwrap();
                             let game = Game::get(launch_id, &db).unwrap();
                             let mut dom5_proc = Dom5Proc::new(game, db_pool.clone());
@@ -177,7 +178,6 @@ impl GameManager {
         for game in current_games {
             self.launch_game(game.id);
             let dom5_proc = Dom5Proc::new(game, self.db_pool.clone());
-            dom5_proc.update_nations();
         }
         self.monitor();
     }

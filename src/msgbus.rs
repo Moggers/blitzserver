@@ -11,6 +11,7 @@ pub enum Msg {
     MapChanged(MapChangedMsg),
     ClientDisc(ClientDiscMsg),
     ModsChanged(ModsChangedMsg),
+    EraChanged(EraChangedMsg),
     GameArchived(GameArchivedMsg),
 }
 
@@ -62,6 +63,12 @@ pub struct MapChangedMsg {
 #[derive(Clone)]
 pub struct ModsChangedMsg {
     pub game_id: i32,
+}
+
+#[derive(Clone)]
+pub struct EraChangedMsg {
+    pub game_id: i32,
+    pub new_era: i32
 }
 
 #[derive(Clone)]

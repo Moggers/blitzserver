@@ -7,7 +7,8 @@ use crate::models::{
     NewGameMod, Player, PlayerTurn, Turn,
 };
 use crate::msgbus::{
-    CreateGameMsg, GameArchivedMsg, GameScheduleMsg, MapChangedMsg, ModsChangedMsg, Msg,
+    CreateGameMsg, EraChangedMsg, GameArchivedMsg, GameScheduleMsg, MapChangedMsg, ModsChangedMsg,
+    Msg,
 };
 use crate::StartGame;
 use actix_web::http::header;
@@ -580,30 +581,11 @@ async fn details(
     let nations = Nation::get_all(game.id, &db).unwrap();
     let disciples = Disciple::get_all(game.id, &db).unwrap();
     let player_turn_map = crate::models::PlayerTurn::get_player_turns(game.id, &db);
-    use crate::schema::turns::dsl as turns_dsl;
-    let turns: Vec<Turn> = {
-        Turn::belonging_to(&game)
-            .filter(turns_dsl::archived.eq(false))
-            .get_results(&db)
-            .unwrap()
-    };
+    let turns = Turn::get_all(game.id, &db).unwrap();
     let settings: GameSettings = if let Some(_) = game_settings.loaded {
         game_settings.clone()
     } else {
-        let mods = {
-            &crate::schema::game_mods::dsl::game_mods
-                .filter(crate::schema::game_mods::dsl::game_id.eq(game.id))
-                .inner_join(
-                    crate::schema::mods::dsl::mods
-                        .on(crate::schema::mods::dsl::id.eq(crate::schema::game_mods::dsl::mod_id)),
-                )
-                .get_results::<(GameMod, Mod)>(&db)
-                .unwrap()
-                .iter()
-                .map(move |(_, m)| (*m).clone())
-                .collect::<Vec<Mod>>()
-        };
-        (&game, &mods[..]).into()
+        (&game, &game.get_mods(&db).unwrap()[..]).into()
     };
     let (maps, mods): (Vec<Map>, Vec<Mod>) = (
         {
@@ -629,27 +611,27 @@ async fn details(
         .get_results(&db)
         .unwrap();
     let logs = GameLogLite::get_all(game.id, &db).unwrap();
-    let mut logs_detail = (0, String::new());
-    if let Some(output_id) = payload.log_output {
-        logs_detail = (
+    let logs_detail = if let Some(output_id) = payload.log_output {
+        (
             output_id,
             logs.iter()
                 .find(|l| l.id == output_id)
                 .unwrap()
                 .get_output(&db)
                 .unwrap(),
-        );
-    }
-    if let Some(errors_id) = payload.log_errors {
-        logs_detail = (
+        )
+    } else if let Some(errors_id) = payload.log_errors {
+        (
             errors_id,
             logs.iter()
                 .find(|l| l.id == errors_id)
                 .unwrap()
                 .get_errors(&db)
                 .unwrap(),
-        );
-    }
+        )
+    } else {
+        (0, String::new())
+    };
     let admin_logs = AdminLog::get_all(game.id, &db).unwrap();
     Ok(HttpResponse::Ok().content_type("text/html").body(
         (GameDetailsTemplate {
@@ -894,6 +876,15 @@ async fn settings_post(
             Ok(game)
         })
         .unwrap();
+    if game.era != old_game.era {
+        app_data
+            .msgbus_sender
+            .send(Msg::EraChanged(EraChangedMsg {
+                game_id: game.id,
+                new_era: game.era,
+            }))
+            .unwrap();
+    }
     let mods = old_game.get_mods(&db).unwrap();
     if mods.len() != old_mods.len()
         || mods
@@ -1132,7 +1123,6 @@ pub async fn assign_team(
         if form.disciple == 0 {
             disciple.create_team(&db).unwrap();
         } else {
-            log::debug!("Removing");
             disciple.remove(&db).unwrap();
         }
     } else {

@@ -622,6 +622,19 @@ impl Turn {
             .filter(files_dsl::id.eq(self.file_id))
             .get_result(db)
     }
+    pub fn get_all<D>(game_id: i32, db: &D) -> Result<Vec<Turn>, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::turns::dsl as turns_dsl;
+        turns_dsl::turns
+            .filter(
+                turns_dsl::game_id
+                    .eq(game_id)
+                    .and(turns_dsl::archived.eq(false)),
+            )
+            .get_results(db)
+    }
     pub fn get<D>(game_id: i32, db: &D) -> Result<Turn, diesel::result::Error>
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,

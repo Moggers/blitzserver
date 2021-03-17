@@ -388,7 +388,6 @@ impl Dom5Emu {
                                             let db = pool_clone.get().unwrap();
                                             if Self::accept_pretender(game_id, pkt, &db) == 1 {
                                                 for i in (1..10).rev() {
-                                                    log::debug!("Sending message");
                                                     LoadingMessageResp { message: format!("This nation is already claimed by another player, your submission has been discarded. ({} seconds)", i)}.write_packet(&mut socket_send_clone);
                                                     std::thread::sleep(
                                                         std::time::Duration::from_secs(1),
