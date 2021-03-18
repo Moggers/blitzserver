@@ -26,7 +26,8 @@
 			{% for cmod in mods %}
 			<input class="bg-selector" {% if settings.cmods.contains(cmod.id) %} checked="checked" {% endif %} name="cmods[]"
 				id="mod-{{cmod.id}}" type="checkbox" value="{{cmod.id}}" />
-			<div {% if !cmod.name.contains(settings.modfilter) %} hidden {% endif %} class="bg-selector">
+			<div {% if !cmod.name.contains(settings.modfilter) %} hidden {% endif %} class="bg-selector"
+				style="background-image: url('/images/mods/{{cmod.id}}.jpg')">
 				<label for="mod-{{cmod.id}}">{{cmod.name }}</label>
 				<a class="btn" href="/mod/{{cmod.id}}">Goto</a>
 			</div>
