@@ -589,15 +589,25 @@ async fn details(
     let (maps, mods): (Vec<Map>, Vec<Mod>) = (
         {
             use crate::schema::maps::dsl::*;
-            maps.filter(name.ilike(&format!("%{}%", game_settings.mapfilter)))
-                .get_results(&db)
-                .unwrap()
+            if authed == AuthStatus::AuthSuccess {
+                maps.filter(name.ilike(&format!("%{}%", game_settings.mapfilter)))
+                    .get_results(&db)
+                    .unwrap()
+            } else {
+                maps.filter(id.eq(game.map_id))
+                    .get_results(&db)
+                    .unwrap()
+            }
         },
         {
-            use crate::schema::mods::dsl::*;
-            mods.filter(name.ilike(&format!("%{}%", game_settings.modfilter)))
-                .get_results(&db)
-                .unwrap()
+            if authed == AuthStatus::AuthSuccess {
+                use crate::schema::mods::dsl::*;
+                mods.filter(name.ilike(&format!("%{}%", game_settings.modfilter)))
+                    .get_results(&db)
+                    .unwrap()
+            } else {
+                game.get_mods(&db).unwrap()
+            }
         },
     );
     use crate::schema::email_configs::dsl as email_dsl;
