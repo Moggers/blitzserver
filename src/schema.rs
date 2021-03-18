@@ -91,7 +91,6 @@ table! {
         clustered -> Bool,
         storyevents -> Int4,
         newailvl -> Int4,
-        newai -> Bool,
         next_turn -> Nullable<Timestamp>,
         password -> Varchar,
         archived -> Bool,

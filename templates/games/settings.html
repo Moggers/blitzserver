@@ -220,19 +220,13 @@
 				<label for="newailvl">"Become Computer Controlled" Difficulty</label>
 				<select name="newailvl" id="newailvl" type="number">
 					/*
+					<option {% if settings.newailvl==0 %} selected {% endif %} value="0">Disabled</option>
 					<option {% if settings.newailvl==1 %} selected {% endif %} value="1">Easy Diff.</option>
 					<option {% if settings.newailvl==2 %} selected {% endif %} value="2">Normal Diff.</option>
 					<option {% if settings.newailvl==3 %} selected {% endif %} value="3">Difficult Diff.</option>
 					<option {% if settings.newailvl==4 %} selected {% endif %} value="4">Mighty Diff.</option>
 					<option {% if settings.newailvl==5 %} selected {% endif %} value="5">Master Diff.</option>
 					<option {% if settings.newailvl==6 %} selected {% endif %} value="6">Impossible Diff.</option>
-				</select>
-			</div>
-			<div class="input-group">
-				<label for="newai">Allow Going AI</label>
-				<select name="newai">
-					<option {% if settings.newai==0 %} selected="selected" {% endif %} value="0">Not Allowed</option>
-					<option {% if settings.newai==1 %} selected="selected" {% endif %} value="1">Allowed</option>
 				</select>
 			</div>
 			<div class="input-group">

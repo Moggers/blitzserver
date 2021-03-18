@@ -120,8 +120,7 @@ impl Dom5Proc {
             format!("{}", self.name),
         ]);
         match std::fs::remove_file(self.savedir.join("statusdump.txt")) {
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            },
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
             Err(e) => panic!(e),
             Ok(_) => {}
         }
@@ -440,10 +439,11 @@ impl Dom5Proc {
                 _ => "",
             }
             .to_string(),
-            "--newailvl".to_string(),
-            game.newailvl.to_string(),
-            if game.newai { "" } else { "--nonewai" }.to_string(),
         ]);
+        match game.newailvl {
+            0 => arguments.append(&mut vec!["--nonewai".to_string(), "".to_string()]),
+            l => arguments.append(&mut vec!["--newailvl".to_string(), l.to_string()]),
+        }
         if let Some(masterpass) = game.masterpass.as_ref() {
             arguments.append(&mut vec!["--masterpass".to_string(), masterpass.clone()]);
         }

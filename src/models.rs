@@ -46,7 +46,6 @@ pub struct Game {
     pub clustered: bool,
     pub storyevents: i32,
     pub newailvl: i32,
-    pub newai: bool,
     pub next_turn: Option<std::time::SystemTime>,
     pub password: String,
     pub archived: bool,
@@ -289,7 +288,6 @@ pub struct NewGame {
     pub clustered: bool,
     pub storyevents: i32,
     pub newailvl: i32,
-    pub newai: bool,
     pub password: String,
     pub masterpass: Option<String>,
 }
@@ -323,7 +321,6 @@ impl Default for NewGame {
             clustered: false,
             storyevents: 1,
             newailvl: 2,
-            newai: true,
             password: "password".to_string(),
             masterpass: None,
         }

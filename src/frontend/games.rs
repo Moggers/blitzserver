@@ -97,9 +97,6 @@ struct GameSettings {
     #[serde(default = "default_two")]
     #[serde(deserialize_with = "from_str")]
     newailvl: i32,
-    #[serde(default = "default_one")]
-    #[serde(deserialize_with = "from_str")]
-    newai: i32,
     #[serde(deserialize_with = "from_str")]
     #[serde(default = "default_one")]
     map: i32,
@@ -144,7 +141,6 @@ impl From<(&Game, &[Mod])> for GameSettings {
             clustered: game.clustered as i32,
             storyevents: game.storyevents,
             newailvl: game.newailvl,
-            newai: game.newai as i32,
             map: game.map_id,
             mapfilter: "".to_string(),
             modfilter: "".to_string(),
@@ -853,7 +849,6 @@ async fn settings_post(
                         clustered.eq(body.clustered > 0),
                         storyevents.eq(body.storyevents),
                         newailvl.eq(body.newailvl),
-                        newai.eq(body.newai > 0),
                         map_id.eq(body.map),
                         masterpass.eq(body.masterpass),
                         private.eq(body.private > 0),
