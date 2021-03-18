@@ -477,6 +477,7 @@ th.rotate > div > span {
 	color: inherit;
 	display: flex;
 	flex-direction: column;
+	font-weight: bold;
 }
 
 input[type="checkbox"].bg-selector,input[type="radio"].bg-selector {
