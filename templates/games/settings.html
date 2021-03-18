@@ -8,9 +8,9 @@
 		<div class="select-sort">
 			{% for map in maps %}
 			<input class="bg-selector" {% if map.id==settings.map %} checked="checked" {% endif %} name="map"
-																																														 id="map-{{map.id}}" type="radio" value="{{map.id}}" />
+				id="map-{{map.id}}" type="radio" value="{{map.id}}" />
 			<div {% if !map.name.contains(settings.mapfilter) %} hidden {% endif %} class="bg-selector"
-																																							style="background-image: url('/images/maps/{{map.id}}.jpg')">
+				style="background-image: url('/images/maps/{{map.id}}.jpg')">
 				<label for="map-{{map.id}}"> {{map.name}} ({{map.province_count}}+{{map.uw_count}})</label>
 				<a class="btn" href="/map/{{map.id}}">Goto</a>
 			</div>
@@ -25,7 +25,7 @@
 		<div class="settings-group">
 			{% for cmod in mods %}
 			<input class="bg-selector" {% if settings.cmods.contains(cmod.id) %} checked="checked" {% endif %} name="cmods[]"
-																																																				 id="mod-{{cmod.id}}" type="checkbox" value="{{cmod.id}}" />
+				id="mod-{{cmod.id}}" type="checkbox" value="{{cmod.id}}" />
 			<div {% if !cmod.name.contains(settings.modfilter) %} hidden {% endif %} class="bg-selector">
 				<label for="mod-{{cmod.id}}">{{cmod.name }}</label>
 				<a class="btn" href="/mod/{{cmod.id}}">Goto</a>
@@ -119,7 +119,7 @@
 			<div class="input-group">
 				<label for="throne_points_required">Throne Points Required</label>
 				<input id="throne_points_required" name="throne_points_required" value="{{settings.throne_points_required}}"
-																																				 type="number" />
+					type="number" />
 			</div>
 		</div>
 	</div>
@@ -238,6 +238,13 @@
 			<div class="input-group">
 				<label for="masterpass">Master Password</label>
 				<input type="password" name="masterpass" value="{% if game.masterpass.is_some() %}password{% endif %}" />
+			</div>
+			<div class="input-group">
+				<label for="private">Visibility</label>
+				<select name="private">
+					<option {% if settings.private==0 %} selected="selected" {% endif %} value="0">Public</option>
+					<option {% if settings.private==1 %} selected="selected" {% endif %} value="1">Unlisted</option>
+				</select>
 			</div>
 		</div>
 	</div>

@@ -51,6 +51,7 @@ pub struct Game {
     pub password: String,
     pub archived: bool,
     pub masterpass: Option<String>,
+    pub private: bool,
 }
 
 #[derive(QueryableByName)]
@@ -62,6 +63,13 @@ struct GameNationCount {
 }
 
 impl Game {
+    pub fn get_public<D>(db: &D) -> Result<Vec<Game>, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::games::dsl as games_dsl;
+        games_dsl::games.filter(games_dsl::private.eq(false)).get_results(db)
+    }
     pub fn get_mods<D>(&self, db: &D) -> Result<Vec<Mod>, diesel::result::Error>
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
@@ -283,7 +291,7 @@ pub struct NewGame {
     pub newailvl: i32,
     pub newai: bool,
     pub password: String,
-    pub masterpass: Option<String>
+    pub masterpass: Option<String>,
 }
 impl Default for NewGame {
     fn default() -> Self {

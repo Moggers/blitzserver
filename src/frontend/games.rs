@@ -3,8 +3,8 @@ use super::AppData;
 use crate::diesel::prelude::*;
 
 use crate::models::{
-    AdminLog, Disciple, EmailConfig, Game, GameLogLite, GameMod, Map, Mod, Nation, NewGame,
-    NewGameMod, Player, PlayerTurn, Turn,
+    AdminLog, Disciple, EmailConfig, Game, GameLogLite, Map, Mod, Nation, NewGame, NewGameMod,
+    Player, PlayerTurn, Turn,
 };
 use crate::msgbus::{
     CreateGameMsg, EraChangedMsg, GameArchivedMsg, GameScheduleMsg, MapChangedMsg, ModsChangedMsg,
@@ -111,6 +111,8 @@ struct GameSettings {
     #[serde(default)]
     modfilter: String,
     masterpass: Option<String>,
+    #[serde(default)]
+    private: i32,
     // Marker to tell whether the form is on its first load
     loaded: Option<String>,
 }
@@ -149,6 +151,7 @@ impl From<(&Game, &[Mod])> for GameSettings {
             cmods: mods.iter().map(|m| m.id).collect(),
             masterpass: game.masterpass.clone(),
             loaded: None,
+            private: game.private as i32,
         }
     }
 }
@@ -736,7 +739,7 @@ async fn list(app_data: web::Data<AppData>) -> Result<HttpResponse> {
 
     // Create game
     use crate::schema::games::dsl::games;
-    let mut results = games.load::<Game>(&db).expect("Error loading games");
+    let mut results = Game::get_public(&db).unwrap();
     let player_counts = crate::models::Game::get_player_count(
         results.iter().map(|g| g.id).collect::<Vec<i32>>(),
         &db,
@@ -853,6 +856,7 @@ async fn settings_post(
                         newai.eq(body.newai > 0),
                         map_id.eq(body.map),
                         masterpass.eq(body.masterpass),
+                        private.eq(body.private > 0),
                     ))
                     .get_result(&db)?
             };
@@ -1023,7 +1027,6 @@ pub async fn remove_post(
             .finish());
     }
     let db = app_data.pool.get().expect("Unable to connect to database");
-    use crate::schema::players::dsl as players_dsl;
     let turns = crate::models::Turn::current_turn(&vec![path_id], &db);
     // Check if there were no turns found for the vector of games containing only our game, *not*
     // that there were zero games for just ours, this is not a logic error, though it looks odd.

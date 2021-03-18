@@ -96,6 +96,7 @@ table! {
         password -> Varchar,
         archived -> Bool,
         masterpass -> Nullable<Varchar>,
+        private -> Bool,
     }
 }
 
