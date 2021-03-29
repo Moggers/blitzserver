@@ -469,16 +469,20 @@ async fn postpone(
             .get_result::<Game>(&db)
             .unwrap()
     };
-    {
-        use crate::schema::games::dsl::*;
-        diesel::update(games.filter(id.eq(game.id)))
-            .set((next_turn
-                .eq(Some(std::time::SystemTime::now().add(
-                    std::time::Duration::from_secs(60 * timer_form.timer as u64),
-                ))),))
-            .execute(&db)
-            .unwrap();
-    }
+    let sched = std::time::SystemTime::now()
+        .add(std::time::Duration::from_secs(60 * timer_form.timer as u64));
+    use crate::schema::games::dsl::*;
+    diesel::update(games.filter(id.eq(game.id)))
+        .set(next_turn.eq(Some(sched)))
+        .execute(&db)
+        .unwrap();
+    app_data
+        .msgbus_sender
+        .send(Msg::GameSchedule(GameScheduleMsg {
+            game_id: game.id,
+            schedule: sched,
+        }))
+        .unwrap();
     Ok(HttpResponse::Found()
         .header(header::LOCATION, format!("/game/{}/schedule", game.id))
         .finish())
@@ -594,9 +598,7 @@ async fn details(
                     .get_results(&db)
                     .unwrap()
             } else {
-                maps.filter(id.eq(game.map_id))
-                    .get_results(&db)
-                    .unwrap()
+                maps.filter(id.eq(game.map_id)).get_results(&db).unwrap()
             }
         },
         {

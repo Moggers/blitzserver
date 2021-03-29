@@ -81,7 +81,6 @@ impl Dom5Emu {
             unk3: 0,
             milliseconds_to_host: next_turn,
             unk4: 0,
-            turn_statuses: turn_statuses,
             conn_statuses: connlist.iter().fold(
                 std::collections::HashMap::new(),
                 |mut acc, (key, cur)| {
@@ -91,13 +90,22 @@ impl Dom5Emu {
                     acc
                 },
             ),
-            nation_statuses: players.iter().fold(
-                std::collections::HashMap::new(),
-                |mut accumulator, current| {
-                    accumulator.insert(current.nationid, 1);
-                    accumulator
-                },
-            ),
+            nation_statuses: if let Ok(_) = &turn {
+                turn_statuses
+                    .iter()
+                    .fold(std::collections::HashMap::new(), |mut acc, (k, _)| {
+                        acc.insert(*k, 1);
+                        acc
+                    })
+            } else {
+                players.iter().fold(
+                    std::collections::HashMap::new(),
+                    |mut accumulator, current| {
+                        accumulator.insert(current.nationid, 1);
+                        accumulator
+                    },
+                )
+            },
             nation_teams: discs.iter().fold(
                 std::collections::HashMap::new(),
                 |mut acc, current| {
@@ -114,6 +122,7 @@ impl Dom5Emu {
                     acc
                 },
             ),
+            turn_statuses: turn_statuses,
             remaining: vec![],
             turn_number: match &turn {
                 Err(_) => 0,
