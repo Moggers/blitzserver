@@ -18,6 +18,18 @@ table! {
 }
 
 table! {
+    discord_configs (id) {
+        id -> Int4,
+        game_id -> Int4,
+        last_turn_notified -> Nullable<Int4>,
+        discord_guildid -> Varchar,
+        discord_channelid -> Varchar,
+        message -> Varchar,
+        hours_remaining -> Nullable<Int4>,
+    }
+}
+
+table! {
     email_configs (id) {
         id -> Int4,
         nation_id -> Int4,
@@ -175,6 +187,7 @@ joinable!(turns -> files (file_id));
 allow_tables_to_appear_in_same_query!(
     admin_logs,
     disciples,
+    discord_configs,
     email_configs,
     files,
     game_logs,

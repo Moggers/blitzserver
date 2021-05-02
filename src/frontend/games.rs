@@ -368,9 +368,9 @@ impl<'a> GameDetailsTemplate<'a> {
             .find(|e| e.id == *id)
             .map_or("", |e| {
                 &self
-                    .players
+                    .nations
                     .iter()
-                    .find(|p| p.id == e.nation_id)
+                    .find(|n| n.nation_id== e.nation_id)
                     .unwrap()
                     .name
             })
@@ -746,7 +746,6 @@ async fn list(app_data: web::Data<AppData>) -> Result<HttpResponse> {
     let db = app_data.pool.get().expect("Unable to connect to database");
 
     // Create game
-    use crate::schema::games::dsl::games;
     let mut results = Game::get_public(&db).unwrap();
     let player_counts = crate::models::Game::get_player_count(
         results.iter().map(|g| g.id).collect::<Vec<i32>>(),
@@ -920,7 +919,7 @@ async fn settings_post(
 }
 #[post("/game/{id}/email")]
 async fn emails_post(
-    (app_data, bytes, web::Path(game_id)): (
+    (mut app_data, bytes, web::Path(game_id)): (
         web::Data<AppData>,
         actix_web::web::Bytes,
         web::Path<i32>,

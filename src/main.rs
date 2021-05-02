@@ -1,12 +1,15 @@
+#![feature(duration_constants)]
 #![feature(try_blocks)]
 #![feature(drain_filter)]
 #![feature(async_closure)]
 #![feature(type_alias_impl_trait)]
 #![feature(get_mut_unchecked)]
+#![feature(hash_drain_filter)]
 #[macro_use]
 extern crate num_enum;
 #[macro_use]
 extern crate diesel;
+extern crate base64;
 extern crate byteorder;
 extern crate crc;
 extern crate crossbeam_channel;
@@ -14,8 +17,12 @@ extern crate fletcher;
 extern crate image;
 extern crate num_derive;
 extern crate num_traits;
-extern crate zip;
+extern crate reqwest;
+extern crate serde_json;
 extern crate thiserror;
+extern crate tungstenite;
+extern crate url;
+extern crate zip;
 
 use self::diesel::prelude::*;
 use self::models::*;
@@ -29,6 +36,7 @@ use serde::Deserialize;
 use std::env;
 use std::io::Write;
 
+pub mod discord;
 pub mod dom5_emu;
 pub mod dom5_proc;
 pub mod email_manager;
@@ -97,11 +105,34 @@ async fn main() -> std::io::Result<()> {
         GameManager::new(cfg)
     };
 
+    let discord_manager = match discord::DiscordManager::new(bus.sender.clone(), pool.clone()) {
+        Ok(d) => {
+            match (
+                d.clone().monitor_bus(bus.new_recv()),
+                d.clone().monitor_discord(),
+            ) {
+                (Err(e), _) => {
+                    log::warn!("Discord integration disabled, {:?}", e);
+                    None
+                }
+                (_, Err(e)) => {
+                    log::warn!("Discord integration disabled, {:?}", e);
+                    None
+                }
+                _ => Some(d),
+            }
+        }
+        Err(e) => {
+            log::warn!("Discord integration disabled, {:?}", e);
+            None
+        }
+    };
     let app_data = AppData {
         msgbus_sender: bus.sender.clone(),
         pool: pool.clone(),
+        discord_manager: discord_manager,
         email_manager: crate::email_manager::EmailManager {
-            msgbus_recv: bus.new_recv(),
+            msgbus_tx: bus.sender.clone(),
             db_pool: pool.clone(),
             smtp_user: env::var("SMTP_USER").expect("SMTP_USER must be said to the SMTP user"),
             smtp_pass: env::var("SMTP_PASS").expect("SMTP_PASS must be said to the SMTP password"),
@@ -110,7 +141,15 @@ async fn main() -> std::io::Result<()> {
             hostname: env::var("HOSTNAME").expect("HOSTNAME must be set to accessible address"),
         },
     };
-    app_data.email_manager.monitor();
+    crate::email_manager::EmailManager {
+        msgbus_tx: bus.sender.clone(),
+        db_pool: pool.clone(),
+        smtp_user: env::var("SMTP_USER").expect("SMTP_USER must be said to the SMTP user"),
+        smtp_pass: env::var("SMTP_PASS").expect("SMTP_PASS must be said to the SMTP password"),
+        smtp_server: env::var("SMTP_SERVER").expect("SMTP_SERVER must be said to the SMTP server"),
+        hostname: env::var("HOSTNAME").expect("HOSTNAME must be set to accessible address"),
+    }
+    .monitor(bus.new_recv());
 
     std::thread::spawn(move || {
         manager.start();

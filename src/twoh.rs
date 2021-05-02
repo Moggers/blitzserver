@@ -122,7 +122,7 @@ impl TwoH {
             0 => {
                 let mut unk: [u8; 40] = [0; 40];
                 file.read_exact(&mut unk).unwrap();
-                let mut pretender_id = file.read_u16::<LittleEndian>().unwrap();
+                let pretender_id = file.read_u16::<LittleEndian>().unwrap();
                 let mut unk: [u8; 45] = [0; 45];
                 file.read_exact(&mut unk).unwrap();
                 let mut name = vec![];

@@ -2,7 +2,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
 #[cfg(test)]
 pub mod modfile_tests {
-    use crate::packets::{Body, BodyContents, ModFileReq, ModFileResp, Packet};
+    use crate::packets::{Body, BodyContents, ModFileResp, Packet};
     #[test]
     fn serialize_deserialize_resp() {
         let tga = include_bytes!("../../test_data/Muse_1.tga");

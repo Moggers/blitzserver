@@ -445,7 +445,7 @@ impl Dom5Emu {
                                             )
                                             .write_packet(&mut socket_send_clone);
                                         }
-                                        crate::packets::Body::PAReq(pkt) => {
+                                        crate::packets::Body::PAReq(_pkt) => {
                                             let db = pool_clone.get().unwrap();
                                             if Turn::get(game_id, &db).is_ok() {
                                                 PAResp {}.write_packet(&mut socket_send_clone);

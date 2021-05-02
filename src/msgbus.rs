@@ -13,6 +13,10 @@ pub enum Msg {
     ModsChanged(ModsChangedMsg),
     EraChanged(EraChangedMsg),
     GameArchived(GameArchivedMsg),
+    EmailConfigCreated(EmailConfigCreatedMsg),
+    EmailConfigDeleted(EmailConfigDeletedMsg),
+    DiscordConfigCreated(DiscordConfigCreatedMsg),
+    DiscordConfigDeleted(DiscordConfigDeletedMsg),
 }
 
 #[derive(Clone)]
@@ -66,9 +70,28 @@ pub struct ModsChangedMsg {
 }
 
 #[derive(Clone)]
+pub struct EmailConfigCreatedMsg {
+    pub id: i32,
+}
+
+#[derive(Clone)]
+pub struct EmailConfigDeletedMsg {
+    pub id: i32,
+}
+
+#[derive(Clone)]
+pub struct DiscordConfigCreatedMsg {
+    pub id: i32,
+}
+#[derive(Clone)]
+pub struct DiscordConfigDeletedMsg {
+    pub id: i32,
+}
+
+#[derive(Clone)]
 pub struct EraChangedMsg {
     pub game_id: i32,
-    pub new_era: i32
+    pub new_era: i32,
 }
 
 #[derive(Clone)]
@@ -152,7 +175,12 @@ impl MsgBusRx {
         &self,
         timeout: std::time::Duration,
     ) -> Result<Msg, crossbeam_channel::RecvTimeoutError> {
-        self.rx.recv_timeout(timeout)
+        if timeout == std::time::Duration::from_nanos(0) {
+            self.rx
+                .recv_timeout(std::time::Duration::from_secs(999_999_999))
+        } else {
+            self.rx.recv_timeout(timeout)
+        }
     }
 }
 

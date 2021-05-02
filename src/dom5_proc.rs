@@ -7,8 +7,6 @@ use super::models::{
     File, Game, GameMod, Map, Mod, Nation, NewFile, NewGameLog, NewNation, NewPlayerTurn, Player,
     PlayerTurn, Turn,
 };
-use diesel::r2d2::ConnectionManager;
-use diesel::PgConnection;
 
 use std::io::Write;
 
@@ -54,11 +52,10 @@ pub struct Dom5Proc {
     datadir: std::path::PathBuf,
     pub savedir: std::path::PathBuf,
     pub game_id: i32,
-    pub db_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
 }
 
 impl Dom5Proc {
-    pub fn new(game: Game, db_pool: r2d2::Pool<ConnectionManager<PgConnection>>) -> Self {
+    pub fn new(game: Game) -> Self {
         Self {
             savedir: std::env::current_dir()
                 .unwrap()
@@ -75,7 +72,6 @@ impl Dom5Proc {
             name: game.name,
             era: game.era,
             game_id: game.id,
-            db_pool,
         }
     }
 
@@ -91,23 +87,24 @@ impl Dom5Proc {
         None
     }
 
-    pub fn update_nations(&self) {
+    pub fn update_nations<D>(&self, db: &D)
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
         let mut arguments = {
-            let db = self.db_pool.get().expect("Unable to connect to database");
             let mods: Vec<(GameMod, Mod)> = crate::schema::game_mods::dsl::game_mods
                 .filter(crate::schema::game_mods::dsl::game_id.eq(self.game_id))
                 .inner_join(
                     crate::schema::mods::dsl::mods
                         .on(crate::schema::mods::dsl::id.eq(crate::schema::game_mods::dsl::mod_id)),
                 )
-                .get_results::<(GameMod, Mod)>(&db)
+                .get_results::<(GameMod, Mod)>(db)
                 .unwrap();
             mods.iter()
                 .flat_map(|(_, m)| vec![String::from("-M"), m.dm_filename.clone()])
                 .collect::<Vec<String>>()
         };
-        let db = self.db_pool.get().expect("Unable to connect to database");
-        let game = Game::get(self.game_id, &db).unwrap();
+        let game = Game::get(self.game_id, db).unwrap();
         arguments.append(&mut vec![
             "--statusdump".to_string(),
             "--port".to_string(),
@@ -124,7 +121,6 @@ impl Dom5Proc {
             Err(e) => panic!(e),
             Ok(_) => {}
         }
-        drop(db);
         let mut proc = std::process::Command::new(std::path::PathBuf::from(
             std::env::var("DOM5_BIN")
                 .expect("DOM5_BIN not specified")
@@ -160,7 +156,6 @@ impl Dom5Proc {
         )
         .unwrap();
         if let Some(mut statusdump) = statusdump {
-            let db = self.db_pool.get().unwrap();
             let mut contents = vec![];
             statusdump.read_to_end(&mut contents).unwrap();
             let statusdump_str = String::from_utf8_lossy(&contents);
@@ -177,36 +172,40 @@ impl Dom5Proc {
                         epithet: result.get(4).unwrap().as_str().to_owned(),
                     }
                 })
-                .map(|n| n.insert(&db).unwrap())
+                .map(|n| n.insert(db).unwrap())
                 .collect();
         }
         proc.kill().unwrap();
         proc.wait().unwrap();
     }
-    fn handle_new_turn(&self) {
-        let db = self.db_pool.get().unwrap();
+    fn handle_new_turn<D>(&self, db: &D)
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
         let ftherlnd = if let Some(file) = TwoH::read_file(&self.savedir.join("ftherlnd")) {
             file
         } else {
             return;
         };
-        let new_file: File = NewFile::new("ftherlnd", &ftherlnd.file_contents).insert(&db);
+        let new_file: File = NewFile::new("ftherlnd", &ftherlnd.file_contents).insert(db);
         let _inserted = crate::models::NewTurn {
             game_id: self.game_id,
             turn_number: ftherlnd.turnnumber,
             file_id: new_file.id,
         }
-        .insert(&db)
+        .insert(db)
         .unwrap();
     }
-    fn populate_savegame(&self) {
+    fn populate_savegame<D>(&self, db: &D)
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
         if std::path::PathBuf::from(&self.savedir).exists() {
             std::fs::remove_dir_all(&self.savedir).unwrap();
             std::fs::create_dir_all(&self.savedir).unwrap();
         } else {
             std::fs::create_dir_all(&self.savedir).unwrap();
         }
-        let db = self.db_pool.get().unwrap();
         let latest_turn: Vec<(Turn, File)> = {
             use super::schema::turns::dsl::*;
             turns
@@ -216,7 +215,7 @@ impl Dom5Proc {
                     super::schema::files::dsl::files.on(super::schema::files::dsl::id.eq(file_id)),
                 )
                 .limit(1)
-                .get_results(&db)
+                .get_results(db)
                 .unwrap()
         };
         if latest_turn.len() == 0 {
@@ -228,7 +227,7 @@ impl Dom5Proc {
                         super::schema::files::dsl::files
                             .on(super::schema::files::dsl::id.eq(file_id)),
                     )
-                    .get_results(&db)
+                    .get_results(db)
                     .unwrap()
             };
 
@@ -254,7 +253,7 @@ impl Dom5Proc {
                         super::schema::files::dsl::files
                             .on(super::schema::files::dsl::id.eq(trnfile_id)),
                     )
-                    .get_results::<(PlayerTurn, File)>(&db)
+                    .get_results::<(PlayerTurn, File)>(db)
                     .unwrap()
                     .iter()
                 {
@@ -264,7 +263,7 @@ impl Dom5Proc {
                     if let Some(twohid) = player_turn.twohfile_id {
                         let twohfile: File = super::schema::files::dsl::files
                             .filter(super::schema::files::dsl::id.eq(twohid))
-                            .get_result(&db)
+                            .get_result(db)
                             .unwrap();
                         let mut os_file =
                             std::fs::File::create(&self.savedir.join(&twohfile.filename)).unwrap();
@@ -274,8 +273,10 @@ impl Dom5Proc {
             }
         }
     }
-    pub fn populate_mods(&mut self) {
-        let db = self.db_pool.get().unwrap();
+    pub fn populate_mods<D>(&mut self, db: &D)
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
         let mods: Vec<(GameMod, Mod, File)> = crate::schema::game_mods::dsl::game_mods
             .filter(crate::schema::game_mods::dsl::game_id.eq(self.game_id))
             .inner_join(
@@ -286,7 +287,7 @@ impl Dom5Proc {
                 crate::schema::files::dsl::files
                     .on(crate::schema::mods::dsl::file_id.eq(crate::schema::files::dsl::id)),
             )
-            .get_results::<(GameMod, Mod, File)>(&db)
+            .get_results::<(GameMod, Mod, File)>(db)
             .unwrap();
         let mod_dir = std::path::PathBuf::from(&self.datadir).join("mods");
         if !mod_dir.exists() {
@@ -314,8 +315,10 @@ impl Dom5Proc {
         }
     }
 
-    fn handle_trn_update(&mut self, path: &std::path::PathBuf) {
-        let db = self.db_pool.get().unwrap();
+    fn handle_trn_update<D>(&mut self, path: &std::path::PathBuf, db: &D)
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
         let trn = if let Some(file) = TwoH::read_file(&path) {
             file
         } else {
@@ -325,7 +328,7 @@ impl Dom5Proc {
             path.file_name().unwrap().to_str().unwrap(),
             &trn.file_contents,
         )
-        .insert(&db);
+        .insert(db);
 
         (NewPlayerTurn {
             trnfile_id: file.id,
@@ -333,30 +336,31 @@ impl Dom5Proc {
             game_id: self.game_id,
             turn_number: trn.turnnumber,
         })
-        .insert(&db)
+        .insert(db)
         .unwrap();
     }
 
-    pub fn host_turn(mut self) {
-        self.update_nations();
-        self.populate_savegame();
-        self.populate_mods();
-        self.populate_maps();
+    pub fn host_turn<D>(mut self, db: &D)
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        self.update_nations(db);
+        self.populate_savegame(db);
+        self.populate_mods(db);
+        self.populate_maps(db);
         let mut arguments = {
-            let db = self.db_pool.get().expect("Unable to connect to database");
             let mods: Vec<(GameMod, Mod)> = crate::schema::game_mods::dsl::game_mods
                 .filter(crate::schema::game_mods::dsl::game_id.eq(self.game_id))
                 .inner_join(
                     crate::schema::mods::dsl::mods
                         .on(crate::schema::mods::dsl::id.eq(crate::schema::game_mods::dsl::mod_id)),
                 )
-                .get_results::<(GameMod, Mod)>(&db)
+                .get_results::<(GameMod, Mod)>(db)
                 .unwrap();
             mods.iter()
                 .flat_map(|(_, m)| vec![String::from("-M"), m.dm_filename.clone()])
                 .collect::<Vec<String>>()
         };
-        let db = self.db_pool.get().expect("Unable to connect to database");
         use crate::schema::files::dsl as files_dsl;
         use crate::schema::games::dsl as games_dsl;
         use crate::schema::maps::dsl as maps_dsl;
@@ -364,9 +368,9 @@ impl Dom5Proc {
             .filter(games_dsl::id.eq(self.game_id))
             .inner_join(maps_dsl::maps.on(maps_dsl::id.eq(games_dsl::map_id)))
             .inner_join(files_dsl::files.on(files_dsl::id.eq(maps_dsl::mapfile_id)))
-            .get_result::<(Game, Map, File)>(&db)
+            .get_result::<(Game, Map, File)>(db)
             .unwrap();
-        let disciples = crate::models::Disciple::get_all(self.game_id, &db).unwrap();
+        let disciples = crate::models::Disciple::get_all(self.game_id, db).unwrap();
         arguments.append(disciples.into_iter().fold(&mut Vec::new(), |acc, d| {
             acc.append(&mut vec![
                 "--team".to_string(),
@@ -454,7 +458,7 @@ impl Dom5Proc {
                     .eq(game.id)
                     .and(turns_dsl::archived.eq(false)),
             )
-            .get_results(&db)
+            .get_results(db)
             .unwrap();
         if turns.len() == 0 {
             arguments.append(&mut vec!["--newgame".to_string()]);
@@ -488,15 +492,15 @@ impl Dom5Proc {
             output: &output,
             error: &error,
         }
-        .insert(&db)
+        .insert(db)
         .unwrap();
-        self.handle_new_turn();
+        self.handle_new_turn(db);
         for entry in std::fs::read_dir(&self.savedir).unwrap() {
             if let Ok(entry) = entry {
                 let file_name = std::path::PathBuf::from(entry.file_name());
                 match file_name.extension().and_then(std::ffi::OsStr::to_str) {
                     Some("trn") => {
-                        self.handle_trn_update(&self.savedir.join(&file_name.to_path_buf()))
+                        self.handle_trn_update(&self.savedir.join(&file_name.to_path_buf()), db)
                     }
                     _ => {}
                 }
@@ -507,25 +511,27 @@ impl Dom5Proc {
                 game.schedule_turn(
                     std::time::SystemTime::now()
                         .add(std::time::Duration::from_secs((60 * timer) as u64)),
-                    &db,
+                    db,
                 )
                 .unwrap();
             }
             None => {
-                game.remove_timer(&db).unwrap();
+                game.remove_timer(db).unwrap();
             }
         }
     }
 
-    pub fn populate_maps(&mut self) {
+    pub fn populate_maps<D>(&mut self, db: &D)
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
         std::fs::create_dir_all(&std::path::PathBuf::from(&self.datadir).join("maps")).unwrap();
-        let db = self.db_pool.get().expect("Unable to connect to database");
         let (_, map): (Game, Map) = {
             use super::schema::maps::dsl::*;
             super::schema::games::dsl::games
                 .filter(super::schema::games::dsl::id.eq(self.game_id))
                 .inner_join(maps.on(id.eq(super::schema::games::dsl::map_id)))
-                .get_result(&db)
+                .get_result(db)
                 .unwrap()
         };
         let (mapfile, tgafile, winterfile) = {
@@ -533,14 +539,14 @@ impl Dom5Proc {
             (
                 files
                     .filter(id.eq(map.mapfile_id))
-                    .get_result::<File>(&db)
+                    .get_result::<File>(db)
                     .unwrap(),
                 files
                     .filter(id.eq(map.tgafile_id))
-                    .get_result::<File>(&db)
+                    .get_result::<File>(db)
                     .unwrap(),
                 map.winterfile_id.map_or(None, |wfid| {
-                    Some(files.filter(id.eq(wfid)).get_result::<File>(&db).unwrap())
+                    Some(files.filter(id.eq(wfid)).get_result::<File>(db).unwrap())
                 }),
             )
         };

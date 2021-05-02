@@ -36,3 +36,8 @@ thiserror = "*"
 chrono = "*"
 crc = "*"
 fletcher = "*"
+reqwest = { version = "*", features = ["blocking", "json"] }
+base64 = "*"
+tungstenite = "*"
+url = "*"
+serde_json = "*"

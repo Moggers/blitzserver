@@ -1,7 +1,8 @@
 use super::schema::{
-    admin_logs, disciples, email_configs, files, game_logs, game_mods, games, maps, mods, nations,
-    player_turns, players, turns,
+    admin_logs, disciples, discord_configs, email_configs, files, game_logs, game_mods, games,
+    maps, mods, nations, player_turns, players, turns,
 };
+use crate::diesel::OptionalExtension;
 use crate::diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl};
 use crate::diesel::{JoinOnDsl, RunQueryDsl};
 use serde::Deserialize;
@@ -14,7 +15,8 @@ impl Era {
     pub const LATE: i32 = 3;
 }
 
-#[derive(Identifiable, Debug, Queryable)]
+#[derive(QueryableByName, Identifiable, Debug, Queryable)]
+#[table_name = "games"]
 pub struct Game {
     pub id: i32,
     pub name: String,
@@ -62,12 +64,50 @@ struct GameNationCount {
 }
 
 impl Game {
+    pub fn get_next_wakeup<D>(
+        db: &D,
+    ) -> Result<Option<std::time::SystemTime>, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::games::dsl as games_dsl;
+        games_dsl::games
+            .select(games_dsl::next_turn)
+            .filter(
+                diesel::dsl::not(games_dsl::next_turn.is_null()).and(games_dsl::archived.eq(false)),
+            )
+            .order(games_dsl::next_turn.asc())
+            .limit(1)
+            .get_result(db)
+    }
+    pub fn get_due_games<D>(db: &D) -> Result<Vec<Game>, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        diesel::sql_query(
+            "SELECT g.*
+            FROM games g
+            WHERE g.archived = FALSE AND g.next_turn IS NOT NULL AND g.next_turn <= NOW()",
+        )
+        .get_results(db)
+    }
+    pub fn get_by_name<D>(name: &str, db: &D) -> Result<Game, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::games::dsl as games_dsl;
+        games_dsl::games
+            .filter(games_dsl::name.eq(name).and(games_dsl::archived.eq(false)))
+            .get_result(db)
+    }
     pub fn get_public<D>(db: &D) -> Result<Vec<Game>, diesel::result::Error>
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
         use crate::schema::games::dsl as games_dsl;
-        games_dsl::games.filter(games_dsl::private.eq(false)).get_results(db)
+        games_dsl::games
+            .filter(games_dsl::private.eq(false))
+            .get_results(db)
     }
     pub fn get_mods<D>(&self, db: &D) -> Result<Vec<Mod>, diesel::result::Error>
     where
@@ -887,6 +927,12 @@ pub struct GameMod {
     pub mod_id: i32,
 }
 
+#[derive(QueryableByName, Debug)]
+pub struct Wakeup {
+    #[sql_type = "diesel::sql_types::Timestamp"]
+    pub timestamp: std::time::SystemTime,
+}
+
 #[derive(QueryableByName, Debug, Identifiable, Queryable)]
 #[table_name = "email_configs"]
 pub struct EmailConfig {
@@ -901,6 +947,116 @@ pub struct EmailConfig {
     pub is_reminder: bool,
 }
 
+impl EmailConfig {
+    pub fn get_reminder_wakeup<D>(
+        db: &D,
+    ) -> Result<Option<std::time::SystemTime>, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        Ok(diesel::sql_query(
+            r#"
+SELECT g.next_turn - interval '1' hour * ec.hours_before_host as timestamp
+FROM email_configs ec
+LEFT JOIN (SELECT game_id,MAX(turn_number) as turn_number FROM turns WHERE archived = false GROUP BY game_id) t
+    ON t.game_id=ec.game_id
+INNER JOIN games g ON g.id=t.game_id AND g.archived = FALSE
+LEFT OUTER JOIN (SELECT nation_id, game_id, MAX(turn_number) as turn_number FROM player_turns pt WHERE archived = false AND twohfile_id IS NOT NULL GROUP BY game_id,nation_id) pt
+    ON pt.game_id=ec.game_id AND pt.turn_number = t.turn_number AND pt.nation_id = ec.nation_id
+WHERE
+    (ec.last_turn_notified IS NULL OR t.turn_number != ec.last_turn_notified)
+    AND g.next_turn IS NOT NULL
+    AND ec.is_reminder IS TRUE
+    AND t.turn_number IS NOT NULL
+ORDER BY timestamp DESC
+LIMIT 1
+        "#,
+        )
+        .get_result::<Wakeup>(db)
+        .optional()?
+        .and_then(|w| Some(w.timestamp)))
+    }
+    pub fn mark_sent<D>(&self, turn: i32, db: &D) -> Result<EmailConfig, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::email_configs::dsl as email_dsl;
+        diesel::update(email_dsl::email_configs.filter(email_dsl::id.eq(self.id)))
+            .set(email_dsl::last_turn_notified.eq(turn))
+            .get_result(db)
+    }
+    pub fn get_due_reminders<D>(db: &D) -> Result<Vec<EmailConfig>, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        // Fetch all email_configs which are reminder types attached to games which have at least
+        // one turn, whose attached nation has not submitted orders for the current turn and the
+        // timer has come to pass
+        diesel::sql_query(r#"
+SELECT ec.*
+FROM email_configs ec
+LEFT JOIN (SELECT game_id,MAX(turn_number) as turn_number FROM turns WHERE archived = false GROUP BY game_id) t
+    ON t.game_id=ec.game_id
+INNER JOIN games g ON g.id=t.game_id AND g.archived = FALSE
+LEFT OUTER JOIN (SELECT nation_id, game_id, MAX(turn_number) as turn_number FROM player_turns pt WHERE archived = false AND twohfile_id IS NOT NULL GROUP BY game_id,nation_id) pt
+    ON pt.game_id=ec.game_id AND pt.turn_number = t.turn_number AND pt.nation_id = ec.nation_id
+WHERE
+    (ec.last_turn_notified IS NULL OR t.turn_number != ec.last_turn_notified)
+    AND g.next_turn IS NOT NULL
+    AND g.next_turn - interval '1' hour * ec.hours_before_host < NOW()
+    AND ec.is_reminder IS TRUE
+    AND t.turn_number IS NOT NULL
+    "#).load(db)
+    }
+
+    pub fn delete<D>(id: i32, email_address: String, db: &D) -> Result<usize, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::email_configs::dsl as emails_dsl;
+        diesel::delete(emails_dsl::email_configs)
+            .filter(
+                emails_dsl::email_address
+                    .eq(email_address)
+                    .and(emails_dsl::id.eq(id)),
+            )
+            .execute(db)
+    }
+
+    pub fn get_notifications<D>(
+        game_id: i32,
+        db: &D,
+    ) -> Result<Vec<EmailConfig>, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::email_configs::dsl as emails_dsl;
+        emails_dsl::email_configs
+            .filter(emails_dsl::game_id.eq(game_id))
+            .get_results(db)
+    }
+    pub fn get_due_notifications<D>(db: &D) -> Result<Vec<EmailConfig>, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        diesel::sql_query("\
+SELECT ec.*
+FROM email_configs ec
+LEFT JOIN (SELECT game_id,MAX(turn_number) as turn_number FROM turns WHERE archived = false GROUP BY game_id) t
+    ON t.game_id=ec.game_id
+INNER JOIN games g ON g.id=t.game_id AND g.archived = FALSE
+LEFT OUTER JOIN (SELECT nation_id, game_id, MAX(turn_number) as turn_number FROM player_turns pt WHERE archived = false AND twohfile_id IS NOT NULL GROUP BY game_id,nation_id) pt
+    ON pt.game_id=ec.game_id AND pt.turn_number = t.turn_number AND pt.nation_id = ec.nation_id
+WHERE
+    (ec.last_turn_notified IS NULL OR t.turn_number != ec.last_turn_notified)
+    AND t.turn_number IS NOT NULL 
+    AND g.next_turn IS NOT NULL
+    AND ec.is_reminder = FALSE
+    AND (ec.last_turn_notified IS NULL OR ec.last_turn_notified != t.turn_number)
+    ").load(db)
+    }
+}
+
 #[derive(Insertable)]
 #[table_name = "email_configs"]
 pub struct NewEmailConfig {
@@ -911,6 +1067,18 @@ pub struct NewEmailConfig {
     pub subject: String,
     pub body: String,
     pub is_reminder: bool,
+}
+
+impl NewEmailConfig {
+    pub fn insert<D>(self, db: &D) -> Result<EmailConfig, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::models::email_configs::dsl as emails_dsl;
+        diesel::insert_into(emails_dsl::email_configs)
+            .values(self)
+            .get_result(db)
+    }
 }
 
 #[derive(Queryable, Debug, Identifiable)]
@@ -1133,7 +1301,6 @@ impl GameLogLite {
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
-        use crate::schema::admin_logs::dsl as al_dsl;
         NewAdminLog {
             game_id: self.game_id,
             datetime: std::time::SystemTime::now(),
@@ -1221,5 +1388,148 @@ impl NewAdminLog {
         diesel::insert_into(al_dsl::admin_logs)
             .values(self)
             .execute(db)
+    }
+}
+
+#[derive(QueryableByName, Queryable, Debug, Identifiable)]
+#[table_name = "discord_configs"]
+pub struct DiscordConfig {
+    pub id: i32,
+    pub game_id: i32,
+    pub last_turn_notified: Option<i32>,
+    pub discord_guildid: String,
+    pub discord_channelid: String,
+    pub message: String,
+    pub hours_remaining: Option<i32>,
+}
+
+impl DiscordConfig {
+    pub fn get_due_reminders<D>(db: &D) -> Result<Vec<DiscordConfig>, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        diesel::sql_query(r#"
+SELECT dc.*
+FROM discord_configs dc
+LEFT JOIN (SELECT game_id,MAX(turn_number) as turn_number FROM turns WHERE archived = false GROUP BY game_id) t
+    ON t.game_id=dc.game_id
+INNER JOIN games g ON g.id=t.game_id AND g.archived = FALSE
+WHERE
+    (dc.last_turn_notified IS NULL OR t.turn_number != dc.last_turn_notified)
+    AND g.next_turn IS NOT NULL
+    AND g.next_turn - interval '1' hour * dc.hours_remaining < NOW()
+    AND dc.hours_remaining IS NOT NULL
+    AND t.turn_number IS NOT NULL
+    "#).load(db)
+    }
+    pub fn get_due_notifications<D>(db: &D) -> Result<Vec<DiscordConfig>, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        diesel::sql_query(r#"
+SELECT dc.*
+FROM discord_configs dc
+LEFT JOIN (SELECT game_id,MAX(turn_number) as turn_number FROM turns WHERE archived = false GROUP BY game_id) t
+    ON t.game_id=dc.game_id
+INNER JOIN games g ON g.id=t.game_id AND g.archived = FALSE
+WHERE
+    (dc.last_turn_notified IS NULL OR t.turn_number != dc.last_turn_notified)
+    AND g.next_turn IS NOT NULL
+    AND dc.hours_remaining IS NULL
+    AND t.turn_number IS NOT NULL
+"#).get_results(db)
+    }
+    pub fn get_reminders_wakeup<D>(
+        db: &D,
+    ) -> Result<Option<std::time::SystemTime>, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        Ok(diesel::sql_query(
+            r#"
+SELECT g.next_turn - interval '1' hour * dc.hours_before_host as timestamp
+FROM discord_configs dc
+LEFT JOIN (SELECT game_id,MAX(turn_number) as turn_number FROM turns WHERE archived = false GROUP BY game_id) t
+    ON t.game_id=dc.game_id
+INNER JOIN games g ON g.id=t.game_id AND g.archived = FALSE
+WHERE
+    (dc.last_turn_notified IS NULL OR t.turn_number != dc.last_turn_notified)
+    AND g.next_turn IS NOT NULL
+    AND dc.hours_remaining IS NOT NULL
+    AND t.turn_number IS NOT NULL
+ORDER BY timestamp DESC
+LIMIT 1
+"#).get_result::<Wakeup>(db).optional()?
+        .and_then(|w| Some(w.timestamp)))
+    }
+    pub fn get_notifications<D>(
+        game_id: i32,
+        db: &D,
+    ) -> Result<Vec<DiscordConfig>, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::discord_configs::dsl as d_dsl;
+        d_dsl::discord_configs
+            .filter(d_dsl::game_id.eq(game_id))
+            .get_results(db)
+    }
+
+    pub fn mark_sent<D>(&self, db: &D) -> Result<DiscordConfig, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        diesel::sql_query(
+            r#"
+UPDATE discord_configs dc
+SET last_turn_notified=(SELECT MAX(turn_number) FROM turns t WHERE t.game_id=dc.game_id)
+WHERE game_id = $1
+RETURNING *"#,
+        )
+        .bind::<diesel::sql_types::Integer, _>(self.game_id)
+        .get_result(db)
+    }
+}
+
+#[derive(Insertable)]
+#[table_name = "discord_configs"]
+pub struct NewDiscordReminder<'a> {
+    pub game_id: i32,
+    pub discord_guildid: &'a str,
+    pub discord_channelid: &'a str,
+    pub message: &'a str,
+    pub hours_remaining: i32,
+}
+
+#[derive(Insertable)]
+#[table_name = "discord_configs"]
+pub struct NewDiscordNotification<'a> {
+    pub game_id: i32,
+    pub discord_guildid: &'a str,
+    pub discord_channelid: &'a str,
+    pub message: &'a str,
+}
+
+impl<'a> NewDiscordNotification<'a> {
+    pub fn insert<D>(&self, db: &D) -> Result<DiscordConfig, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::discord_configs::dsl as d_dsl;
+        diesel::insert_into(d_dsl::discord_configs)
+            .values(self)
+            .get_result(db)
+    }
+}
+
+impl<'a> NewDiscordReminder<'a> {
+    pub fn insert<D>(&self, db: &D) -> Result<DiscordConfig, diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        use crate::schema::discord_configs::dsl as d_dsl;
+        diesel::insert_into(d_dsl::discord_configs)
+            .values(self)
+            .get_result(db)
     }
 }

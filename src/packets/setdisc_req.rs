@@ -1,4 +1,4 @@
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt};
 #[derive(Debug, Clone)]
 pub struct SetDiscReq {
     pub nation_id: u16,
@@ -16,5 +16,5 @@ impl SetDiscReq {
 
 impl crate::packets::BodyContents for SetDiscReq {
     const ID: u8 = 0x38;
-    fn write<W: std::io::Write>(&self, w: &mut W) {}
+    fn write<W: std::io::Write>(&self, _w: &mut W) {}
 }

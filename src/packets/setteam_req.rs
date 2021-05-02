@@ -1,4 +1,4 @@
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt};
 #[derive(Debug, Clone)]
 pub struct SetTeamReq {
     pub nation_id: u16,
@@ -16,5 +16,5 @@ impl SetTeamReq {
 
 impl crate::packets::BodyContents for SetTeamReq {
     const ID: u8 = 0x3a;
-    fn write<W: std::io::Write>(&self, w: &mut W) {}
+    fn write<W: std::io::Write>(&self, _w: &mut W) {}
 }
