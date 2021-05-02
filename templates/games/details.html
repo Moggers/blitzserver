@@ -5,18 +5,26 @@
 	<input name="tabset_1" {% if self.tab=="schedule" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-schedule" />
 	<input name="tabset_1" {% if self.tab=="settings" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-settings" />
 	<input name="tabset_1" {% if self.tab=="emails" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-emails" />
-	<input name="tabset_1" {% if self.tab=="logs" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-logs" />
 	<input name="tabset_1" {% if self.tab=="admin-logs" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-admin-logs" />
+	<!-- Admin Only -->
+	<input name="tabset_1" {% if self.tab=="logs" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-logs" />
+	<input name="tabset_1" {% if self.tab=="discord" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-discord" />
+	<!-- End Admin -->
 	<nav class="nav tabset_labels tabs css-tab-labels">
 		<h1>{{ game.name }}</h1>
 		<label href="#status" class="tab css-tab-label tab1" for="css-tab-status">status</label>
 		<label class="tab css-tab-label tab2" for="css-tab-schedule">schedule</label>
 		<label class="tab css-tab-label tab3" for="css-tab-settings">settings</label>
 		<label class="tab css-tab-label tab4" for="css-tab-emails">emails</label>
+		<label class="tab css-tab-label tab6" for="css-tab-admin-logs">admin logs</label>
+	<!-- Admin Only -->
 		{% if self.authed == AuthStatus::AuthSuccess %}
 			<label class="tab css-tab-label tab5" for="css-tab-logs">logs</label>
+			{% if self.discord_clientid.is_some() %}
+				<label class="tab css-tab-label tab6" for="css-tab-discord">discord</label>
+			{% endif %}
 		{% endif %}
-		<label class="tab css-tab-label tab6" for="css-tab-admin-logs">admin logs</label>
+	<!-- End Admin -->
 		<div class="auth-input">
 			<form action="/game/{{game.id}}/status" method="get">
 				<div class="input-group">
@@ -161,13 +169,20 @@
 			</fieldset>
 		</section>
 		<section class="tabsection">
+			{% include "admin-logs.html" %}
+		</section>
+		<!-- Admin Only -->
+		<section class="tabsection">
 		{% if self.authed == AuthStatus::AuthSuccess %}
 		{% include "logs.html" %}
 		{% endif %}
 		</section>
 		<section class="tabsection">
-			{% include "admin-logs.html" %}
+		{% if self.authed == AuthStatus::AuthSuccess && self.discord_clientid.is_some() %}
+		{% include "discord.html" %}
+		{% endif %}
 		</section>
+		<!-- End Admin -->
 	</div>
 </div>
 {% endblock %}

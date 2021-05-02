@@ -14,6 +14,7 @@ use url::Url;
 pub struct DiscordManager {
     bot_token: String,
     client: Option<reqwest::blocking::Client>,
+    pub client_id: String,
     db_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
     session_id: Option<String>,
     seq: Option<i32>,
@@ -166,7 +167,13 @@ impl DiscordManager {
             .to_str()
             .ok_or(DiscordManagerError::NoBotToken)?
             .to_owned();
+        let client_id = env::var_os("DISCORD_CLIENTID")
+            .ok_or(DiscordManagerError::NoClientId)?
+            .to_str()
+            .ok_or(DiscordManagerError::NoClientId)?
+            .to_owned();
         Ok(Self {
+            client_id,
             client: None,
             bot_token,
             db_pool,

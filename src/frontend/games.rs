@@ -247,6 +247,7 @@ struct GameDetailsTemplate<'a> {
     logs: Vec<GameLogLite>,
     focused_log: (i32, String),
     admin_logs: &'a Vec<AdminLog>,
+    discord_clientid: Option<String>,
 }
 impl<'a> GameDetailsTemplate<'a> {
     fn get_team_leaders(&self) -> Vec<(i32, PlayerSummary)> {
@@ -370,7 +371,7 @@ impl<'a> GameDetailsTemplate<'a> {
                 &self
                     .nations
                     .iter()
-                    .find(|n| n.nation_id== e.nation_id)
+                    .find(|n| n.nation_id == e.nation_id)
                     .unwrap()
                     .name
             })
@@ -663,6 +664,7 @@ async fn details(
             turns: player_turn_map,
             hostname: std::env::var("HOSTNAME").unwrap(),
             admin_logs: &admin_logs,
+            discord_clientid: app_data.discord_manager.as_ref().and_then(|d| Some(d.client_id.clone())),
         })
         .render()
         .unwrap(),
