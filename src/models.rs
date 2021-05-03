@@ -252,6 +252,7 @@ impl Game {
             .filter(
                 pt_dsl::game_id
                     .eq(self.id)
+                    .and(pt_dsl::status.eq(2))
                     .and(pt_dsl::turn_number.eq(turn.turn_number - 1)),
             )
             .set(pt_dsl::status.eq(1))
@@ -1482,7 +1483,7 @@ LIMIT 1
         diesel::sql_query(
             r#"
 UPDATE discord_configs dc
-SET last_turn_notified=(SELECT MAX(turn_number) FROM turns t WHERE t.game_id=dc.game_id)
+SET last_turn_notified=(SELECT MAX(turn_number) FROM turns t WHERE t.game_id=dc.game_id AND t.archived=FALSE)
 WHERE game_id = $1
 RETURNING *"#,
         )

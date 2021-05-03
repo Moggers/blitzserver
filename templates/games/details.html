@@ -16,12 +16,12 @@
 		<label class="tab css-tab-label tab2" for="css-tab-schedule">schedule</label>
 		<label class="tab css-tab-label tab3" for="css-tab-settings">settings</label>
 		<label class="tab css-tab-label tab4" for="css-tab-emails">emails</label>
-		<label class="tab css-tab-label tab6" for="css-tab-admin-logs">admin logs</label>
+		<label class="tab css-tab-label tab5" for="css-tab-admin-logs">admin logs</label>
 	<!-- Admin Only -->
 		{% if self.authed == AuthStatus::AuthSuccess %}
-			<label class="tab css-tab-label tab5" for="css-tab-logs">logs</label>
+			<label class="tab css-tab-label tab6" for="css-tab-logs">logs</label>
 			{% if self.discord_clientid.is_some() %}
-				<label class="tab css-tab-label tab6" for="css-tab-discord">discord</label>
+				<label class="tab css-tab-label tab7" for="css-tab-discord">discord</label>
 			{% endif %}
 		{% endif %}
 	<!-- End Admin -->
