@@ -279,7 +279,7 @@ impl DiscordManager {
         {
             let body = res.text().unwrap();
             let res: DiscordGuild = serde_json::from_str(&body).unwrap();
-            self.channel_cache
+            self.server_cache
                 .lock()
                 .unwrap()
                 .insert(server_id.to_string(), res.name.clone());
