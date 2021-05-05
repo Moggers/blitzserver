@@ -5,7 +5,9 @@ use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use serde::Deserialize;
 use serde_json::json;
+use std::collections::HashMap;
 use std::env;
+use std::sync::{Arc, Mutex};
 use thiserror::Error;
 use tungstenite::{connect, Message};
 use url::Url;
@@ -19,6 +21,20 @@ pub struct DiscordManager {
     session_id: Option<String>,
     seq: Option<i32>,
     bus_tx: MsgBusTx,
+    channel_cache: Arc<Mutex<HashMap<String, String>>>,
+    server_cache: Arc<Mutex<HashMap<String, String>>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DiscordChannel {
+    id: String,
+    name: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct DiscordGuild {
+    id: String,
+    name: String,
 }
 
 #[derive(Error, Debug)]
@@ -180,6 +196,8 @@ impl DiscordManager {
             session_id: None,
             seq: None,
             bus_tx,
+            channel_cache: Arc::new(Mutex::new(HashMap::new())),
+            server_cache: Arc::new(Mutex::new(HashMap::new())),
         })
     }
     pub fn monitor_bus(mut self, bus_rx: MsgBusRx) -> Result<(), DiscordManagerError> {
@@ -209,6 +227,66 @@ impl DiscordManager {
             }
         });
         Ok(())
+    }
+
+    pub fn get_channel_name(&self, server_id: &str, channel_id: &str) -> String {
+        if let Some(d) = self
+            .channel_cache
+            .lock()
+            .unwrap()
+            .get(&format!("{}:{}", server_id, channel_id))
+            .map(|s| s.to_owned())
+        {
+            return d;
+        }
+        if let Ok(res) = reqwest::blocking::Client::new()
+            .get(format!(
+                "https://discord.com/api/guilds/{}/channels",
+                server_id
+            ))
+            .header("Authorization", format!("Bot {}", self.bot_token.clone()))
+            .header("Content-Type", "application/json")
+            .send()
+        {
+            let body = res.text().unwrap();
+            let res: Vec<DiscordChannel> = serde_json::from_str(&body).unwrap();
+            let mut cache = self.channel_cache.lock().unwrap();
+            for channel in res {
+                cache.insert(format!("{}:{}", server_id, channel.id), channel.name);
+            }
+            drop(cache);
+            self.get_channel_name(server_id, channel_id)
+        } else {
+            "Unable to fetch name".to_string()
+        }
+    }
+
+    pub fn get_server_name(&self, server_id: &str) -> String {
+        if let Some(d) = self
+            .server_cache
+            .lock()
+            .unwrap()
+            .get(server_id)
+            .map(|s| s.to_owned())
+        {
+            return d;
+        }
+        if let Ok(res) = reqwest::blocking::Client::new()
+            .get(format!("https://discord.com/api/guilds/{}", server_id))
+            .header("Authorization", format!("Bot {}", self.bot_token.clone()))
+            .header("Content-Type", "application/json")
+            .send()
+        {
+            let body = res.text().unwrap();
+            let res: DiscordGuild = serde_json::from_str(&body).unwrap();
+            self.channel_cache
+                .lock()
+                .unwrap()
+                .insert(server_id.to_string(), res.name.clone());
+            res.name
+        } else {
+            "Unable to fetch name".to_string()
+        }
     }
 
     pub fn monitor_discord(mut self) -> Result<(), DiscordManagerError> {
@@ -338,7 +416,6 @@ impl DiscordManager {
                                 }
                             }
                         }
-                        log::debug!("Recv handle msg {:?}", s);
                     }
                     Ok(ProtocolMsg::Hello {
                         s,
@@ -359,7 +436,6 @@ impl DiscordManager {
                             .unwrap();
                     }
                     Ok(ProtocolMsg::UnkResponse { op }) => {
-                        log::debug!("Received unknown payload {}", op);
                     }
                     Err(_) => {
                         socket = self.resume().unwrap();

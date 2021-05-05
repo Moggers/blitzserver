@@ -2,9 +2,10 @@ use super::utils::*;
 use super::AppData;
 use crate::diesel::prelude::*;
 
+use crate::discord::DiscordManager;
 use crate::models::{
-    AdminLog, Disciple, EmailConfig, Game, GameLogLite, Map, Mod, Nation, NewGame, NewGameMod,
-    Player, PlayerTurn, Turn,
+    AdminLog, Disciple, DiscordConfig, EmailConfig, Game, GameLogLite, Map, Mod, Nation, NewGame,
+    NewGameMod, Player, PlayerTurn, Turn,
 };
 use crate::msgbus::{
     CreateGameMsg, EraChangedMsg, GameArchivedMsg, GameScheduleMsg, MapChangedMsg, ModsChangedMsg,
@@ -248,8 +249,22 @@ struct GameDetailsTemplate<'a> {
     focused_log: (i32, String),
     admin_logs: &'a Vec<AdminLog>,
     discord_clientid: Option<String>,
+    discord_notifications: Vec<DiscordConfig>,
+    discord_manager: Option<&'a DiscordManager>,
 }
 impl<'a> GameDetailsTemplate<'a> {
+    pub fn get_channel_name(&self, server: &str, channel: &str) -> String {
+        match self.discord_manager {
+            None => "Discord not enabled".to_string(),
+            Some(d) => d.get_channel_name(server, channel),
+        }
+    }
+    pub fn get_server_name(&self, server: &str) -> String {
+        match self.discord_manager {
+            None => "Discord not enabled".to_string(),
+            Some(d) => d.get_server_name(server),
+        }
+    }
     fn get_team_leaders(&self) -> Vec<(i32, PlayerSummary)> {
         let mut teams = self
             .disciples
@@ -657,14 +672,19 @@ async fn details(
             turn_number: turns.len() as i32,
             maps: &maps,
             mods: &mods,
-            game,
             players: &players,
             disciples: &disciples,
             nations: &nations,
             turns: player_turn_map,
             hostname: std::env::var("HOSTNAME").unwrap(),
             admin_logs: &admin_logs,
-            discord_clientid: app_data.discord_manager.as_ref().and_then(|d| Some(d.client_id.clone())),
+            discord_clientid: app_data
+                .discord_manager
+                .as_ref()
+                .and_then(|d| Some(d.client_id.clone())),
+            discord_notifications: DiscordConfig::get_notifications(game.id, &db).unwrap(),
+            discord_manager: app_data.discord_manager.as_ref(),
+            game,
         })
         .render()
         .unwrap(),

@@ -649,3 +649,15 @@ table.log-table {
 .hidden {
 	display: none;
 }
+.discord-page {
+	display: grid;
+	grid-template-columns: 2fr 1fr;
+	grid-template-areas:
+		"list help";
+}
+.discord-list {
+	grid-area: list
+}
+.discord-help {
+	grid-area: help
+}
