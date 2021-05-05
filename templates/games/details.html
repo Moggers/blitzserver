@@ -117,20 +117,20 @@
 							<h3>Scheduling</h3>
 							<form method="post" action="/game/{{game.id}}/postpone">
 								<div class="input-row">
-									<input placeholder="1440" name="timer" type="number" />
+									<input required placeholder="1440" name="timer" type="number" />
 									<input type="submit" class="btn btn-block" value="Postpone (Mins)"/>
 								</div>
 							</form>
 							<form method="post" action="/game/{{game.id}}/timer">
 								<div class="input-row">
-									<input placeholder="1440" name="timer" type="number" />
+									<input required placeholder="1440" name="timer" type="number" />
 									<input type="submit" class="btn btn-block" value="Set Timer (Mins)"/>
 								</div>
 							</form>
 							{% if self.turn_number == 0 %}
 							<form method="post" action="/game/{{game.id}}/launch">
 								<div class="input-row">
-									<input placeholder="60" name="countdown" type="number" />
+									<input required placeholder="60" name="countdown" type="number" />
 									<input type="submit" class="btn btn-block" value="Begin Countdown (Secs)"/>
 								</div>
 							</form>
