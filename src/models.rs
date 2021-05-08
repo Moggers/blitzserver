@@ -1484,10 +1484,10 @@ LIMIT 1
             r#"
 UPDATE discord_configs dc
 SET last_turn_notified=(SELECT MAX(turn_number) FROM turns t WHERE t.game_id=dc.game_id AND t.archived=FALSE)
-WHERE game_id = $1
+WHERE id = $1
 RETURNING *"#,
         )
-        .bind::<diesel::sql_types::Integer, _>(self.game_id)
+        .bind::<diesel::sql_types::Integer, _>(self.id)
         .get_result(db)
     }
 }
