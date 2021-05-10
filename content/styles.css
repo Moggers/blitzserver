@@ -511,9 +511,18 @@ input:checked + .bg-selector {
 	width: 100%;
 	justify-content: space-between;
 }
+.input-group-vertical {
+	flex-direction: column;
+}
+.input-group input {
+	box-sizing: border-box;
+}
 .input-group input,select {
 	max-width: 500px;
 	width: 200px;
+}
+.input-group-vertical input {
+	width: 100%;
 }
 fieldset {
 	border: none;
@@ -583,7 +592,7 @@ fieldset {
 .auth-input>div {
 	height: 1.5rem;
 }
-.auth-input input.invalid {
+input.invalid {
 	border: 1px red solid;
 }
 .auth-input input {

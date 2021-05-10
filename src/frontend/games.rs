@@ -22,6 +22,10 @@ use std::ops::Add;
 
 // === Payloads ===
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
+struct GamesListPayload {
+    antibot_failed: Option<i32>
+}
+#[derive(Default, Clone, Debug, Serialize, Deserialize)]
 struct GameSettings {
     #[serde(default = "default_one")]
     #[serde(deserialize_with = "from_str")]
@@ -207,6 +211,7 @@ struct GameDetailsPayload {
 struct CreateGame {
     name: String,
     password: String,
+    antibot: Option<String>,
 }
 #[derive(Debug, Deserialize)]
 struct SetTimer {
@@ -466,6 +471,16 @@ struct GamesTemplate<'a> {
     pending_games: &'a [PendingGame],
     active_games: &'a [ActiveGame],
     archived_games: &'a [ArchivedGame],
+    antibot_question: Option<String>,
+    antibot_failed: Option<i32>
+}
+impl<'a> GamesTemplate<'a> {
+    pub fn question_string(&self) -> String {
+        match &self.antibot_question {
+            Some(s) => s.to_owned(),
+            None => "".to_owned(),
+        }
+    }
 }
 
 // === Routes ====
@@ -735,6 +750,11 @@ async fn create_post(
     }
     let config = serde_qs::Config::new(10, false);
     let params: CreateGame = config.deserialize_bytes(&*bytes).unwrap();
+    if AppData::get_antibot_question().is_some() {
+        if params.antibot.is_none() || AppData::get_antibot_answer().as_ref().unwrap().to_ascii_lowercase() != params.antibot.unwrap().to_ascii_lowercase() {
+            return Ok(HttpResponse::Found().header(header::LOCATION, "/games?antibot_failed=1").finish());
+        }
+    }
 
     let mut new_game = NewGame::default();
     new_game.name = params.name;
@@ -764,7 +784,7 @@ async fn create_post(
         .finish())
 }
 #[get("/games")]
-async fn list(app_data: web::Data<AppData>) -> Result<HttpResponse> {
+async fn list(app_data: web::Data<AppData>, query: serde_qs::actix::QsQuery<GamesListPayload>) -> Result<HttpResponse> {
     let db = app_data.pool.get().expect("Unable to connect to database");
 
     // Create game
@@ -818,6 +838,8 @@ async fn list(app_data: web::Data<AppData>) -> Result<HttpResponse> {
             active_games: &active_games,
             pending_games: &pending_games,
             archived_games: &archived_games,
+            antibot_failed: query.antibot_failed,
+            antibot_question: AppData::get_antibot_question(),
         })
         .render()
         .unwrap(),

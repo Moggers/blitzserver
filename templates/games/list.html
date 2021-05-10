@@ -16,6 +16,12 @@
 					<label for="game-pass">Password</label>
 					<input required name="password" id="game-pass" type="password"/>
 				</div>
+				{% if self.antibot_question.is_some() %}
+				<div class="input-group input-group-vertical">
+					<label for="antibot">{{self.question_string()}}</label>
+					<input {% if self.antibot_failed.is_some() %} class="invalid" {% endif %} required name="antibot" id="antibot" type="string"/>
+				</div>
+				{% endif %}
 				<input class="btn btn-block btn-primary" type="submit" value="Create"/>
 			</form>
 		</div>
