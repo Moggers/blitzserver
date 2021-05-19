@@ -23,7 +23,7 @@ use std::ops::Add;
 // === Payloads ===
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 struct GamesListPayload {
-    antibot_failed: Option<i32>
+    antibot_failed: Option<i32>,
 }
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
 struct GameSettings {
@@ -441,6 +441,23 @@ impl<'a> GameDetailsTemplate<'a> {
             }
         }
     }
+    fn get_shorthand_description(&self) -> String {
+        format!(
+            "{}\n{}{}",
+            &self.get_status_string(),
+            match self.game.era {
+                1 => "Early Age",
+                2 => "Middle Age",
+                3 => "Late Age",
+                _ => "Unknown Age"
+            },
+            match self.game.next_turn {
+                Some(t) => format!("\nNext turn in {}", self.game.next_turn_string()),
+                None => "".to_owned()
+            }
+        )
+    }
+
     fn get_current_map(&self) -> Option<&Map> {
         if self.settings.map != 0 {
             self.maps.iter().find(|m| m.id == self.settings.map)
@@ -472,7 +489,7 @@ struct GamesTemplate<'a> {
     active_games: &'a [ActiveGame],
     archived_games: &'a [ArchivedGame],
     antibot_question: Option<String>,
-    antibot_failed: Option<i32>
+    antibot_failed: Option<i32>,
 }
 impl<'a> GamesTemplate<'a> {
     pub fn question_string(&self) -> String {
@@ -751,8 +768,16 @@ async fn create_post(
     let config = serde_qs::Config::new(10, false);
     let params: CreateGame = config.deserialize_bytes(&*bytes).unwrap();
     if AppData::get_antibot_question().is_some() {
-        if params.antibot.is_none() || AppData::get_antibot_answer().as_ref().unwrap().to_ascii_lowercase() != params.antibot.unwrap().to_ascii_lowercase() {
-            return Ok(HttpResponse::Found().header(header::LOCATION, "/games?antibot_failed=1").finish());
+        if params.antibot.is_none()
+            || AppData::get_antibot_answer()
+                .as_ref()
+                .unwrap()
+                .to_ascii_lowercase()
+                != params.antibot.unwrap().to_ascii_lowercase()
+        {
+            return Ok(HttpResponse::Found()
+                .header(header::LOCATION, "/games?antibot_failed=1")
+                .finish());
         }
     }
 
@@ -784,7 +809,10 @@ async fn create_post(
         .finish())
 }
 #[get("/games")]
-async fn list(app_data: web::Data<AppData>, query: serde_qs::actix::QsQuery<GamesListPayload>) -> Result<HttpResponse> {
+async fn list(
+    app_data: web::Data<AppData>,
+    query: serde_qs::actix::QsQuery<GamesListPayload>,
+) -> Result<HttpResponse> {
     let db = app_data.pool.get().expect("Unable to connect to database");
 
     // Create game

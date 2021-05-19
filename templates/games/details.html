@@ -1,4 +1,9 @@
 {% extends "container.html" %}
+{% block title %}{{game.name}}{% endblock %}
+{% block meta %}
+<meta property="og:image" content="{{format!("/images/maps/{}.jpg", self.game.map_id)}}" />
+<meta name="description" content="{{self.get_shorthand_description()}}" />
+{% endblock %}
 {% block body %}
 <div class="tabset">
 	<input name="tabset_1" {% if self.tab=="status" %} checked="checked" {% endif %} hidden=true type="radio" class="css-tab-input" id="css-tab-status" />
