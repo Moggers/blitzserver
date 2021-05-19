@@ -450,7 +450,7 @@ impl<'a> GameDetailsTemplate<'a> {
                 None => "".to_owned()
             },
             match self.game.next_turn {
-                Some(t) => format!("\nNext turn in {}", self.game.next_turn_string()),
+                Some(t) => format!("Next turn in {}\n", self.game.next_turn_string()),
                 None => "".to_owned()
             }
         )
