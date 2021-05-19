@@ -156,7 +156,7 @@ impl Dom5Emu {
                     env::var("PORT_RANGE").expect("PORT_RANGE must be set (ie. '10000,10999')");
                 let range: Vec<&str> = port_var.split(",").collect();
                 let new_port: i32 = diesel::dsl::sql::<diesel::sql_types::Int4>(&format!(
-                    "SELECT * FROM generate_series({}, {}) num LEFT OUTER JOIN games g ON g.port=num WHERE g.id IS NULL",
+                    "SELECT * FROM generate_series({}, {}) num LEFT OUTER JOIN games g ON g.port=num WHERE g.id IS NULL ORDER BY num ASC LIMIT 1",
                     range[0], range[1]
                 ))
                 .get_result(&db)
