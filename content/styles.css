@@ -652,6 +652,14 @@ table.log-table {
 	width: 100%;
 	border-collapse: collapse;
 }
+table.log-table .log-args {
+	overflow-x: auto;
+	white-space: pre-wrap;
+	white-space: -moz-pre-wrap;
+	white-space: -pre-wrap;
+	white-space: -o-pre-wrap;
+	word-wrap: break-word;
+}
 .log-table tr:nth-child(odd) {
 	background: var(--col-very-faint);
 }

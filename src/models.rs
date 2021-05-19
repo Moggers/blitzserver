@@ -1266,6 +1266,7 @@ pub struct GameLog {
     turn_number: i32,
     output: String,
     error: String,
+    log_command: String
 }
 
 #[derive(Queryable, Debug, Identifiable, QueryableByName)]
@@ -1298,7 +1299,7 @@ impl GameLogLite {
             .get_results(db)
     }
 
-    pub fn get_output<D>(&self, db: &D) -> Result<String, diesel::result::Error>
+    pub fn get_output<D>(&self, db: &D) -> Result<(i32, String, String), diesel::result::Error>
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
@@ -1310,17 +1311,17 @@ impl GameLogLite {
         .insert(db)?;
         use crate::schema::game_logs::dsl as gl_dsl;
         gl_dsl::game_logs
-            .select(gl_dsl::output)
+            .select((gl_dsl::id, gl_dsl::log_command, gl_dsl::output))
             .filter(gl_dsl::id.eq(self.id))
             .get_result(db)
     }
-    pub fn get_errors<D>(&self, db: &D) -> Result<String, diesel::result::Error>
+    pub fn get_errors<D>(&self, db: &D) -> Result<(i32, String, String), diesel::result::Error>
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
         use crate::schema::game_logs::dsl as gl_dsl;
         gl_dsl::game_logs
-            .select(gl_dsl::error)
+            .select((gl_dsl::id, gl_dsl::log_command, gl_dsl::error))
             .filter(gl_dsl::id.eq(self.id))
             .get_result(db)
     }
@@ -1334,6 +1335,7 @@ pub struct NewGameLog<'a> {
     pub turn_number: i32,
     pub output: &'a str,
     pub error: &'a str,
+    pub log_command: &'a str
 }
 
 impl<'a> NewGameLog<'a> {

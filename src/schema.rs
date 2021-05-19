@@ -60,6 +60,7 @@ table! {
         turn_number -> Int4,
         output -> Varchar,
         error -> Varchar,
+        log_command -> Varchar,
     }
 }
 

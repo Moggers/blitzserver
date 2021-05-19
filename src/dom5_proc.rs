@@ -386,6 +386,7 @@ impl Dom5Proc {
         arguments.append(&mut vec![
             "-d".to_string(),
             "--noclientstart".to_string(),
+            if game.renaming { "--renaming" } else { "" }.to_string(),
             "--thrones".to_string(),
             game.thrones_t1.to_string(),
             game.thrones_t2.to_string(),
@@ -418,7 +419,6 @@ impl Dom5Proc {
             game.supplies.to_string(),
             "--startprov".to_string(),
             game.startprov.to_string(),
-            if game.renaming { "--renaming" } else { "" }.to_string(),
             if game.scoregraphs {
                 "--scoregraphs"
             } else {
@@ -476,7 +476,7 @@ impl Dom5Proc {
                 .to_string(),
         ))
         .env("DOM5_CONF", &self.datadir)
-        .args(arguments)
+        .args(&arguments)
         .output()
         .expect(&format!(
             "Failed to launch dom5 binary for game {}",
@@ -491,6 +491,7 @@ impl Dom5Proc {
             turn_number: turn_number,
             output: &output,
             error: &error,
+            log_command: &arguments.join(" ")
         }
         .insert(db)
         .unwrap();

@@ -251,7 +251,7 @@ struct GameDetailsTemplate<'a> {
     tab: String,
     authed: AuthStatus,
     logs: Vec<GameLogLite>,
-    focused_log: (i32, String),
+    focused_log: (i32, String, String),
     admin_logs: &'a Vec<AdminLog>,
     discord_clientid: Option<String>,
     discord_notifications: Vec<DiscordConfig>,
@@ -447,11 +447,11 @@ impl<'a> GameDetailsTemplate<'a> {
             &self.get_status_string(),
             match self.game.port {
                 Some(p) => format!("{}:{}\n", self.hostname, p),
-                None => "".to_owned()
+                None => "".to_owned(),
             },
             match self.game.next_turn {
                 Some(t) => format!("Next turn in {}\n", self.game.next_turn_string()),
-                None => "".to_owned()
+                None => "".to_owned(),
             }
         )
     }
@@ -669,25 +669,19 @@ async fn details(
         .unwrap();
     let logs = GameLogLite::get_all(game.id, &db).unwrap();
     let logs_detail = if let Some(output_id) = payload.log_output {
-        (
-            output_id,
-            logs.iter()
-                .find(|l| l.id == output_id)
-                .unwrap()
-                .get_output(&db)
-                .unwrap(),
-        )
+        logs.iter()
+            .find(|l| l.id == output_id)
+            .unwrap()
+            .get_output(&db)
+            .unwrap()
     } else if let Some(errors_id) = payload.log_errors {
-        (
-            errors_id,
-            logs.iter()
-                .find(|l| l.id == errors_id)
-                .unwrap()
-                .get_errors(&db)
-                .unwrap(),
-        )
+        logs.iter()
+            .find(|l| l.id == errors_id)
+            .unwrap()
+            .get_errors(&db)
+            .unwrap()
     } else {
-        (0, String::new())
+        (0, String::new(), String::new())
     };
     let admin_logs = AdminLog::get_all(game.id, &db).unwrap();
     Ok(HttpResponse::Ok().content_type("text/html").body(
