@@ -445,11 +445,9 @@ impl<'a> GameDetailsTemplate<'a> {
         format!(
             "{}\n{}{}",
             &self.get_status_string(),
-            match self.game.era {
-                1 => "Early Age",
-                2 => "Middle Age",
-                3 => "Late Age",
-                _ => "Unknown Age"
+            match self.game.port {
+                Some(p) => format!("{}:{}\n", self.hostname, p),
+                None => "".to_owned()
             },
             match self.game.next_turn {
                 Some(t) => format!("\nNext turn in {}", self.game.next_turn_string()),
