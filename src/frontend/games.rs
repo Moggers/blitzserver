@@ -450,7 +450,7 @@ impl<'a> GameDetailsTemplate<'a> {
                 None => "".to_owned(),
             },
             match self.game.next_turn {
-                Some(t) => format!("Next turn in {}\n", self.game.next_turn_string()),
+                Some(_t) => format!("Next turn in {}\n", self.game.next_turn_string()),
                 None => "".to_owned(),
             }
         )
@@ -688,11 +688,11 @@ async fn details(
         (GameDetailsTemplate {
             logs: GameLogLite::get_all(game.id, &db).unwrap(),
             focused_log: logs_detail,
-            settings: settings,
-            authed: authed,
+            settings,
+            authed,
             email_form: (*email_form).clone(),
             email_configs: &email_configs,
-            tab: tab,
+            tab,
             turn_number: turns.len() as i32,
             maps: &maps,
             mods: &mods,
@@ -983,7 +983,7 @@ async fn settings_post(
 }
 #[post("/game/{id}/email")]
 async fn emails_post(
-    (mut app_data, bytes, web::Path(game_id)): (
+    (app_data, bytes, web::Path(game_id)): (
         web::Data<AppData>,
         actix_web::web::Bytes,
         web::Path<i32>,

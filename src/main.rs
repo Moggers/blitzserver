@@ -130,7 +130,7 @@ async fn main() -> std::io::Result<()> {
     let app_data = AppData {
         msgbus_sender: bus.sender.clone(),
         pool: pool.clone(),
-        discord_manager: discord_manager,
+        discord_manager,
         email_manager: crate::email_manager::EmailManager {
             msgbus_tx: bus.sender.clone(),
             db_pool: pool.clone(),

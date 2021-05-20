@@ -25,7 +25,7 @@
 	<!-- Admin Only -->
 		{% if self.authed == AuthStatus::AuthSuccess %}
 			<label class="tab css-tab-label tab6" for="css-tab-logs">logs</label>
-			{% if self.discord_clientid.is_some() %}
+			{% if self.discord_manager.is_some() %}
 				<label class="tab css-tab-label tab7" for="css-tab-discord">discord</label>
 			{% endif %}
 		{% endif %}
@@ -183,7 +183,7 @@
 		{% endif %}
 		</section>
 		<section class="tabsection">
-		{% if self.authed == AuthStatus::AuthSuccess && self.discord_clientid.is_some() %}
+		{% if self.authed == AuthStatus::AuthSuccess && self.discord_manager.is_some() %}
 		{% include "discord.html" %}
 		{% endif %}
 		</section>

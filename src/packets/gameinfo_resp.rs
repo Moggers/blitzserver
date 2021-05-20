@@ -7,6 +7,7 @@ pub struct GameInfoResp {
     pub era: i32,
     pub unk2: u32,
     pub disciples: bool,
+    pub renaming: bool,
     pub unk3: u8,
     pub milliseconds_to_host: Option<u32>,
     pub unk4: u16,
@@ -21,6 +22,7 @@ pub struct GameInfoResp {
 }
 
 const DISCIPLES_BIT_ID: u32 = 0b10000000;
+const RENAMING_BIT_ID: u32 = 0b10000;
 
 impl GameInfoResp {
     pub fn from_reader<R: std::io::Read>(r: &mut R) -> GameInfoResp {
@@ -37,14 +39,18 @@ impl GameInfoResp {
         }
         let era = r.read_u8().unwrap();
         let unk2 = r.read_u32::<LittleEndian>().unwrap();
+        println!("Unk2: {:b}", unk2);
         let disciples = unk2 & DISCIPLES_BIT_ID == DISCIPLES_BIT_ID;
+        let renaming = unk2 & RENAMING_BIT_ID == RENAMING_BIT_ID;
         let unk3 = r.read_u8().unwrap();
+        println!("Unk3: {:?}", unk3);
         let milliseconds_to_host = match r.read_u32::<LittleEndian>() {
             Ok(0xffffffff) => None,
             Ok(a) => Some(a),
             _ => None,
         };
         let unk4 = r.read_u16::<LittleEndian>().unwrap();
+        println!("Unk4: {:?}", unk4);
         let mut nation_statuses: std::collections::HashMap<i32, u8> =
             std::collections::HashMap::new();
         for i in 1..=250 {
@@ -108,6 +114,7 @@ impl GameInfoResp {
             unk2,
             remaining,
             disciples,
+            renaming,
             unk3,
             milliseconds_to_host,
             unk4,
@@ -133,6 +140,9 @@ impl crate::packets::BodyContents for GameInfoResp {
         let mut unk_bit_map = 0x840;
         if self.disciples {
             unk_bit_map = unk_bit_map | DISCIPLES_BIT_ID;
+        }
+        if self.renaming{
+            unk_bit_map = unk_bit_map | RENAMING_BIT_ID;
         }
         w.write_u32::<LittleEndian>(unk_bit_map).unwrap();
         w.write_u8(0x2d).unwrap();

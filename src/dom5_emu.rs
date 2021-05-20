@@ -78,6 +78,7 @@ impl Dom5Emu {
             era: game.era,
             unk2: 0,
             disciples: game.teamgame,
+            renaming: game.renaming,
             unk3: 0,
             milliseconds_to_host: next_turn,
             unk4: 0,

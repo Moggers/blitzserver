@@ -1,26 +1,5 @@
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-#[cfg(test)]
-pub mod modfile_tests {
-    use crate::packets::{Body, BodyContents, ModFileResp, Packet};
-    #[test]
-    fn serialize_deserialize_resp() {
-        let tga = include_bytes!("../../test_data/Muse_1.tga");
-        let their_packet = include_bytes!("../../test_data/modfileresp_muse_1");
-        let mut our_packet = vec![];
-        ModFileResp::new(tga.to_vec()).write_packet(&mut our_packet);
-        let their_packet_unwrapped = Packet::from_reader(&mut std::io::Cursor::new(their_packet));
-        let our_packet_unwrapped = Packet::from_reader(&mut std::io::Cursor::new(their_packet));
-        match (their_packet_unwrapped.body, our_packet_unwrapped.body) {
-            (Body::ModFileResp(theirs), Body::ModFileResp(ours)) => {
-                assert_eq!(theirs, ours);
-                assert_eq!(&their_packet[..], &our_packet[..]);
-            }
-            _ => panic!("Received wrong packet type????"),
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct ModFileResp {
     pub contents: Vec<u8>,
