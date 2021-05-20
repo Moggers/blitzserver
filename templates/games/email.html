@@ -56,8 +56,8 @@ The game can be viewed at %GAMEURL%.{% endif %}</textarea>
 					<label for="hours_remaining"></label>
 					<input class="btn btn-primary submit" formmethod="post" formaction="/game/{{game.id}}/email" type="submit" value="Create Reminder" />
 					<select required name="nation" class="nation">
-						{% for player in self.players %}
-						<option {% if self.email_form.nation == player.id %}selected="selected"{% endif %}value="{{player.id}}">{{player.name}}</option>
+						{% for player in self.get_joined_nations() %}
+						<option {% if self.email_form.nation == player.nation_id %}selected="selected"{% endif %}value="{{player.nation_id}}">{{player.name}}</option>
 						{% endfor %}
 					</select>
 					<div class="body">
