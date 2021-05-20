@@ -39,18 +39,15 @@ impl GameInfoResp {
         }
         let era = r.read_u8().unwrap();
         let unk2 = r.read_u32::<LittleEndian>().unwrap();
-        println!("Unk2: {:b}", unk2);
         let disciples = unk2 & DISCIPLES_BIT_ID == DISCIPLES_BIT_ID;
         let renaming = unk2 & RENAMING_BIT_ID == RENAMING_BIT_ID;
         let unk3 = r.read_u8().unwrap();
-        println!("Unk3: {:?}", unk3);
         let milliseconds_to_host = match r.read_u32::<LittleEndian>() {
             Ok(0xffffffff) => None,
             Ok(a) => Some(a),
             _ => None,
         };
         let unk4 = r.read_u16::<LittleEndian>().unwrap();
-        println!("Unk4: {:?}", unk4);
         let mut nation_statuses: std::collections::HashMap<i32, u8> =
             std::collections::HashMap::new();
         for i in 1..=250 {
