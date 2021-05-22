@@ -305,9 +305,6 @@ impl Dom5Emu {
                         Ok(Msg::EraChanged(EraChangedMsg {
                             game_id: inc_game_id,
                             ..
-                        }))
-                        | Ok(Msg::ModsChanged(ModsChangedMsg {
-                            game_id: inc_game_id,
                         })) if inc_game_id == launch_id => {
                             let db = pool_clone.get().unwrap();
                             let game = Game::get(inc_game_id, &db).unwrap();
@@ -358,6 +355,11 @@ impl Dom5Emu {
                         Ok(Msg::ModsChanged(ModsChangedMsg { game_id, .. }))
                             if game_id == launch_id =>
                         {
+                            let db = pool_clone.get().unwrap();
+                            let game = Game::get(launch_id, &db).unwrap();
+                            let mut dom5_proc = Dom5Proc::new(game);
+                            dom5_proc.populate_mods(&db);
+                            dom5_proc.update_nations(&db);
                             modcrc_cache_clone.populate();
                         }
                         Err(RecvTimeoutError::Disconnected) => {

@@ -1,10 +1,28 @@
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub struct ModFileResp {
     pub contents: Vec<u8>,
     pub crc: u32,
     pub len: u32,
+}
+impl std::fmt::Debug for ModFileResp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ModFileResp")
+            .field(
+                "contents[0..32]",
+                &self
+                    .contents
+                    .iter()
+                    .take(32)
+                    .map(|d| *d)
+                    .collect::<Vec<u8>>()
+                    .iter(),
+            )
+            .field("crc", &self.crc)
+            .field("len", &self.len)
+            .finish()
+    }
 }
 
 impl ModFileResp {
