@@ -99,12 +99,14 @@ impl GameManager {
         }
     }
 
-    fn host_turn<D>(launch_id: i32, sender: &MsgBusTx, db: &D) -> Option<std::time::SystemTime>
-    where
-        D: diesel::Connection<Backend = diesel::pg::Pg>,
-    {
-        let game = Game::get(launch_id, db).unwrap();
-        let turn_n = match Turn::get(game.id, db) {
+    fn host_turn(
+        launch_id: i32,
+        sender: &MsgBusTx,
+        db_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
+    ) -> Option<std::time::SystemTime> {
+        let db = db_pool.get().unwrap();
+        let game = Game::get(launch_id, &db).unwrap();
+        let turn_n = match Turn::get(game.id, &db) {
             Ok(turn) => turn.turn_number,
             Err(_) => 0,
         };
@@ -115,10 +117,10 @@ impl GameManager {
             }))
             .unwrap();
         let dom5_proc = Dom5Proc::new(game);
-        dom5_proc.host_turn(db);
+        dom5_proc.host_turn(db_pool);
         log::debug!("Turn for game {} hosted", launch_id);
-        let game = Game::get(launch_id, db).unwrap();
-        let turn = Turn::get(game.id, db).unwrap();
+        let game = Game::get(launch_id, &db).unwrap();
+        let turn = Turn::get(game.id, &db).unwrap();
         sender
             .send(Msg::NewTurn(NewTurnMsg {
                 game_id: game.id,
@@ -134,8 +136,7 @@ impl GameManager {
         db_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
     ) {
         log::info!("Hosting turn for game {}", launch_id);
-        let db = db_pool.get().unwrap();
-        let timer = Self::host_turn(launch_id, &bus_tx, &db);
+        let timer = Self::host_turn(launch_id, &bus_tx, db_pool);
         if let Some(timer) = timer {
             bus_tx
                 .send(Msg::GameSchedule(GameScheduleMsg {

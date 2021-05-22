@@ -1,6 +1,9 @@
 use crate::twoh::TwoH;
+use diesel::r2d2::ConnectionManager;
+use diesel::PgConnection;
 use std::io::Read;
 use std::ops::Add;
+use std::thread::JoinHandle;
 
 use super::diesel::prelude::*;
 use super::models::{
@@ -20,29 +23,13 @@ pub enum ProcEvent {
 }
 
 pub struct Dom5ProcHandle {
-    pub sender: crossbeam_channel::Sender<GameCmd>,
-    pub port: i32,
-    is_dead: std::sync::atomic::AtomicBool,
+    thread: JoinHandle<()>,
+    proc: std::process::Child,
 }
+
 impl Dom5ProcHandle {
-    pub fn new(sender: crossbeam_channel::Sender<GameCmd>, port: i32) -> Self {
-        Self {
-            sender,
-            port,
-            is_dead: std::sync::atomic::AtomicBool::new(false),
-        }
-    }
-    pub fn shutdown(&self) {
-        if !self.is_dead.load(std::sync::atomic::Ordering::SeqCst) {
-            self.sender.send(GameCmd::Shutdown).unwrap();
-        }
-        self.is_dead
-            .store(true, std::sync::atomic::Ordering::SeqCst);
-    }
-}
-impl Drop for Dom5ProcHandle {
-    fn drop(&mut self) {
-        self.shutdown();
+    pub fn join(self) -> std::thread::Result<()> {
+        self.thread.join()
     }
 }
 
@@ -118,7 +105,7 @@ impl Dom5Proc {
         ]);
         match std::fs::remove_file(self.savedir.join("statusdump.txt")) {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => panic!(e),
+            Err(e) => panic!("{}", e),
             Ok(_) => {}
         }
         let mut proc = std::process::Command::new(std::path::PathBuf::from(
@@ -340,186 +327,202 @@ impl Dom5Proc {
         .unwrap();
     }
 
-    pub fn host_turn<D>(mut self, db: &D)
-    where
-        D: diesel::Connection<Backend = diesel::pg::Pg>,
-    {
-        self.update_nations(db);
-        self.populate_savegame(db);
-        self.populate_mods(db);
-        self.populate_maps(db);
-        let mut arguments = {
-            let mods: Vec<(GameMod, Mod)> = crate::schema::game_mods::dsl::game_mods
-                .filter(crate::schema::game_mods::dsl::game_id.eq(self.game_id))
-                .inner_join(
-                    crate::schema::mods::dsl::mods
-                        .on(crate::schema::mods::dsl::id.eq(crate::schema::game_mods::dsl::mod_id)),
-                )
-                .get_results::<(GameMod, Mod)>(db)
+    pub fn host_turn(
+        mut self,
+        db_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
+    ) -> Dom5ProcHandle {
+        let handle = std::thread::spawn(move || {
+            let db = db_pool.get().unwrap();
+            self.update_nations(&db);
+            self.populate_savegame(&db);
+            self.populate_mods(&db);
+            self.populate_maps(&db);
+            let mut arguments = {
+                let mods: Vec<(GameMod, Mod)> =
+                    crate::schema::game_mods::dsl::game_mods
+                        .filter(crate::schema::game_mods::dsl::game_id.eq(self.game_id))
+                        .inner_join(crate::schema::mods::dsl::mods.on(
+                            crate::schema::mods::dsl::id.eq(crate::schema::game_mods::dsl::mod_id),
+                        ))
+                        .get_results::<(GameMod, Mod)>(&db)
+                        .unwrap();
+                mods.iter()
+                    .flat_map(|(_, m)| vec![String::from("-M"), m.dm_filename.clone()])
+                    .collect::<Vec<String>>()
+            };
+            use crate::schema::files::dsl as files_dsl;
+            use crate::schema::games::dsl as games_dsl;
+            use crate::schema::maps::dsl as maps_dsl;
+            let (game, _map, file) = games_dsl::games
+                .filter(games_dsl::id.eq(self.game_id))
+                .inner_join(maps_dsl::maps.on(maps_dsl::id.eq(games_dsl::map_id)))
+                .inner_join(files_dsl::files.on(files_dsl::id.eq(maps_dsl::mapfile_id)))
+                .get_result::<(Game, Map, File)>(&db)
                 .unwrap();
-            mods.iter()
-                .flat_map(|(_, m)| vec![String::from("-M"), m.dm_filename.clone()])
-                .collect::<Vec<String>>()
-        };
-        use crate::schema::files::dsl as files_dsl;
-        use crate::schema::games::dsl as games_dsl;
-        use crate::schema::maps::dsl as maps_dsl;
-        let (game, _map, file) = games_dsl::games
-            .filter(games_dsl::id.eq(self.game_id))
-            .inner_join(maps_dsl::maps.on(maps_dsl::id.eq(games_dsl::map_id)))
-            .inner_join(files_dsl::files.on(files_dsl::id.eq(maps_dsl::mapfile_id)))
-            .get_result::<(Game, Map, File)>(db)
-            .unwrap();
-        let disciples = crate::models::Disciple::get_all(self.game_id, db).unwrap();
-        arguments.append(disciples.into_iter().fold(&mut Vec::new(), |acc, d| {
-            acc.append(&mut vec![
-                "--team".to_string(),
-                d.nation_id.to_string(),
-                match d.team {
-                    Some(d) => d.to_string(),
-                    None => "0".to_string(),
-                },
-                (1 + d.is_disciple).to_string(),
-            ]);
-            acc
-        }));
-        arguments.append(&mut vec![
-            "-d".to_string(),
-            "--noclientstart".to_string(),
-            if game.renaming { "--renaming" } else { "" }.to_string(),
-            "--thrones".to_string(),
-            game.thrones_t1.to_string(),
-            game.thrones_t2.to_string(),
-            game.thrones_t3.to_string(),
-            "--requiredap".to_string(),
-            game.throne_points_required.to_string(),
-            "--research".to_string(),
-            game.research_diff.to_string(),
-            if game.research_rand {
-                ""
-            } else {
-                "--norandres"
-            }
-            .to_string(),
-            "--hofsize".to_string(),
-            game.hof_size.to_string(),
-            "--globals".to_string(),
-            game.global_size.to_string(),
-            "--indepstr".to_string(),
-            game.indepstr.to_string(),
-            "--magicsites".to_string(),
-            game.magicsites.to_string(),
-            "--eventrarity".to_string(),
-            game.eventrarity.to_string(),
-            "--richness".to_string(),
-            game.richness.to_string(),
-            "--resources".to_string(),
-            game.resources.to_string(),
-            "--supplies".to_string(),
-            game.supplies.to_string(),
-            "--startprov".to_string(),
-            game.startprov.to_string(),
-            if game.scoregraphs {
-                "--scoregraphs"
-            } else {
-                ""
-            }
-            .to_string(),
-            if game.nationinfo {
-                ""
-            } else {
-                "--nonationinfo"
-            }
-            .to_string(),
-            "--era".to_string(),
-            game.era.to_string(),
-            if game.artrest { "" } else { "--noartrest" }.to_string(),
-            if game.teamgame { "--teamgame" } else { "" }.to_string(),
-            if game.clustered { "--clustered" } else { "" }.to_string(),
-            match game.storyevents {
-                0 => "--nostoryevents",
-                1 => "--storyevents",
-                2 => "--allstoryevents",
-                _ => "",
-            }
-            .to_string(),
-        ]);
-        match game.newailvl {
-            0 => arguments.append(&mut vec!["--nonewai".to_string(), "".to_string()]),
-            l => arguments.append(&mut vec!["--newailvl".to_string(), l.to_string()]),
-        }
-        if let Some(masterpass) = game.masterpass.as_ref() {
-            arguments.append(&mut vec!["--masterpass".to_string(), masterpass.clone()]);
-        }
-        use crate::schema::turns::dsl as turns_dsl;
-        let turns: Vec<Turn> = turns_dsl::turns
-            .filter(
-                turns_dsl::game_id
-                    .eq(game.id)
-                    .and(turns_dsl::archived.eq(false)),
-            )
-            .get_results(db)
-            .unwrap();
-        if turns.len() == 0 {
-            arguments.append(&mut vec!["--newgame".to_string()]);
-        }
-        arguments.append(&mut vec![
-            String::from("-T"),
-            String::from("--mapfile"),
-            file.filename,
-            String::from("-g"),
-            format!("{}", self.name),
-        ]);
-        let result = std::process::Command::new(std::path::PathBuf::from(
-            std::env::var("DOM5_BIN")
-                .expect("DOM5_BIN not specified")
+            let disciples = crate::models::Disciple::get_all(self.game_id, &db).unwrap();
+            arguments.append(disciples.into_iter().fold(&mut Vec::new(), |acc, d| {
+                acc.append(&mut vec![
+                    "--team".to_string(),
+                    d.nation_id.to_string(),
+                    match d.team {
+                        Some(d) => d.to_string(),
+                        None => "0".to_string(),
+                    },
+                    (1 + d.is_disciple).to_string(),
+                ]);
+                acc
+            }));
+            arguments.append(&mut vec![
+                "-d".to_string(),
+                "--noclientstart".to_string(),
+                if game.renaming { "--renaming" } else { "" }.to_string(),
+                "--thrones".to_string(),
+                game.thrones_t1.to_string(),
+                game.thrones_t2.to_string(),
+                game.thrones_t3.to_string(),
+                "--requiredap".to_string(),
+                game.throne_points_required.to_string(),
+                "--research".to_string(),
+                game.research_diff.to_string(),
+                if game.research_rand {
+                    ""
+                } else {
+                    "--norandres"
+                }
                 .to_string(),
-        ))
-        .env("DOM5_CONF", &self.datadir)
-        .args(&arguments)
-        .output()
-        .expect(&format!(
-            "Failed to launch dom5 binary for game {}",
-            self.name
-        ));
-        let output = String::from_utf8_lossy(&result.stdout);
-        let error = String::from_utf8_lossy(&result.stderr);
-        let turn_number = turns.last().map(|t| t.turn_number).unwrap_or(0);
-        NewGameLog {
-            game_id: game.id,
-            datetime: std::time::SystemTime::now(),
-            turn_number: turn_number,
-            output: &output,
-            error: &error,
-            log_command: &arguments.join(" ")
-        }
-        .insert(db)
-        .unwrap();
-        self.handle_new_turn(db);
-        for entry in std::fs::read_dir(&self.savedir).unwrap() {
-            if let Ok(entry) = entry {
-                let file_name = std::path::PathBuf::from(entry.file_name());
-                match file_name.extension().and_then(std::ffi::OsStr::to_str) {
-                    Some("trn") => {
-                        self.handle_trn_update(&self.savedir.join(&file_name.to_path_buf()), db)
+                "--hofsize".to_string(),
+                game.hof_size.to_string(),
+                "--globals".to_string(),
+                game.global_size.to_string(),
+                "--indepstr".to_string(),
+                game.indepstr.to_string(),
+                "--magicsites".to_string(),
+                game.magicsites.to_string(),
+                "--eventrarity".to_string(),
+                game.eventrarity.to_string(),
+                "--richness".to_string(),
+                game.richness.to_string(),
+                "--resources".to_string(),
+                game.resources.to_string(),
+                "--supplies".to_string(),
+                game.supplies.to_string(),
+                "--startprov".to_string(),
+                game.startprov.to_string(),
+                if game.scoregraphs {
+                    "--scoregraphs"
+                } else {
+                    ""
+                }
+                .to_string(),
+                if game.nationinfo {
+                    ""
+                } else {
+                    "--nonationinfo"
+                }
+                .to_string(),
+                "--era".to_string(),
+                game.era.to_string(),
+                if game.artrest { "" } else { "--noartrest" }.to_string(),
+                if game.teamgame { "--teamgame" } else { "" }.to_string(),
+                if game.clustered { "--clustered" } else { "" }.to_string(),
+                match game.storyevents {
+                    0 => "--nostoryevents",
+                    1 => "--storyevents",
+                    2 => "--allstoryevents",
+                    _ => "",
+                }
+                .to_string(),
+            ]);
+            match game.newailvl {
+                0 => arguments.append(&mut vec!["--nonewai".to_string(), "".to_string()]),
+                l => arguments.append(&mut vec!["--newailvl".to_string(), l.to_string()]),
+            }
+            if let Some(masterpass) = game.masterpass.as_ref() {
+                arguments.append(&mut vec!["--masterpass".to_string(), masterpass.clone()]);
+            }
+            use crate::schema::turns::dsl as turns_dsl;
+            let turns: Vec<Turn> = turns_dsl::turns
+                .filter(
+                    turns_dsl::game_id
+                        .eq(game.id)
+                        .and(turns_dsl::archived.eq(false)),
+                )
+                .get_results(&db)
+                .unwrap();
+            if turns.len() == 0 {
+                arguments.append(&mut vec!["--newgame".to_string()]);
+            }
+            arguments.append(&mut vec![
+                String::from("-T"),
+                String::from("--mapfile"),
+                file.filename,
+                String::from("-g"),
+                format!("{}", self.name),
+            ]);
+            let turn_number = turns.last().map(|t| t.turn_number).unwrap_or(0);
+            let mut proc = std::process::Command::new(std::path::PathBuf::from(
+                std::env::var("DOM5_BIN")
+                    .expect("DOM5_BIN not specified")
+                    .to_string(),
+            ))
+            .env("DOM5_CONF", &self.datadir)
+            .args(&arguments)
+            .spawn()
+            .expect(&format!(
+                "Failed to launch dom5 binary for game {} turn {}",
+                self.name, turn_number
+            ));
+            let log = NewGameLog {
+                game_id: game.id,
+                datetime: std::time::SystemTime::now(),
+                turn_number: turn_number,
+                output: "",
+                error: "",
+                log_command: &arguments.join(" "),
+            }
+            .insert(&db)
+            .unwrap();
+            let mut stdout = proc.stdout.take().unwrap();
+            let mut stderr = proc.stderr.take().unwrap();
+            let mut line = String::new();
+            while let Ok(len) = stdout.read_to_string(&mut line) {
+                if len == 0 {
+                    break;
+                }
+                log.update(&line, "", &db).unwrap();
+            }
+            while let Ok(len) = stderr.read_to_string(&mut line) {
+                if len == 0 {
+                    break;
+                }
+                log.update("", &line, &db).unwrap();
+            }
+            self.handle_new_turn(&db);
+            for entry in std::fs::read_dir(&self.savedir).unwrap() {
+                if let Ok(entry) = entry {
+                    let file_name = std::path::PathBuf::from(entry.file_name());
+                    match file_name.extension().and_then(std::ffi::OsStr::to_str) {
+                        Some("trn") => self
+                            .handle_trn_update(&self.savedir.join(&file_name.to_path_buf()), &db),
+                        _ => {}
                     }
-                    _ => {}
                 }
             }
-        }
-        match game.timer {
-            Some(timer) => {
-                game.schedule_turn(
-                    std::time::SystemTime::now()
-                        .add(std::time::Duration::from_secs((60 * timer) as u64)),
-                    db,
-                )
-                .unwrap();
+            match game.timer {
+                Some(timer) => {
+                    game.schedule_turn(
+                        std::time::SystemTime::now()
+                            .add(std::time::Duration::from_secs((60 * timer) as u64)),
+                        &db,
+                    )
+                    .unwrap();
+                }
+                None => {
+                    game.remove_timer(&db).unwrap();
+                }
             }
-            None => {
-                game.remove_timer(db).unwrap();
-            }
-        }
+        });
+        Dom5ProcHandle { thread: handle }
     }
 
     pub fn populate_maps<D>(&mut self, db: &D)
