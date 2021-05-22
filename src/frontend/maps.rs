@@ -153,7 +153,7 @@ async fn list(app_data: web::Data<AppData>) -> Result<HttpResponse> {
                     .get_result(&db)
                     .unwrap();
                 let map_definition =
-                    crate::map_file::MapFile::try_from(&map_file.filebinary[..]).unwrap();
+                    crate::files::map::MapFile::try_from(&map_file.filebinary[..]).unwrap();
                 diesel::update(maps_dsl::maps.filter(maps_dsl::id.eq(m.id)))
                     .set((
                         maps_dsl::province_count.eq(map_definition.prov_count),
@@ -190,7 +190,7 @@ async fn upload_post(
     let db = app_data.pool.get().expect("Unable to connect to database");
     let mut tga_name: Option<String> = None;
     let mut winter_name: Option<String> = None;
-    let mut map_file_data: Option<crate::map_file::MapFile> = None;
+    let mut map_file_data: Option<crate::files::map::MapFile> = None;
 
     let mut errors: Vec<String> = vec![];
     {
@@ -206,7 +206,7 @@ async fn upload_post(
                         contents.extend_from_slice(&bytes.unwrap());
                     }
                     let new_file = NewFile::new(content_type.get_filename().unwrap(), &contents);
-                    match crate::map_file::MapFile::try_from(&contents[..]) {
+                    match crate::files::map::MapFile::try_from(&contents[..]) {
                         Ok(mfd) => {
                             if tga_name.is_some() && *tga_name.as_ref().unwrap() != mfd.tga_filename
                             {

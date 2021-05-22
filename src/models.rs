@@ -7,6 +7,7 @@ use crate::diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl};
 use crate::diesel::{JoinOnDsl, RunQueryDsl};
 use serde::Deserialize;
 use std::hash::{Hash, Hasher};
+use thiserror::Error;
 
 pub struct Era;
 impl Era {
@@ -401,6 +402,14 @@ impl<'a> NewFile<'a> {
 pub struct NewFile<'a> {
     pub filename: &'a str,
     pub filebinary: &'a [u8],
+    pub hash: i64,
+}
+
+#[derive(Insertable)]
+#[table_name = "files"]
+pub struct NewFileOwned {
+    pub filename: String,
+    pub filebinary: Vec<u8>,
     pub hash: i64,
 }
 
@@ -885,6 +894,14 @@ pub struct NewMod<'a> {
     pub file_id: i32,
     pub icon_file_id: Option<i32>,
 }
+#[derive(Insertable)]
+#[table_name = "mods"]
+pub struct NewModOwned {
+    pub dm_filename: String,
+    pub name: String,
+    pub file_id: i32,
+    pub icon_file_id: Option<i32>,
+}
 
 #[derive(Clone, Identifiable, Queryable, Associations)]
 pub struct Mod {
@@ -907,11 +924,39 @@ impl Mod {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ModDefinition {
     pub dm_filename: String,
-    pub icon_filename: String,
+    pub icon_filename: Option<String>,
     pub name: String,
+}
+
+#[derive(Error, Debug)]
+pub enum ModDefReadError {
+    #[error("Failed to compile regex")]
+    RegexError(#[from] regex::Error),
+    #[error("Mod name missing")]
+    ModNameError,
+}
+
+impl ModDefinition {
+    pub fn from_str(filename: &str, contents: &str) -> Result<Self, ModDefReadError> {
+        let icon_filename_captures =
+            regex::Regex::new(r#"#icon +"?(.+?)"?\r?\n"#)?.captures(contents);
+        let modname_captures = regex::Regex::new(r#"#modname +"?(.+?)"?\r?\n"#)?.captures(contents);
+        Ok(ModDefinition {
+            name: modname_captures
+                .ok_or(ModDefReadError::ModNameError)?
+                .get(1)
+                .ok_or(ModDefReadError::ModNameError)?
+                .as_str()
+                .to_owned(),
+            icon_filename: icon_filename_captures
+                .and_then(|c| c.get(1))
+                .map(|c| c.as_str().to_owned()),
+            dm_filename: filename.to_owned(),
+        })
+    }
 }
 
 #[derive(Insertable)]
@@ -1266,7 +1311,7 @@ pub struct GameLog {
     turn_number: i32,
     output: String,
     error: String,
-    log_command: String
+    log_command: String,
 }
 
 #[derive(Queryable, Debug, Identifiable, QueryableByName)]
@@ -1335,7 +1380,7 @@ pub struct NewGameLog<'a> {
     pub turn_number: i32,
     pub output: &'a str,
     pub error: &'a str,
-    pub log_command: &'a str
+    pub log_command: &'a str,
 }
 
 impl<'a> NewGameLog<'a> {

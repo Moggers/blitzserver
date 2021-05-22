@@ -42,14 +42,12 @@ pub mod dom5_proc;
 pub mod email_manager;
 pub mod frontend;
 pub mod game_manager;
-pub mod map_file;
 pub mod models;
 pub mod msgbus;
 pub mod packets;
 pub mod schema;
-pub mod statusdump;
-pub mod twoh;
 pub mod util;
+pub mod files;
 
 use frontend::AppData;
 

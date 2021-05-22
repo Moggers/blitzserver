@@ -163,10 +163,11 @@ pub async fn upload_post(
                                     .values(&new_file)
                                     .on_conflict(crate::schema::files::dsl::hash)
                                     .do_update()
+                                    // Bogus update so return row gets populated with existing stuff
                                     .set(
                                         crate::schema::files::dsl::filename
                                             .eq(crate::schema::files::dsl::filename),
-                                    ) // Bogus update so return row gets populated with existing stuff
+                                    )
                                     .get_result(&db)
                                     .unwrap();
                                 let _inserted_mod: Mod =

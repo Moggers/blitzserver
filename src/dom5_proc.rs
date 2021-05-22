@@ -1,4 +1,4 @@
-use crate::twoh::TwoH;
+use crate::files::twoh::TwoH;
 use std::io::Read;
 use std::ops::Add;
 
