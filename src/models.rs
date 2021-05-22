@@ -1450,7 +1450,7 @@ WHERE
     {
         Ok(diesel::sql_query(
             r#"
-SELECT g.next_turn - interval '1' hour * dc.hours_before_host as timestamp
+SELECT g.next_turn - interval '1' hour * dc.hours_remaining as timestamp
 FROM discord_configs dc
 LEFT JOIN (SELECT game_id,MAX(turn_number) as turn_number FROM turns WHERE archived = false GROUP BY game_id) t
     ON t.game_id=dc.game_id
