@@ -259,6 +259,13 @@ impl Dom5Emu {
         let db_pool = self.db_pool.clone();
         let launch_id = self.game_id;
         std::thread::spawn(move || {
+            {
+                let db = db_pool.get().unwrap();
+                let game = Game::get(launch_id, &db).unwrap();
+                let mut dom5_proc = Dom5Proc::new(game);
+                dom5_proc.populate_mods(&db);
+                dom5_proc.update_nations(&db);
+            }
             let modcrc_cache = ModCrcCache::new(launch_id, db_pool.clone());
             let mapcrc_cache = MapCrcCache::new(launch_id, db_pool.clone());
             mapcrc_cache.populate();

@@ -76,10 +76,12 @@ impl Dom5Proc {
     }
 
     fn find_unused_port() -> Option<i32> {
-        for port in 1025..65535 {
-            match std::net::TcpListener::bind(("127.0.0.1", port)) {
+        static PORT_COUNTER: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(0);
+        for _ in 0..5 {
+            let grabbed = 1024 + (PORT_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst) % 1024);
+            match std::net::TcpListener::bind(("127.0.0.1", grabbed)) {
                 Ok(_l) => {
-                    return Some(port.into());
+                    return Some(grabbed.into());
                 }
                 _ => {}
             }
@@ -128,8 +130,8 @@ impl Dom5Proc {
         ))
         .env("DOM5_CONF", &self.datadir)
         .args(arguments)
-        .stderr(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
+        // .stderr(std::process::Stdio::null())
+        // .stdout(std::process::Stdio::null())
         .spawn()
         .expect(&format!(
             "Failed to launch dom5 binary for game {} while fetching nations",
