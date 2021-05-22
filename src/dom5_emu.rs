@@ -1,15 +1,18 @@
 use crate::diesel::{ExpressionMethods, QueryDsl, RunQueryDsl};
+use crate::dom5_proc::Dom5Proc;
 use crate::models::{Disciple, Game, Map, Nation, Player, PlayerTurn, Turn};
 use crate::msgbus::{
-    ClientDiscMsg, GameArchivedMsg, MapChangedMsg, ModsChangedMsg, Msg, NewTurnMsg,
-    OrdersSubmittedMsg, PktMsg, TurnHostStartMsg,
+    ClientDiscMsg, EraChangedMsg, GameArchivedMsg, GameScheduleMsg, MapChangedMsg, ModsChangedMsg,
+    Msg, NewTurnMsg, OrdersSubmittedMsg, PktMsg, TurnHostStartMsg,
 };
+use crate::msgbus::{MsgBusRx, MsgBusTx};
 use crate::packets::BodyContents;
 use crate::packets::{
     AstralPacketResp, DisconnectResp, DmFileResp, GameInfoResp, LoadingMessageResp, MapFileResp,
     MapImageFileResp, MapResp, MapWinterFileResp, ModFileResp, PAResp, Packet, PasswordsResp,
     Submit2hResp, TrnResp, TwoHCrcResp, TwoHResp,
 };
+use crossbeam_channel::RecvTimeoutError;
 use diesel::r2d2::ConnectionManager;
 use diesel::PgConnection;
 use std::env;
@@ -17,16 +20,16 @@ use std::io::Read;
 use std::ops::Add;
 pub struct Dom5Emu {
     game_id: i32,
-    bus_rx: crate::msgbus::MsgBusRx,
-    bus_tx: crate::msgbus::MsgBusTx,
+    bus_rx: MsgBusRx,
+    bus_tx: MsgBusTx,
     pub db_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
 }
 
 impl Dom5Emu {
     pub fn new(
         game_id: i32,
-        bus_tx: crate::msgbus::MsgBusTx,
-        bus_rx: crate::msgbus::MsgBusRx,
+        bus_tx: MsgBusTx,
+        bus_rx: MsgBusRx,
         db_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
     ) -> Self {
         Self {
@@ -209,6 +212,45 @@ impl Dom5Emu {
         return 0;
     }
 
+    pub fn scheduled_host(
+        launch_id: i32,
+        bus_tx: crate::msgbus::MsgBusTx,
+        db_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
+    ) {
+        log::info!("Hosting turn for game {}", launch_id);
+        let db = db_pool.get().unwrap();
+        let game = Game::get(launch_id, &db).unwrap();
+        let turn_n = match Turn::get(game.id, &db) {
+            Ok(turn) => turn.turn_number,
+            Err(_) => 0,
+        };
+        bus_tx
+            .send(Msg::TurnHostStart(TurnHostStartMsg {
+                game_id: game.id,
+                turn_number: turn_n + 1,
+            }))
+            .unwrap();
+        let dom5_proc = Dom5Proc::new(game);
+        dom5_proc.host_turn(&db);
+        log::debug!("Turn for game {} hosted", launch_id);
+        let game = Game::get(launch_id, &db).unwrap();
+        let turn = Turn::get(game.id, &db).unwrap();
+        bus_tx
+            .send(Msg::NewTurn(NewTurnMsg {
+                game_id: game.id,
+                turn_number: turn.turn_number,
+            }))
+            .unwrap();
+        if let Some(timer) = game.next_turn {
+            bus_tx
+                .send(Msg::GameSchedule(GameScheduleMsg {
+                    game_id: launch_id,
+                    schedule: timer,
+                }))
+                .unwrap();
+        }
+    }
+
     pub fn launch(self) {
         let connlist: std::sync::Arc<
             std::sync::Mutex<std::collections::HashMap<i32, std::sync::Weak<()>>>,
@@ -228,15 +270,68 @@ impl Dom5Emu {
             let shutdown = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
             let shutdown_tx = shutdown.clone();
             let recv_addr_tx = format!("0.0.0.0:{}", port);
+            let pool_clone = db_pool.clone();
+            let tx_clone = self.bus_tx.clone();
             std::thread::spawn(move || {
                 let mapcrc_cache_clone = mapcrc_cache.clone();
                 let modcrc_cache_clone = modcrc_cache.clone();
-                while let Ok(msg) = rx_clone.recv() {
-                    match msg {
+                loop {
+                    let timer = {
+                        let db = pool_clone.get().unwrap();
+                        let game = Game::get(launch_id, &db).unwrap();
+                        if let Some(t) = game.next_turn {
+                            if t <= std::time::SystemTime::now() {
+                                // Timer passed, host turn
+                                Self::scheduled_host(game.id, tx_clone.clone(), pool_clone.clone());
+                                std::time::Duration::from_secs(1)
+                            } else {
+                                t.duration_since(std::time::SystemTime::now()).unwrap()
+                            }
+                        } else {
+                            std::time::Duration::from_secs(9_999_999)
+                        }
+                    };
+                    match rx_clone.recv_timeout(timer) {
+                        /*
+                         * Era or mod changed- regenerate nation list
+                         */
+                        Ok(Msg::EraChanged(EraChangedMsg {
+                            game_id: inc_game_id,
+                            ..
+                        }))
+                        | Ok(Msg::ModsChanged(ModsChangedMsg {
+                            game_id: inc_game_id,
+                        })) if inc_game_id == launch_id => {
+                            let db = pool_clone.get().unwrap();
+                            let game = Game::get(inc_game_id, &db).unwrap();
+                            let mut dom5_proc = Dom5Proc::new(game);
+                            dom5_proc.populate_mods(&db);
+                            dom5_proc.update_nations(&db);
+                        }
+                        /*
+                         * Orders received, check if all present then host turn
+                         */
+                        Ok(Msg::OrdersSubmitted(OrdersSubmittedMsg {
+                            game_id: inc_game_id,
+                            ..
+                        })) if launch_id == inc_game_id => {
+                            let db = pool_clone.get().unwrap();
+                            let turn = Turn::get(inc_game_id, &db).unwrap();
+                            let player_turns = turn.get_player_turns(&db).unwrap();
+                            if player_turns.iter().all(|pt| pt.status == 2) {
+                                Self::scheduled_host(
+                                    inc_game_id,
+                                    tx_clone.clone(),
+                                    pool_clone.clone(),
+                                );
+                            }
+                        }
                         /*
                          * Kill the listen thread to free the port once a game is archived
                          */
-                        Msg::GameArchived(GameArchivedMsg { game_id }) if game_id == launch_id => {
+                        Ok(Msg::GameArchived(GameArchivedMsg { game_id }))
+                            if game_id == launch_id =>
+                        {
                             shutdown_tx.swap(true, std::sync::atomic::Ordering::AcqRel);
                             std::net::TcpStream::connect(recv_addr_tx).unwrap();
                             break;
@@ -245,21 +340,25 @@ impl Dom5Emu {
                          * At a game server wide level (instead of connection level below) we receive
                          * map changes and recalculate the map CRC cache
                          */
-                        Msg::MapChanged(MapChangedMsg { game_id, .. }) if game_id == launch_id => {
+                        Ok(Msg::MapChanged(MapChangedMsg { game_id, .. }))
+                            if game_id == launch_id =>
+                        {
                             mapcrc_cache_clone.populate();
                         }
                         /*
                          * Recalculate the mod crc cache on mod change
                          */
-                        Msg::ModsChanged(ModsChangedMsg { game_id, .. })
+                        Ok(Msg::ModsChanged(ModsChangedMsg { game_id, .. }))
                             if game_id == launch_id =>
                         {
                             modcrc_cache_clone.populate();
                         }
+                        Err(RecvTimeoutError::Disconnected) => {
+                            log::error!("Msgbus failure for game {}", launch_id);
+                        }
                         _ => {}
                     }
                 }
-                log::error!("Game {} server msgbus failure.", launch_id);
             });
             let recv_sock = std::net::TcpListener::bind(recv_addr).unwrap();
             let mods = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::<

@@ -118,7 +118,7 @@ impl Dom5Proc {
         ]);
         match std::fs::remove_file(self.savedir.join("statusdump.txt")) {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => panic!(e),
+            Err(e) => panic!("{}", e),
             Ok(_) => {}
         }
         let mut proc = std::process::Command::new(std::path::PathBuf::from(
@@ -128,6 +128,8 @@ impl Dom5Proc {
         ))
         .env("DOM5_CONF", &self.datadir)
         .args(arguments)
+        .stderr(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
         .spawn()
         .expect(&format!(
             "Failed to launch dom5 binary for game {} while fetching nations",
@@ -491,7 +493,7 @@ impl Dom5Proc {
             turn_number: turn_number,
             output: &output,
             error: &error,
-            log_command: &arguments.join(" ")
+            log_command: &arguments.join(" "),
         }
         .insert(db)
         .unwrap();
