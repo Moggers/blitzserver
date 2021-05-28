@@ -1,4 +1,5 @@
 use crate::twoh::TwoH;
+use nonblock::NonBlockingReader;
 use std::io::Read;
 use std::ops::Add;
 
@@ -78,7 +79,8 @@ impl Dom5Proc {
     fn find_unused_port() -> Option<i32> {
         static PORT_COUNTER: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(0);
         for _ in 0..5 {
-            let grabbed = 1024 + (PORT_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst) % 1024);
+            let grabbed =
+                1024 + (PORT_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst) % 1024);
             match std::net::TcpListener::bind(("127.0.0.1", grabbed)) {
                 Ok(_l) => {
                     return Some(grabbed.into());
@@ -474,31 +476,63 @@ impl Dom5Proc {
             String::from("-g"),
             format!("{}", self.name),
         ]);
-        let result = std::process::Command::new(std::path::PathBuf::from(
+        let mut child = std::process::Command::new(std::path::PathBuf::from(
             std::env::var("DOM5_BIN")
                 .expect("DOM5_BIN not specified")
                 .to_string(),
         ))
         .env("DOM5_CONF", &self.datadir)
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
         .args(&arguments)
-        .output()
+        .spawn()
         .expect(&format!(
             "Failed to launch dom5 binary for game {}",
             self.name
         ));
-        let output = String::from_utf8_lossy(&result.stdout);
-        let error = String::from_utf8_lossy(&result.stderr);
+
         let turn_number = turns.last().map(|t| t.turn_number).unwrap_or(0);
-        NewGameLog {
+        let game_log = NewGameLog {
             game_id: game.id,
             datetime: std::time::SystemTime::now(),
             turn_number: turn_number,
-            output: &output,
-            error: &error,
+            output: "",
+            error: "",
             log_command: &arguments.join(" "),
         }
         .insert(db)
         .unwrap();
+        let stdout = child.stdout.take().unwrap();
+        let mut noblock_stdout = NonBlockingReader::from_fd(stdout).unwrap();
+        let stderr = child.stderr.take().unwrap();
+        let mut noblock_stderr = NonBlockingReader::from_fd(stderr).unwrap();
+        while !noblock_stdout.is_eof() {
+            std::thread::sleep(std::time::Duration::from_secs(5));
+            let mut outbuf = String::new();
+            noblock_stdout
+                .read_available_to_string(&mut outbuf)
+                .unwrap();
+            let mut outerr = String::new();
+            noblock_stdout
+                .read_available_to_string(&mut outerr)
+                .unwrap();
+            if outbuf.len() == 0 && outerr.len() == 0 {
+                log::error!(
+                    "Turn {} for game {} hung, forcefully killing",
+                    turn_number,
+                    game.id
+                );
+                child.kill().unwrap();
+                child.wait().unwrap();
+                return;
+            }
+            game_log.update_logs(&outbuf, &outerr, db).unwrap();
+            if noblock_stdout.is_eof() {
+                break;
+            }
+        }
+        child.kill().unwrap();
+        child.wait().unwrap();
         self.handle_new_turn(db);
         for entry in std::fs::read_dir(&self.savedir).unwrap() {
             if let Ok(entry) = entry {

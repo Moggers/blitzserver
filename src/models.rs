@@ -1266,7 +1266,33 @@ pub struct GameLog {
     turn_number: i32,
     output: String,
     error: String,
-    log_command: String
+    log_command: String,
+}
+
+impl GameLog {
+    pub fn update_logs<D>(
+        &self,
+        output: &str,
+        error: &str,
+        db: &D,
+    ) -> Result<(), diesel::result::Error>
+    where
+        D: diesel::Connection<Backend = diesel::pg::Pg>,
+    {
+        diesel::sql_query(
+            r#"
+        UPDATE game_logs SET 
+            output=concat(output,$2),
+            error=concat(error,$3)
+        WHERE id=$1
+        "#,
+        )
+        .bind::<diesel::sql_types::Int4, _>(self.id)
+        .bind::<diesel::sql_types::VarChar, _>(output)
+        .bind::<diesel::sql_types::VarChar, _>(error)
+        .execute(db)?;
+        Ok(())
+    }
 }
 
 #[derive(Queryable, Debug, Identifiable, QueryableByName)]
@@ -1335,7 +1361,7 @@ pub struct NewGameLog<'a> {
     pub turn_number: i32,
     pub output: &'a str,
     pub error: &'a str,
-    pub log_command: &'a str
+    pub log_command: &'a str,
 }
 
 impl<'a> NewGameLog<'a> {
