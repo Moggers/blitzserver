@@ -506,25 +506,40 @@ impl Dom5Proc {
         let mut noblock_stdout = NonBlockingReader::from_fd(stdout).unwrap();
         let stderr = child.stderr.take().unwrap();
         let mut noblock_stderr = NonBlockingReader::from_fd(stderr).unwrap();
+        let mut waits = 0;
         while !noblock_stdout.is_eof() {
-            std::thread::sleep(std::time::Duration::from_secs(5));
+            std::thread::sleep(std::time::Duration::from_secs(1));
             let mut outbuf = String::new();
             noblock_stdout
                 .read_available_to_string(&mut outbuf)
                 .unwrap();
             let mut outerr = String::new();
-            noblock_stdout
+            noblock_stderr
                 .read_available_to_string(&mut outerr)
                 .unwrap();
             if outbuf.len() == 0 && outerr.len() == 0 {
-                log::error!(
-                    "Turn {} for game {} hung, forcefully killing",
-                    turn_number,
-                    game.id
-                );
-                child.kill().unwrap();
-                child.wait().unwrap();
-                return;
+                waits = waits + 1;
+                if waits == 5 {
+                    outbuf.push_str(&format!(
+                        "WARN: Printed nothing for {} seconds, forcefully killing",
+                        waits
+                    ));
+                    log::error!(
+                        "Turn {} for game {} hung, forcefully killing",
+                        turn_number,
+                        game.id
+                    );
+                    child.kill().unwrap();
+                    child.wait().unwrap();
+                    return;
+                } else {
+                    outbuf.push_str(&format!(
+                        "WARN: Printed nothing for {} seconds, possibly hung",
+                        waits
+                    ));
+                }
+            } else {
+                waits = 0;
             }
             game_log.update_logs(&outbuf, &outerr, db).unwrap();
             if noblock_stdout.is_eof() {
