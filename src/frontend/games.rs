@@ -470,12 +470,14 @@ struct ActiveGame {
     address: String,
     turn_summary: crate::models::TurnSummary,
     next_turn_string: String,
+    map_id: i32,
 }
 struct PendingGame {
     id: i32,
     name: String,
     address: String,
     players: i32,
+    map_id: i32,
 }
 struct ArchivedGame {
     id: i32,
@@ -824,6 +826,7 @@ async fn list(
         .map(|g| ActiveGame {
             next_turn_string: g.next_turn_string(),
             id: g.id,
+            map_id: g.map_id,
             turn_summary: turn_summaries
                 .iter()
                 .find(|t| t.game_id == g.id)
@@ -841,6 +844,7 @@ async fn list(
         .iter()
         .map(|g| PendingGame {
             id: g.id,
+            map_id: g.map_id,
             players: match player_counts.contains_key(&g.id) {
                 true => player_counts[&g.id],
                 false => 0,
