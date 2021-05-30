@@ -196,12 +196,20 @@ async fn main() -> std::io::Result<()> {
                                 )
                                 .get_result::<(Map, File)>(&db)
                                 .unwrap();
+                            let cursor = std::io::Cursor::new(file.filebinary);
                             let reader = crate::image::io::Reader::with_format(
-                                std::io::Cursor::new(file.filebinary),
+                                cursor.clone(),
                                 crate::image::ImageFormat::Tga,
                             )
                             .decode()
-                            .unwrap();
+                            .unwrap_or_else(|_| {
+                                crate::image::io::Reader::with_format(
+                                    cursor.clone(),
+                                    crate::image::ImageFormat::Sgi,
+                                )
+                                .decode()
+                                .unwrap()
+                            });
                             let maps_dir = std::path::PathBuf::from("./images/maps");
                             let mut file =
                                 std::fs::File::create(maps_dir.join(format!("{}.jpg", map.id)))

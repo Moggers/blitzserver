@@ -24,7 +24,7 @@ byteorder = "*"
 num_enum = "*"
 zip = "*"
 serde_qs = { git = "https://github.com/Moggers/serde_qs.git", branch = "main", features = [ "actix" ] }
-image = "*"
+image = { git = "https://github.com/Moggers/image.git", branch = "sgi", features = [ "sgi" ] }
 env_logger = "*"
 log = "*"
 lettre = "0.10.0-alpha.4"

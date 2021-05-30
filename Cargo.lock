@@ -533,7 +533,7 @@ dependencies = [
 
 [[package]]
 name = "blitzserver"
-version = "0.7.17"
+version = "0.7.19"
 dependencies = [
  "actix-files",
  "actix-multipart",
@@ -561,7 +561,7 @@ dependencies = [
  "num_enum",
  "r2d2",
  "r2d2_postgres",
- "rand 0.8.3",
+ "rand 0.7.3",
  "regex",
  "reqwest",
  "serde",
@@ -1455,8 +1455,7 @@ dependencies = [
 [[package]]
 name = "image"
 version = "0.23.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24ffcb7e7244a9bf19d35bf2883b9c080c4ced3c07a9895572178cdb8f13f6a1"
+source = "git+https://github.com/Moggers/image.git?branch=sgi#5765f5928a126075d8b33a2326e9b00ae353f22d"
 dependencies = [
  "bytemuck",
  "byteorder",
@@ -1937,9 +1936,9 @@ dependencies = [
 
 [[package]]
 name = "num-rational"
-version = "0.3.2"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12ac428b1cb17fce6f731001d307d351ec70a6d202fc2e60f7d4c5e42d8f4f07"
+checksum = "d41702bd167c2df5520b384281bc111a4b5efcf7fbc4c9c222c815b07e0a6a6a"
 dependencies = [
  "autocfg",
  "num-integer",
