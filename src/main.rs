@@ -177,65 +177,7 @@ async fn main() -> std::io::Result<()> {
             .service(
                 actix_files::Files::new("/images/maps", "./images/maps")
                     .show_files_listing()
-                    .default_handler(|req: actix_web::dev::ServiceRequest| async {
-                        let app_data = req
-                            .app_data::<actix_web::web::Data<self::frontend::AppData>>()
-                            .unwrap();
-                        let db = app_data.pool.get().unwrap();
-                        let (http_req, _payload) = req.into_parts();
-                        let map_id_regex =
-                            regex::Regex::new(r#"/images/maps/([0-9]+).jpg"#).unwrap();
-                        if let Some(captures) = map_id_regex.captures(http_req.path()) {
-                            let id_i32: i32 = captures.get(1).unwrap().as_str().parse().unwrap();
-                            let (map, file): (Map, File) = crate::schema::maps::dsl::maps
-                                .filter(crate::schema::maps::dsl::id.eq(id_i32))
-                                .inner_join(
-                                    crate::schema::files::dsl::files
-                                        .on(crate::schema::files::dsl::id
-                                            .eq(crate::schema::maps::dsl::tgafile_id)),
-                                )
-                                .get_result::<(Map, File)>(&db)
-                                .unwrap();
-                            let cursor = std::io::Cursor::new(file.filebinary);
-                            let reader = crate::image::io::Reader::with_format(
-                                cursor.clone(),
-                                crate::image::ImageFormat::Tga,
-                            )
-                            .decode()
-                            .unwrap_or_else(|_| {
-                                crate::image::io::Reader::with_format(
-                                    cursor.clone(),
-                                    crate::image::ImageFormat::Sgi,
-                                )
-                                .decode()
-                                .unwrap()
-                            });
-                            let maps_dir = std::path::PathBuf::from("./images/maps");
-                            let mut file =
-                                std::fs::File::create(maps_dir.join(format!("{}.jpg", map.id)))
-                                    .unwrap();
-                            let mut jpg_bytes: Vec<u8> = Vec::new();
-                            reader
-                                .write_to(
-                                    &mut std::io::Cursor::new(&mut jpg_bytes),
-                                    crate::image::ImageOutputFormat::Jpeg(30),
-                                )
-                                .unwrap();
-                            file.write(&jpg_bytes).unwrap();
-
-                            Ok(actix_web::dev::ServiceResponse::new(
-                                http_req,
-                                HttpResponse::Ok()
-                                    .content_type("application/jpg")
-                                    .body(jpg_bytes),
-                            ))
-                        } else {
-                            Ok(actix_web::dev::ServiceResponse::new(
-                                http_req,
-                                HttpResponse::NotFound().finish(),
-                            ))
-                        }
-                    }),
+                    .default_handler(crate::frontend::maps::map_thumb_handler),
             )
             .service(index)
             .service(favicon)

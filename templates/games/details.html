@@ -1,7 +1,7 @@
 {% extends "container.html" %}
 {% block title %}{{game.name}}{% endblock %}
 {% block meta %}
-<meta property="og:image" content="{{format!("/images/maps/{}.jpg", self.game.map_id)}}" />
+<meta property="og:image" content="{{format!("/images/maps/{}_1000.jpg", self.game.map_id)}}" />
 <meta name="description" content="{{self.get_shorthand_description()}}" />
 {% endblock %}
 {% block body %}
@@ -50,7 +50,7 @@
 				<div>
 					<div>
 						<a href="{{format!("/map/{}", self.game.map_id)}}">
-							<img class="map-img" src={{format!("/images/maps/{}.jpg", self.game.map_id)}} />
+							<img class="map-img" src={{format!("/images/maps/{}_1000-0.jpg", self.game.map_id)}} />
 						</a>
 					</div>
 					{% include "info.html" %}

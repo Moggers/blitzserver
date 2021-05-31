@@ -1,5 +1,6 @@
 use super::AppData;
 use crate::diesel::prelude::*;
+use crate::image::GenericImageView;
 use crate::models::{File, Map, NewFile, NewMap};
 use actix_multipart::Multipart;
 use actix_web::http::header;
@@ -7,6 +8,7 @@ use actix_web::{get, post, web, HttpResponse, Result};
 use askama::Template;
 use diesel::RunQueryDsl;
 use futures::{StreamExt, TryStreamExt};
+use serde::Deserialize;
 use std::convert::TryFrom;
 use std::io::Write;
 
@@ -373,5 +375,72 @@ async fn upload_post(
         return Ok(HttpResponse::Found()
             .header(header::LOCATION, "/maps")
             .finish());
+    }
+}
+
+pub async fn map_thumb_handler(
+    req: actix_web::dev::ServiceRequest,
+) -> actix_web::Result<actix_web::dev::ServiceResponse> {
+    let app_data = req
+        .app_data::<actix_web::web::Data<crate::frontend::AppData>>()
+        .unwrap();
+    let db = app_data.pool.get().unwrap();
+    let (http_req, _payload) = req.into_parts();
+    let map_id_regex = regex::Regex::new(r#"/images/maps/([0-9]+)_([0-9]+)-([0-9]+).jpg"#).unwrap();
+    if let Some(captures) = map_id_regex.captures(http_req.path()) {
+        let id_i32: i32 = captures.get(1).unwrap().as_str().parse().unwrap();
+        let width: u32 = captures.get(2).unwrap().as_str().parse().unwrap();
+        let height: u32 = captures.get(3).unwrap().as_str().parse().unwrap();
+        let (map, file): (Map, File) = crate::schema::maps::dsl::maps
+            .filter(crate::schema::maps::dsl::id.eq(id_i32))
+            .inner_join(
+                crate::schema::files::dsl::files
+                    .on(crate::schema::files::dsl::id.eq(crate::schema::maps::dsl::tgafile_id)),
+            )
+            .get_result::<(Map, File)>(&db)
+            .unwrap();
+        let cursor = std::io::Cursor::new(file.filebinary);
+        let reader =
+            crate::image::io::Reader::with_format(cursor.clone(), crate::image::ImageFormat::Tga)
+                .decode()
+                .unwrap_or_else(|_| {
+                    crate::image::io::Reader::with_format(
+                        cursor.clone(),
+                        crate::image::ImageFormat::Sgi,
+                    )
+                    .decode()
+                    .unwrap()
+                });
+        let mut resized = reader.resize(width, width, crate::image::imageops::FilterType::Lanczos3);
+        let (imgwidth, imgheight) = resized.dimensions();
+        let cropped = if height > 0 {
+            resized.crop(0, imgheight / 2 - height / 2, imgwidth, height)
+        } else {
+            resized
+        };
+        let maps_dir = std::path::PathBuf::from("./images/maps");
+        let mut file =
+            std::fs::File::create(maps_dir.join(format!("{}_{}-{}.jpg", map.id, width, height)))
+                .unwrap();
+        let mut jpg_bytes: Vec<u8> = Vec::new();
+        cropped
+            .write_to(
+                &mut std::io::Cursor::new(&mut jpg_bytes),
+                crate::image::ImageOutputFormat::Jpeg(30),
+            )
+            .unwrap();
+        file.write(&jpg_bytes).unwrap();
+
+        Ok(actix_web::dev::ServiceResponse::new(
+            http_req,
+            HttpResponse::Ok()
+                .content_type("application/jpg")
+                .body(jpg_bytes),
+        ))
+    } else {
+        Ok(actix_web::dev::ServiceResponse::new(
+            http_req,
+            HttpResponse::NotFound().finish(),
+        ))
     }
 }
