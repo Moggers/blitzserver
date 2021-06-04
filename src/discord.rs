@@ -249,7 +249,7 @@ impl DiscordManager {
             .send()
         {
             let body = res.text().unwrap();
-            if let Ok(res) = serde_json::from_str::<Vec<DiscordChannel>>(&body) { 
+            if let Ok(res) = serde_json::from_str::<Vec<DiscordChannel>>(&body) {
                 let mut cache = self.channel_cache.lock().unwrap();
                 for channel in res {
                     cache.insert(format!("{}:{}", server_id, channel.id), channel.name);
@@ -257,6 +257,7 @@ impl DiscordManager {
                 drop(cache);
                 self.get_channel_name(server_id, channel_id)
             } else {
+                let mut cache = self.channel_cache.lock().unwrap();
                 cache.insert(format!("{}:{}", server_id, channel_id, "[Deleted]"));
                 "[Deleted]".to_owned()
             }
