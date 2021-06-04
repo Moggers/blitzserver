@@ -279,7 +279,7 @@ impl DiscordManager {
         {
             let body = res.text().unwrap();
             let res: DiscordGuild = serde_json::from_str(&body).unwrap_or(DiscordGuild {
-                id: server_id,
+                id: server_id.to_string(),
                 name: "[Deleted]".to_owned(),
             });
             self.server_cache
