@@ -249,13 +249,16 @@ impl DiscordManager {
             .send()
         {
             let body = res.text().unwrap();
-            let res: Vec<DiscordChannel> = serde_json::from_str(&body).unwrap();
-            let mut cache = self.channel_cache.lock().unwrap();
-            for channel in res {
-                cache.insert(format!("{}:{}", server_id, channel.id), channel.name);
+            if let Ok(res) = serde_json::from_str::<Vec<DiscordChannel>>(&body) { 
+                let mut cache = self.channel_cache.lock().unwrap();
+                for channel in res {
+                    cache.insert(format!("{}:{}", server_id, channel.id), channel.name);
+                }
+                drop(cache);
+                self.get_channel_name(server_id, channel_id)
+            } else {
+                "[Deleted]".to_owned()
             }
-            drop(cache);
-            self.get_channel_name(server_id, channel_id)
         } else {
             "Unable to fetch name".to_string()
         }
