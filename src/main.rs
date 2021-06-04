@@ -68,7 +68,9 @@ async fn favicon() -> Result<HttpResponse> {
 }
 #[get("/styles.css")]
 async fn styles() -> Result<HttpResponse> {
-    Ok(HttpResponse::Ok().content_type("text/css").body(
+    Ok(HttpResponse::Ok()
+       .set(header::CacheControl(vec![header::CacheDirective::MaxAge(86400u32)]))
+       .content_type("text/css").body(
         &concat!(
             include_str!("../content/map-list.css"),
             include_str!("../content/mod-list.css"),

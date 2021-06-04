@@ -6,27 +6,18 @@
 {% endblock %}
 {% block body %}
 <div class="tabset">
-	<input name="tabset_1" {% if self.tab=="status" %} checked="checked" {% endif %} hidden=true type="radio" class="css-tab-input" id="css-tab-status" />
-	<input name="tabset_1" {% if self.tab=="schedule" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-schedule" />
-	<input name="tabset_1" {% if self.tab=="settings" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-settings" />
-	<input name="tabset_1" {% if self.tab=="emails" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-emails" />
-	<input name="tabset_1" {% if self.tab=="admin-logs" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-admin-logs" />
-	<!-- Admin Only -->
-	<input name="tabset_1" {% if self.tab=="logs" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-logs" />
-	<input name="tabset_1" {% if self.tab=="discord" %} checked="checked" {% endif %} type="radio" class="css-tab-input" id="css-tab-discord" />
-	<!-- End Admin -->
 	<nav class="nav tabset_labels tabs css-tab-labels">
 		<h1>{{ game.name }}</h1>
-		<label href="#status" class="tab css-tab-label tab1" for="css-tab-status">status</label>
-		<label class="tab css-tab-label tab2" for="css-tab-schedule">schedule</label>
-		<label class="tab css-tab-label tab3" for="css-tab-settings">settings</label>
-		<label class="tab css-tab-label tab4" for="css-tab-emails">emails</label>
-		<label class="tab css-tab-label tab5" for="css-tab-admin-logs">admin logs</label>
+		<a href="#status">status</a>
+		<a href="#schedule">schedule</a>
+		<a href="#settings">settings</a>
+		<a href="#emails">emails</a>
+		<a href="#admin-logs">admin logs</a>
 	<!-- Admin Only -->
 		{% if self.authed == AuthStatus::AuthSuccess %}
-			<label class="tab css-tab-label tab6" for="css-tab-logs">logs</label>
+			<a href="#logs">logs</a>
 			{% if self.discord_manager.is_some() %}
-				<label class="tab css-tab-label tab7" for="css-tab-discord">discord</label>
+				<a href="#discord">discord</a>
 			{% endif %}
 		{% endif %}
 	<!-- End Admin -->
@@ -40,7 +31,7 @@
 		</div>
 	</nav>
 	<div>
-		<section class="tabsection">
+		<section id="status" class="tabsection">
 			<div class="game-details">
 				{% if game.teamgame == true %}
 					{% include "disciple_list.html" %}
@@ -78,7 +69,7 @@
 				</div>
 			</div>
 		</section>
-		<section class="tabsection">
+		<section id="schedule"  class="tabsection">
 			<div class="schedule-details">
 				<div>
 					<div class="pane">
@@ -157,7 +148,7 @@
 				</div>
 			</div>
 		</section>
-		<section class="tabsection">
+		<section id="settings" class="tabsection">
 			<div class="pane">
 				<form action="/game/{{game.id}}/settings" method="post">
 					<input type="hidden" name="loaded" value="1" />
@@ -168,21 +159,21 @@
 				</form>
 			</div>
 		</section>
-		<section class="tabsection">
+		<section id="email" class="tabsection">
 			<fieldset {% if game.archived %} disabled {% endif %}>
 				{% include "email.html" %}
 			</fieldset>
 		</section>
-		<section class="tabsection">
+		<section id="admin-logs" class="tabsection">
 			{% include "admin-logs.html" %}
 		</section>
 		<!-- Admin Only -->
-		<section class="tabsection">
+		<section id="logs" class="tabsection">
 		{% if self.authed == AuthStatus::AuthSuccess %}
 		{% include "logs.html" %}
 		{% endif %}
 		</section>
-		<section class="tabsection">
+		<section id="discord" class="tabsection">
 		{% if self.authed == AuthStatus::AuthSuccess && self.discord_manager.is_some() %}
 		{% include "discord.html" %}
 		{% endif %}

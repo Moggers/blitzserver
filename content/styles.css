@@ -379,38 +379,12 @@ h3 {
 	cursor: pointer;
 }
 
-.css-tab-label:hover {
-	text-decoration: underline;
-}
-.tabset > input[type="radio"] {
+.tabsection {
 	display: none;
 }
-.tabset > input:nth-child(1):not(:checked) ~ div > .tabsection:nth-child(1),
-.tabset > input:nth-child(2):not(:checked) ~ div > .tabsection:nth-child(2),
-.tabset > input:nth-child(3):not(:checked) ~ div > .tabsection:nth-child(3),
-.tabset > input:nth-child(4):not(:checked) ~ div > .tabsection:nth-child(4),
-.tabset > input:nth-child(5):not(:checked) ~ div > .tabsection:nth-child(5),
-.tabset > input:nth-child(6):not(:checked) ~ div > .tabsection:nth-child(6),
-.tabset > input:nth-child(7):not(:checked) ~ div > .tabsection:nth-child(7),
-.tabset > input:nth-child(8):not(:checked) ~ div > .tabsection:nth-child(8),
-.tabset > input:nth-child(9):not(:checked) ~ div > .tabsection:nth-child(9) {
-	display: none;
-}
-.tabset > input:nth-child(1):checked ~ .tabset_labels > .css-tab-label.tab1,
-.tabset > input:nth-child(2):checked ~ .tabset_labels > .css-tab-label.tab2,
-.tabset > input:nth-child(3):checked ~ .tabset_labels > .css-tab-label.tab3,
-.tabset > input:nth-child(4):checked ~ .tabset_labels > .css-tab-label.tab4,
-.tabset > input:nth-child(5):checked ~ .tabset_labels > .css-tab-label.tab5,
-.tabset > input:nth-child(6):checked ~ .tabset_labels > .css-tab-label.tab6,
-.tabset > input:nth-child(7):checked ~ .tabset_labels > .css-tab-label.tab7,
-.tabset > input:nth-child(8):checked ~ .tabset_labels > .css-tab-label.tab8,
-.tabset > input:nth-child(9):checked ~ .tabset_labels > .css-tab-label.tab9 {
-	background: var(--col-grey);
-	color: black;
-}
-.css-tab-label label {
-	cursor: pointer;
-}
+.tabsection:target {
+	display: initial;
+} 
 .schedule-details {
 	display: grid;
 	grid-template-columns: 1.618fr 1fr;
