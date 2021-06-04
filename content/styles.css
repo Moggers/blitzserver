@@ -111,9 +111,6 @@ input {
 	vertical-align: middle;
 	box-sizing: border-box;
 }
-input[type=file].btn {
-	max-height: 1.8em;
-}
 .btn:hover {
 	cursor:pointer;
 	text-decoration: underline;

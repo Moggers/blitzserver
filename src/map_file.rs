@@ -58,7 +58,12 @@ impl std::convert::TryFrom<&[u8]> for MapFile {
     type Error = Box<dyn std::error::Error>;
     fn try_from(contents: &[u8]) -> Result<Self, Self::Error> {
         let commented_regex = regex::Regex::new(r#"^ *--"#).unwrap();
-        let nocomment_lines = contents.lines().filter_map(Result::ok).filter(|l| !commented_regex.is_match(l)).collect::<Vec<String>>().join("\n");
+        let nocomment_lines = contents
+            .lines()
+            .filter_map(Result::ok)
+            .filter(|l| !commented_regex.is_match(l))
+            .collect::<Vec<String>>()
+            .join("\n");
         let tga_name = regex::Regex::new(r#"#imagefile "?([^"\n]+)"?"#)
             .ok()
             .and_then(|c| c.captures(&nocomment_lines))
@@ -81,7 +86,7 @@ impl std::convert::TryFrom<&[u8]> for MapFile {
             .and_then(|m| m.get(1))
             .and_then(|d| Some(d.as_str().to_owned()));
 
-        let mut province_count = 0;
+        let mut province_count: i32 = 0;
         let mut uw_count = 0;
         let capture_terrain = regex::Regex::new("#terrain ([0-9]+) ([0-9]+)").unwrap();
         for (_, terrain_type) in contents.lines().filter_map(Result::ok).filter_map(|l| {
@@ -97,6 +102,19 @@ impl std::convert::TryFrom<&[u8]> for MapFile {
             } else {
                 province_count = province_count + 1;
             }
+        }
+
+        if province_count == 0  && uw_count == 0 {
+            let mut set = std::collections::HashSet::new();
+            let capture_neighbour = regex::Regex::new("#neighbour ([0-9]+) ([0-9]+)").unwrap();
+            for prov_id in contents.lines().filter_map(Result::ok).filter_map(|l| {
+                capture_neighbour
+                    .captures(&l)
+                    .and_then(|c| Some(c.get(1).unwrap().as_str().parse::<i32>().unwrap()))
+            }) {
+                set.insert(prov_id);
+            }
+            province_count = set.len() as i32;
         }
 
         Ok(MapFile {
