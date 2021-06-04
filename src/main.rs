@@ -192,6 +192,7 @@ async fn main() -> std::io::Result<()> {
             .service(frontend::maps::download)
             .service(frontend::games::timer)
             .service(frontend::games::postpone)
+            .service(frontend::games::old_details)
             .service(frontend::games::details)
             .service(frontend::games::launch)
             .service(frontend::games::list)

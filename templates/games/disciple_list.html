@@ -9,7 +9,7 @@
 		{% if self.turn_number == 0 && self.authed == AuthStatus::AuthSuccess %}
 		<tr class="disciple unjoined">
 			<td class="nation-name wide-column">
-				<form action="assign-team" method="POST">
+				<form action="{{game.id}}/assign-team" method="POST">
 					<section>
 						<input type="hidden" name="team" value="{{team}}" />
 						<input type="hidden" name="disciple" value="1" />
@@ -37,7 +37,7 @@
 	<table class="striped-table">
 		<tr class="unjoined">
 			<td class="nation-name wide-column">
-				<form action="assign-team" method="POST">
+				<form action="{{game.id}}/assign-team" method="POST">
 					<section>
 						<input type="hidden" name="disciple" value="0" />
 						<input type="hidden" name="team" value="0" />

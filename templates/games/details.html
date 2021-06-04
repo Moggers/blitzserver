@@ -22,7 +22,7 @@
 		{% endif %}
 	<!-- End Admin -->
 		<div class="auth-input">
-			<form action="/game/{{game.id}}/status" method="get">
+			<form action="/game/{{game.id}}" method="get">
 				<div class="input-group">
 					<input {% if self.authed == AuthStatus::AuthFail %}class="invalid"{% endif %} name="password" type="password" placeholder="password" {% if self.authed == AuthStatus::AuthSuccess%}value="hello:)"{% endif %}/>
 					<input class="btn btn-block" type="submit" value="admin mode" />

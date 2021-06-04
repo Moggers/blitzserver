@@ -531,7 +531,7 @@ async fn postpone(
         }))
         .unwrap();
     Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}/status#schedule", game.id))
+        .header(header::LOCATION, format!("/game/{}#schedule", game.id))
         .finish())
 }
 #[post("/game/{id}/timer")]
@@ -581,10 +581,23 @@ async fn timer(
         }))
         .unwrap();
     Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}/status#schedule", game.id))
+        .header(header::LOCATION, format!("/game/{}#schedule", game.id))
         .finish())
 }
 #[get("/game/{id}/status")]
+async fn old_details(
+    (app_data, web::Path(path_id), session, payload): (
+        web::Data<AppData>,
+        web::Path<String>,
+        actix_session::Session,
+        serde_qs::actix::QsQuery<GameDetailsPayload>,
+    ),
+) -> Result<HttpResponse> {
+        return Ok(HttpResponse::PermanentRedirect()
+            .header(header::LOCATION, format!("/game/{}#status", path_id))
+            .finish());
+}
+#[get("/game/{id}")]
 async fn details(
     (app_data, web::Path(path_id), session, payload): (
         web::Data<AppData>,
@@ -606,7 +619,7 @@ async fn details(
         use crate::schema::games::dsl::*;
         let game: Game = games.filter(name.ilike(path_id)).get_result(&*db).unwrap();
         return Ok(HttpResponse::PermanentRedirect()
-            .header(header::LOCATION, format!("/game/{}/status#status", game.id))
+            .header(header::LOCATION, format!("/game/{}#status", game.id))
             .finish());
     };
     if let Some(p) = &payload.password {
@@ -620,7 +633,7 @@ async fn details(
                 .unwrap();
         }
         return Ok(HttpResponse::TemporaryRedirect()
-            .header(header::LOCATION, format!("/game/{}/status#status", game.id))
+            .header(header::LOCATION, format!("/game/{}#status", game.id))
             .finish());
     }
     let authed: AuthStatus = session
@@ -744,7 +757,7 @@ async fn launch(
         }))
         .unwrap();
     Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}/status#schedule", game.id))
+        .header(header::LOCATION, format!("/game/{}#schedule", game.id))
         .finish())
 }
 #[post("/games/create")]
@@ -796,7 +809,7 @@ async fn create_post(
     Ok(HttpResponse::Found()
         .header(
             header::LOCATION,
-            format!("/game/{}/status#settings?password={}", game.id, new_game.password),
+            format!("/game/{}?password={}#settings", game.id, new_game.password),
         )
         .finish())
 }
@@ -890,7 +903,7 @@ async fn settings_post(
         == AuthStatus::Unauthed
     {
         return Ok(HttpResponse::Unauthorized()
-            .header(header::LOCATION, format!("/game/{}/settings", path_id))
+            .header(header::LOCATION, format!("/game/{}#settings", path_id))
             .finish());
     }
     let old_game = Game::get(*path_id, &db).unwrap();
@@ -980,7 +993,7 @@ async fn settings_post(
         }))
         .unwrap();
     Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}/status#settings", game.id))
+        .header(header::LOCATION, format!("/game/{}#settings", game.id))
         .finish())
 }
 #[post("/game/{id}/email")]
@@ -1007,14 +1020,14 @@ async fn emails_post(
                 .header(
                     header::LOCATION,
                     format!(
-                        "/game/{}/status?email_address={}#emails",
+                        "/game/{}?email_address={}#emails",
                         game_id, email_form.email_address
                     ),
                 )
                 .finish())
         }
         Err(_) => Ok(HttpResponse::BadRequest()
-            .header(header::LOCATION, format!("/game/{}/email", game_id))
+            .header(header::LOCATION, format!("/game/{}#email", game_id))
             .finish()),
     }
 }
@@ -1036,14 +1049,14 @@ async fn emails_delete(
                 .header(
                     header::LOCATION,
                     format!(
-                        "/game/{}/status#emails?email_address={}",
+                        "/game/{}#emails?email_address={}",
                         game_id, email_form.email_address
                     ),
                 )
                 .finish())
         }
         Err(_) => Ok(HttpResponse::BadRequest()
-            .header(header::LOCATION, format!("/game/{}/email", game_id))
+            .header(header::LOCATION, format!("/game/{}#email", game_id))
             .finish()),
     }
 }
@@ -1059,7 +1072,7 @@ pub async fn archive_post(
         == AuthStatus::Unauthed
     {
         return Ok(HttpResponse::Unauthorized()
-            .header(header::LOCATION, format!("/game/{}/schedule", path_id))
+            .header(header::LOCATION, format!("/game/{}#schedule", path_id))
             .finish());
     }
     let db = app_data.pool.get().expect("Unable to connect to database");
@@ -1076,7 +1089,7 @@ pub async fn archive_post(
         .send(Msg::GameArchived(GameArchivedMsg { game_id: *path_id }))
         .unwrap();
     return Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}/status#schedule", path_id))
+        .header(header::LOCATION, format!("/game/{}#schedule", path_id))
         .finish());
 }
 
@@ -1095,7 +1108,7 @@ pub async fn remove_post(
         == AuthStatus::Unauthed
     {
         return Ok(HttpResponse::Unauthorized()
-            .header(header::LOCATION, format!("/game/{}/schedule", path_id))
+            .header(header::LOCATION, format!("/game/{}#schedule", path_id))
             .finish());
     }
     let db = app_data.pool.get().expect("Unable to connect to database");
@@ -1109,7 +1122,7 @@ pub async fn remove_post(
         }
     }
     return Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}/status#status", path_id))
+        .header(header::LOCATION, format!("/game/{}#status", path_id))
         .finish());
 }
 
@@ -1128,7 +1141,7 @@ pub async fn rollback_post(
         == AuthStatus::Unauthed
     {
         return Ok(HttpResponse::Unauthorized()
-            .header(header::LOCATION, format!("/game/{}/schedule", path_id))
+            .header(header::LOCATION, format!("/game/{}#schedule", path_id))
             .finish());
     }
     let db = app_data.pool.get().expect("Unable to connect to database");
@@ -1139,7 +1152,7 @@ pub async fn rollback_post(
         .unwrap();
     game.rollback(&db).unwrap();
     return Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}/status#schedule", path_id))
+        .header(header::LOCATION, format!("/game/{}#schedule", path_id))
         .finish());
 }
 
@@ -1158,7 +1171,7 @@ pub async fn unstart_post(
         == AuthStatus::Unauthed
     {
         return Ok(HttpResponse::Unauthorized()
-            .header(header::LOCATION, format!("/game/{}/schedule", path_id))
+            .header(header::LOCATION, format!("/game/{}#schedule", path_id))
             .finish());
     }
     let db = app_data.pool.get().expect("Unable to connect to database");
@@ -1170,7 +1183,7 @@ pub async fn unstart_post(
     game.unstart(&db).unwrap();
     let _game = game.remove_timer(&db).unwrap();
     return Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}/status#schedule", path_id))
+        .header(header::LOCATION, format!("/game/{}#schedule", path_id))
         .finish());
 }
 #[post("/game/{id}/assign-team")]
@@ -1189,7 +1202,7 @@ pub async fn assign_team(
         == AuthStatus::Unauthed
     {
         return Ok(HttpResponse::Unauthorized()
-            .header(header::LOCATION, format!("/game/{}/status", path_id))
+            .header(header::LOCATION, format!("/game/{}", path_id))
             .finish());
     }
     let db = app_data.pool.get().expect("Unable to connect to database");
@@ -1208,6 +1221,6 @@ pub async fn assign_team(
             .unwrap();
     }
     return Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}/status#status", path_id))
+        .header(header::LOCATION, format!("/game/{}#status", path_id))
         .finish());
 }

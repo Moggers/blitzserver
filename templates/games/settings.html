@@ -4,7 +4,7 @@
 	<div>
 		<h3>Map</h3>
 		<input name="mapfilter" type="search" value="{{settings.mapfilter}}" placeholder="Search" />
-		<input formmethod="GET" type="submit" formaction="/game/{{game.id}}/settings" formnovalidate value="Search" />
+		<input formmethod="GET" type="submit" formaction="/game/{{game.id}}#settings" formnovalidate value="Search" />
 		<div class="select-sort">
 			{% for map in maps %}
 			<input class="bg-selector" {% if map.id==settings.map %} checked="checked" {% endif %} name="map"
@@ -21,7 +21,7 @@
 	<div>
 		<h3>Mods</h3>
 		<input name="modfilter" type="search" value="{{settings.modfilter}}" placeholder="Search" />
-		<input formmethod="GET" type="submit" formaction="/game/{{game.id}}/settings" formnovalidate value="Search" />
+		<input formmethod="GET" type="submit" formaction="/game/{{game.id}}#settings" formnovalidate value="Search" />
 		<div class="settings-group">
 			{% for cmod in mods %}
 			<input class="bg-selector" {% if settings.cmods.contains(cmod.id) %} checked="checked" {% endif %} name="cmods[]"

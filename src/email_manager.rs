@@ -87,7 +87,7 @@ impl EmailManager {
             )
             .replace(
                 "%GAMEURL%",
-                &format!("{}/game/{}/status", hostname, game.id),
+                &format!("{}/game/{}", hostname, game.id),
             )
             .replace("%GAMENAME%", &game.name)
             .replace("%HOURSREMAINING%", &game.next_turn_string());
@@ -100,7 +100,7 @@ impl EmailManager {
             )
             .replace(
                 "%GAMEURL%",
-                &format!("{}/game/{}/status", hostname, game.id),
+                &format!("{}/game/{}", hostname, game.id),
             )
             .replace("%GAMENAME%", &game.name)
             .replace("%HOURSREMAINING%", &game.next_turn_string());
