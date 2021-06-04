@@ -379,12 +379,50 @@ h3 {
 	cursor: pointer;
 }
 
+.tabset {
+	position: relative;
+}
+
 .tabsection {
 	display: none;
+	margin-top: -200px;
+	padding-top: 200px;
+	pointer-events: none;
+	position: absolute;
+	max-width: 1140px;
+	width: 100%;
 }
 .tabsection:target {
 	display: initial;
+	margin-top: -200px;
+	padding-top: 200px;
+	pointer-events: none;
+	position: absolute;
+	max-width: 1140px;
 } 
+.tabsection>* {
+	pointer-events: auto;
+}
+
+.css-tab-label:hover {
+	text-decoration: underline;
+}
+.tabset > input[type="radio"] {
+	display: none;
+}
+.tabset > input:nth-child(1):checked ~ div > .tabsection:nth-child(1),
+.tabset > input:nth-child(2):checked ~ div > .tabsection:nth-child(2) {
+	display: initial;
+}
+.tabset > input:nth-child(1):checked ~ .tabset_labels > .css-tab-label.tab1,
+.tabset > input:nth-child(2):checked ~ .tabset_labels > .css-tab-label.tab2 {
+	background: var(--col-grey);
+	color: black;
+}
+.css-tab-label label {
+	cursor: pointer;
+}
+
 .schedule-details {
 	display: grid;
 	grid-template-columns: 1.618fr 1fr;

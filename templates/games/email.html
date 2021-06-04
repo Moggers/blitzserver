@@ -3,7 +3,7 @@
 		<div class="pane-search">
 			<div class="input-group">
 				<input required name="email_address" type="text" value="{{self.email_form.email_address}}" placeholder="email@address.com" />
-				<input type="submit" formmethod="get" value="Fetch Alerts" formaction="/game/{{game.id}}/emails"/>
+				<input type="submit" class="btn btn-block" formmethod="get" value="Fetch Alerts" formaction="/game/{{game.id}}/status#emails"/>
 			</div>
 		</div>
 		<table class="striped-table">

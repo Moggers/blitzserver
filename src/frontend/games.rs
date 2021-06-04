@@ -248,7 +248,6 @@ struct GameDetailsTemplate<'a> {
     nations: &'a Vec<Nation>,
     mods: &'a Vec<Mod>,
     maps: &'a Vec<Map>,
-    tab: String,
     authed: AuthStatus,
     logs: Vec<GameLogLite>,
     focused_log: (i32, String, String),
@@ -532,7 +531,7 @@ async fn postpone(
         }))
         .unwrap();
     Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}/schedule", game.id))
+        .header(header::LOCATION, format!("/game/{}/status#schedule", game.id))
         .finish())
 }
 #[post("/game/{id}/timer")]
@@ -582,14 +581,14 @@ async fn timer(
         }))
         .unwrap();
     Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}/schedule", game.id))
+        .header(header::LOCATION, format!("/game/{}/status#schedule", game.id))
         .finish())
 }
-#[get("/game/{id}/{tab}")]
+#[get("/game/{id}/status")]
 async fn details(
-    (app_data, web::Path((path_id, tab)), session, payload): (
+    (app_data, web::Path(path_id), session, payload): (
         web::Data<AppData>,
-        web::Path<(String, String)>,
+        web::Path<String>,
         actix_session::Session,
         serde_qs::actix::QsQuery<GameDetailsPayload>,
     ),
@@ -607,7 +606,7 @@ async fn details(
         use crate::schema::games::dsl::*;
         let game: Game = games.filter(name.ilike(path_id)).get_result(&*db).unwrap();
         return Ok(HttpResponse::PermanentRedirect()
-            .header(header::LOCATION, format!("/game/{}/{}", game.id, tab))
+            .header(header::LOCATION, format!("/game/{}/status#status", game.id))
             .finish());
     };
     if let Some(p) = &payload.password {
@@ -621,7 +620,7 @@ async fn details(
                 .unwrap();
         }
         return Ok(HttpResponse::TemporaryRedirect()
-            .header(header::LOCATION, format!("/game/{}/{}", game.id, tab))
+            .header(header::LOCATION, format!("/game/{}/status#status", game.id))
             .finish());
     }
     let authed: AuthStatus = session
@@ -694,7 +693,6 @@ async fn details(
             authed,
             email_form: (*email_form).clone(),
             email_configs: &email_configs,
-            tab,
             turn_number: turns.len() as i32,
             maps: &maps,
             mods: &mods,
@@ -746,7 +744,7 @@ async fn launch(
         }))
         .unwrap();
     Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}/schedule", game.id))
+        .header(header::LOCATION, format!("/game/{}/status#schedule", game.id))
         .finish())
 }
 #[post("/games/create")]
@@ -798,7 +796,7 @@ async fn create_post(
     Ok(HttpResponse::Found()
         .header(
             header::LOCATION,
-            format!("/game/{}/settings?password={}", game.id, new_game.password),
+            format!("/game/{}/status#settings?password={}", game.id, new_game.password),
         )
         .finish())
 }
@@ -982,7 +980,7 @@ async fn settings_post(
         }))
         .unwrap();
     Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}/settings", game.id))
+        .header(header::LOCATION, format!("/game/{}/status#settings", game.id))
         .finish())
 }
 #[post("/game/{id}/email")]
@@ -1009,7 +1007,7 @@ async fn emails_post(
                 .header(
                     header::LOCATION,
                     format!(
-                        "/game/{}/emails?email_address={}",
+                        "/game/{}/status?email_address={}#emails",
                         game_id, email_form.email_address
                     ),
                 )
@@ -1038,7 +1036,7 @@ async fn emails_delete(
                 .header(
                     header::LOCATION,
                     format!(
-                        "/game/{}/emails?email_address={}",
+                        "/game/{}/status#emails?email_address={}",
                         game_id, email_form.email_address
                     ),
                 )
@@ -1078,7 +1076,7 @@ pub async fn archive_post(
         .send(Msg::GameArchived(GameArchivedMsg { game_id: *path_id }))
         .unwrap();
     return Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}/schedule", path_id))
+        .header(header::LOCATION, format!("/game/{}/status#schedule", path_id))
         .finish());
 }
 
@@ -1111,7 +1109,7 @@ pub async fn remove_post(
         }
     }
     return Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}/status", path_id))
+        .header(header::LOCATION, format!("/game/{}/status#status", path_id))
         .finish());
 }
 
@@ -1141,7 +1139,7 @@ pub async fn rollback_post(
         .unwrap();
     game.rollback(&db).unwrap();
     return Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}/schedule", path_id))
+        .header(header::LOCATION, format!("/game/{}/status#schedule", path_id))
         .finish());
 }
 
@@ -1172,7 +1170,7 @@ pub async fn unstart_post(
     game.unstart(&db).unwrap();
     let _game = game.remove_timer(&db).unwrap();
     return Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}/schedule", path_id))
+        .header(header::LOCATION, format!("/game/{}/status#schedule", path_id))
         .finish());
 }
 #[post("/game/{id}/assign-team")]
@@ -1210,6 +1208,6 @@ pub async fn assign_team(
             .unwrap();
     }
     return Ok(HttpResponse::Found()
-        .header(header::LOCATION, format!("/game/{}/status", path_id))
+        .header(header::LOCATION, format!("/game/{}/status#status", path_id))
         .finish());
 }
