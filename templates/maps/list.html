@@ -7,15 +7,15 @@
 			<form method="post" action="/maps/upload" enctype="multipart/form-data">
 				<div class="input-group">
 					<label for="map">Map File (.map)</label>
-					<input required type="file" name="map"/>
+					<input class="btn" required type="file" name="map"/>
 				</div>
 				<div class="input-group">
 					<label for="tga">Tga File (.tga)</label>
-					<input required type="file" name="tga"/>
+					<input class="btn" required type="file" name="tga"/>
 				</div>
 				<div class="input-group">
 					<label for="tga_winter">Winter File (.tga)</label>
-					<input type="file" name="tga_winter"/>
+					<input class="btn" type="file" name="tga_winter"/>
 				</div>
 				{% if self.errors.len() > 0 %}
 					<div class="error">
