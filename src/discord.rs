@@ -205,11 +205,16 @@ impl DiscordManager {
             {
                 let db = self.db_pool.get().unwrap();
                 for notification in DiscordConfig::get_due_notifications(&db).unwrap() {
-                    self.send_notice(&notification).unwrap();
+                    log::debug!("Send notification");
+                    if let Err(e) = self.send_notice(&notification) {
+                        log::error!("Failed to send notification of for game {}, {:?}", notification.game_id, e);
+                    }
                     notification.mark_sent(&db).unwrap();
                 }
                 for notification in DiscordConfig::get_due_reminders(&db).unwrap() {
-                    self.send_notice(&notification).unwrap();
+                    if let Err(e) = self.send_notice(&notification) {
+                        log::error!("Failed to send reminder for game {}, {:?}", notification.game_id, e);
+                    }
                     notification.mark_sent(&db).unwrap();
                 }
             }

@@ -1463,7 +1463,6 @@ LEFT JOIN (SELECT game_id,MAX(turn_number) as turn_number FROM turns WHERE archi
 INNER JOIN games g ON g.id=t.game_id AND g.archived = FALSE
 WHERE
     (dc.last_turn_notified IS NULL OR t.turn_number != dc.last_turn_notified)
-    AND g.next_turn IS NOT NULL
     AND dc.hours_remaining IS NULL
     AND t.turn_number IS NOT NULL
 "#).get_results(db)

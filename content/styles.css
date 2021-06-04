@@ -98,7 +98,7 @@ input {
 	border-radius: 0px;
 	border: 1px black solid;
 }
-.btn:not(input[type=file]),.btn::file-selector-button {
+.btn,.btn-file::file-selector-button {
 	background: var(--col-secondary);
 	padding: .1rem .75rem;
 	border-radius: 0px;
@@ -119,9 +119,9 @@ input {
 	cursor: initial;
 	text-decoration: initial;
 }
-.btn.btn-primary {
-	background: var(--col-primary) !important;
-	color: white !important;
+.btn-primary {
+	background: var(--col-primary);
+	color: white;
 }
 .btn-danger {
 	background: #B00;
