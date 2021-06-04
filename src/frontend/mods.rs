@@ -72,6 +72,9 @@ pub async fn image(
             .unwrap();
         Ok(HttpResponse::Ok()
             .content_type("application/jpg")
+            .set(header::CacheControl(vec![header::CacheDirective::MaxAge(
+                86400u32,
+            )]))
             .body(jpg_bytes))
     } else {
         Ok(HttpResponse::NotFound().finish())
