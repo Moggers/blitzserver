@@ -278,7 +278,10 @@ impl DiscordManager {
             .send()
         {
             let body = res.text().unwrap();
-            let res: DiscordGuild = serde_json::from_str(&body).unwrap();
+            let res: DiscordGuild = serde_json::from_str(&body).unwrap_or(DiscordGuild {
+                id: server_id,
+                name: "[Deleted]".to_owned(),
+            });
             self.server_cache
                 .lock()
                 .unwrap()
@@ -435,8 +438,7 @@ impl DiscordManager {
                             ))
                             .unwrap();
                     }
-                    Ok(ProtocolMsg::UnkResponse { op }) => {
-                    }
+                    Ok(ProtocolMsg::UnkResponse { op }) => {}
                     Err(_) => {
                         socket = self.resume().unwrap();
                     }
