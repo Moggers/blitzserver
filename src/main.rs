@@ -167,6 +167,7 @@ async fn main() -> std::io::Result<()> {
 
         App::new()
             .wrap(middleware::Logger::default())
+            .wrap(middleware::Compress::default())
             .data(app_data.clone())
             .wrap(
                 actix_session::CookieSession::signed(&[0; 32]) // <- create cookie based session middleware
