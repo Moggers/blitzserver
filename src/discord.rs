@@ -258,7 +258,7 @@ impl DiscordManager {
                 self.get_channel_name(server_id, channel_id)
             } else {
                 let mut cache = self.channel_cache.lock().unwrap();
-                cache.insert(format!("{}:{}", server_id, channel_id), "[Deleted]");
+                cache.insert(format!("{}:{}", server_id, channel_id), "[Deleted]".to_string());
                 "[Deleted]".to_owned()
             }
         } else {
