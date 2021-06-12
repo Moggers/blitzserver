@@ -1,7 +1,23 @@
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct DmFileResp {
     pub contents: Vec<u8>,
+}
+
+impl std::fmt::Debug for DmFileResp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DmFileResp")
+            .field(
+                "contents[0..32]",
+                &self
+                    .contents
+                    .iter()
+                    .take(32)
+                    .map(|d| *d)
+                    .collect::<Vec<u8>>(),
+            )
+            .finish()
+    }
 }
 
 impl DmFileResp {

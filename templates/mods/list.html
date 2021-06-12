@@ -8,7 +8,7 @@
 			<form method="post" action="/mods/upload" enctype="multipart/form-data">
 				<div class="input-group">
 					<label for="archive">Mod Archive (.zip)</label>
-					<input class="btn" required type="file" name="archive"/>
+					<input class="btn-file" required type="file" name="archive"/>
 				</div>
 				{% if self.errors.len() > 0 %}
 					<div class="error">
