@@ -1,4 +1,4 @@
-use crate::twoh::TwoH;
+use crate::files::TwoH;
 use nonblock::NonBlockingReader;
 use std::io::Read;
 use std::ops::Add;
@@ -188,11 +188,12 @@ impl Dom5Proc {
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
-        let ftherlnd = if let Some(file) = TwoH::read_file(&self.savedir.join("ftherlnd")) {
-            file
+        let file = if let Ok(f) = std::fs::File::open(&self.savedir.join("ftherlnd")) {
+            f
         } else {
             return;
         };
+        let ftherlnd = TwoH::read_contents(file).unwrap();
         let new_file: File = NewFile::new("ftherlnd", &ftherlnd.file_contents).insert(db);
         let _inserted = crate::models::NewTurn {
             game_id: self.game_id,
@@ -325,11 +326,12 @@ impl Dom5Proc {
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
-        let trn = if let Some(file) = TwoH::read_file(&path) {
-            file
+        let file = if let Ok(f) = std::fs::File::open(&path) {
+            f
         } else {
             return;
         };
+        let trn = TwoH::read_contents(file).unwrap();
         let file: File = NewFile::new(
             path.file_name().unwrap().to_str().unwrap(),
             &trn.file_contents,

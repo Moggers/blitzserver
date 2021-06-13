@@ -1,7 +1,7 @@
+use super::ReadDom5Ext;
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::io::{Seek, SeekFrom};
 
-#[derive(Debug)]
 pub struct TwoH {
     pub gamename: String,
     pub turnnumber: i32,
@@ -15,41 +15,35 @@ pub struct TwoH {
     pub status: i32,
 }
 
+impl std::fmt::Debug for TwoH {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TwoH")
+            .field("gamename", &self.gamename)
+            .field("turnnumber", &self.turnnumber)
+            .field("cdkey", &self.cdkey)
+            .field("nationid", &self.nationid)
+            .field("turnkey", &self.turnkey)
+            .field("password", &self.password)
+            .field("master_password", &self.master_password)
+            .field("body", &self.body)
+            .field("status", &self.status)
+            .finish()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
-    fn deserialize_ctis() {
-        use crate::twoh::TwoH;
-        let trn_np = TwoH::read_contents(std::io::Cursor::new(&include_bytes!(
-            "../test_data/ctis_no_pass.2h"
-        )))
-        .unwrap();
-        assert_eq!(trn_np.password, "");
-        let trn_p = TwoH::read_contents(std::io::Cursor::new(&include_bytes!(
-            "../test_data/ctis_pass.2h"
-        )))
-        .unwrap();
-        assert_eq!(trn_p.password, "password");
-    }
-    #[test]
-    fn deserialize_ftherlnd() {
-        use crate::twoh::TwoH;
-        let fthrlnd = TwoH::read_contents(std::io::Cursor::new(&include_bytes!(
-            "../test_data/tstgame20_ftherlnd"
-        )))
-        .unwrap();
-        assert_eq!(fthrlnd.password, "father");
-    }
-    #[test]
-    fn deserialize_2h() {
-        use crate::twoh::TwoH;
-        let twoh = TwoH::read_contents(std::io::Cursor::new(&include_bytes!(
-            "../test_data/submit_turn.2h"
-        )))
-        .unwrap();
-        assert_eq!(twoh.nationid, 0xf);
-        assert_eq!(twoh.gamename, "tstgame20");
-        assert_eq!(twoh.password, "");
+    fn deserialize_game_1() {
+        use crate::files::TwoH;
+        for entry in std::fs::read_dir("./test_data/game_1").unwrap() {
+            let entry = entry.unwrap();
+            let f = std::fs::File::open(entry.path()).unwrap();
+            let ftherlnd =
+                TwoH::read_contents(f).unwrap();
+            println!("{:?}", entry.path());
+            println!("{:#?}", ftherlnd);
+        }
     }
 }
 
@@ -88,34 +82,9 @@ impl TwoH {
         let nationid = file.read_i32::<LittleEndian>().unwrap();
         let status = file.read_i32::<LittleEndian>().unwrap();
         file.read_i32::<LittleEndian>().unwrap();
-        let mut game_name_bytes: Vec<u8> = vec![];
-        loop {
-            let c: u8 = file.read_u8().unwrap();
-            if c == 0x4f {
-                break;
-            }
-            game_name_bytes.push(c ^ 0x4f);
-        }
-        let mut password_bytes: Vec<u8> = vec![];
-        let mut master_password_bytes: Vec<u8> = vec![];
-        let mut magic = 0x78;
-        loop {
-            let c: u8 = file.read_u8().unwrap() ^ magic;
-            if c == 0 {
-                break;
-            }
-            magic = (std::num::Wrapping(c) + std::num::Wrapping(magic)).0;
-            password_bytes.push(c);
-        }
-        let mut magic = 0x78;
-        loop {
-            let c: u8 = file.read_u8().unwrap() ^ magic;
-            if c == 0 {
-                break;
-            }
-            magic = (std::num::Wrapping(c) + std::num::Wrapping(magic)).0;
-            master_password_bytes.push(c);
-        }
+        let gamename = file.read_domstring().unwrap();
+        let password = file.read_domsecret().unwrap();
+        let masterpass = file.read_domsecret().unwrap();
         let turnkey = file.read_u32::<LittleEndian>().unwrap();
         let body = match file_type {
             1 => FileBody::TurnFile(TrnContents {}),
@@ -144,15 +113,15 @@ impl TwoH {
         file.read_to_end(&mut contents).unwrap();
 
         Some(Self {
-            gamename: String::from_utf8_lossy(&game_name_bytes).to_string(),
+            gamename,
             turnnumber,
             cdkey,
             nationid,
             turnkey,
             status,
             file_contents: contents,
-            password: String::from_utf8_lossy(&password_bytes).to_string(),
-            master_password: String::from_utf8_lossy(&master_password_bytes).to_string(),
+            password,
+            master_password: masterpass,
             body,
         })
     }

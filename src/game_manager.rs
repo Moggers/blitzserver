@@ -1,7 +1,7 @@
 use super::diesel::prelude::*;
-use super::models::{DiscordConfig, Game, Turn};
+use super::models::Game;
 use crate::msgbus::{
-    CreateGameMsg, EraChangedMsg, GameScheduleMsg, ModsChangedMsg, Msg, MsgBusTx, NewTurnMsg,
+    CreateGameMsg, Msg, MsgBusTx, NewTurnMsg,
     TurnHostStartMsg,
 };
 use crossbeam_channel::Sender;
@@ -62,7 +62,6 @@ impl GameManager {
     }
 
     fn launch_game(&mut self, launch_id: i32) {
-        let db = self.db_pool.get().unwrap();
         let emu = crate::dom5_emu::Dom5Emu::new(
             launch_id,
             self.bus_tx.clone(),

@@ -136,7 +136,7 @@ impl Dom5Emu {
                 Ok(t) => {
                     let fthlnd = t.get_ftherlnd(&db).unwrap();
                     let fthrlnd_read =
-                        crate::twoh::TwoH::read_contents(std::io::Cursor::new(&fthlnd.filebinary))
+                        crate::files::TwoH::read_contents(std::io::Cursor::new(&fthlnd.filebinary))
                             .unwrap();
                     fthrlnd_read.turnkey
                 }
@@ -179,7 +179,7 @@ impl Dom5Emu {
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
         use crate::models::{File, NewFile, NewPlayer};
-        use crate::twoh::TwoH;
+        use crate::files::TwoH;
         let twoh = TwoH::read_contents(std::io::Cursor::new(&req.pretender_contents[..])).unwrap();
         let existing = Player::get_players(game_id, db)
             .unwrap()
@@ -196,7 +196,7 @@ impl Dom5Emu {
         let file: File =
             NewFile::new(&format!("{}.2h", nation.filename), &req.pretender_contents).insert(db);
 
-        let name = if let crate::twoh::FileBody::OrdersFile(o) = twoh.body {
+        let name = if let crate::files::saves::twoh::FileBody::OrdersFile(o) = twoh.body {
             o.pretender_name
         } else {
             "".to_string()
@@ -600,7 +600,7 @@ impl Dom5Emu {
                                                 .iter()
                                                 .filter_map(|pt| {
                                                     let turn = pt.get_trn(&db).unwrap();
-                                                    let trn = crate::twoh::TwoH::read_contents(
+                                                    let trn = crate::files::TwoH::read_contents(
                                                         std::io::Cursor::new(turn.filebinary),
                                                     )
                                                     .unwrap();
@@ -738,7 +738,7 @@ impl Dom5Emu {
                                          * it is not (time travelling pretenders are not allowed).
                                          */
                                         crate::packets::Body::Submit2hReq(pkt) => {
-                                            let twoh = crate::twoh::TwoH::read_contents(
+                                            let twoh = crate::files::TwoH::read_contents(
                                                 std::io::Cursor::new(&pkt.twoh_contents),
                                             )
                                             .unwrap();
