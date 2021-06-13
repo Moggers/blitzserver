@@ -149,7 +149,7 @@ impl Dom5Proc {
                 }
                 Err(_) => {
                     if wait_counter == 0 {
-                        panic!("Unable to find statusdump with nation info")
+                        panic!("Unable to find statusdump with nation info for game {}", game.id)
                     } else {
                         wait_counter -= 1
                     }
