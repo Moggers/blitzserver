@@ -21,6 +21,8 @@ pub enum DomSaveReadError {
     BadMagic((u64, u64)),
     #[error("Invalid filetype")]
     BadFileType(u32),
+    #[error("Invalid kingdom type")]
+    BadKingdomType(u8)
 }
 
 #[derive(Debug)]

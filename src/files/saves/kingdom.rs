@@ -3,10 +3,17 @@ use super::DomSaveReadError;
 use byteorder::{LittleEndian, ReadBytesExt};
 
 #[derive(Debug)]
+pub enum KingdomType {
+    Human = 1,
+    Computer = 2,
+    Special = 3,
+}
+
+#[derive(Debug)]
 pub struct Kingdom {
-    nation_id: u16,
-    is_ai: u8,
-    name: String,
+    pub nation_id: u16,
+    pub player_type: KingdomType,
+    pub name: String,
 }
 
 impl Kingdom {
@@ -22,13 +29,22 @@ impl Kingdom {
         }
         let mut unk = [0u8; 16];
         file.read_exact(&mut unk)?;
-        let is_ai  =file.read_u8()?;
+        let player_type = file.read_u8()?;
         let mut unk = [0u8; 367];
         file.read_exact(&mut unk)?;
         let name = file.read_domstring()?;
         let mut unk = [0u8; 1693];
         file.read_exact(&mut unk)?;
 
-        Ok(Some(Self { nation_id, is_ai, name }))
+        Ok(Some(Self {
+            nation_id,
+            player_type: match player_type {
+                1 => KingdomType::Human,
+                2 => KingdomType::Computer,
+                3 => KingdomType::Special,
+                d => return Err(DomSaveReadError::BadKingdomType(d))
+            },
+            name,
+        }))
     }
 }

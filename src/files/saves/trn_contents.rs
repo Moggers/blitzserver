@@ -5,16 +5,16 @@ use super::DomSaveReadError;
 
 #[derive(Debug)]
 pub struct TrnContents {
-    map_tga: String,
-    winter_tga: String,
-    map_file: String,
+    pub map_tga: String,
+    pub winter_tga: String,
+    pub map_file: String,
     unk_string: String,
     unk_string1: String,
     unk_string2: String,
     unk_string3: String,
     unk_string4: String,
-    lands: Vec<Land>,
-    kingdoms: Vec<Kingdom>
+    pub lands: Vec<Land>,
+    pub kingdoms: Vec<Kingdom>
 }
 
 impl TrnContents {

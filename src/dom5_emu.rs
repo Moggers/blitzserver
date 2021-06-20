@@ -60,7 +60,9 @@ impl Dom5Emu {
             player_turns
                 .iter()
                 .fold(std::collections::HashMap::new(), |mut acc, t| {
-                    acc.insert(t.nation_id, t.status as u8);
+                    if t.status != 3 {
+                        acc.insert(t.nation_id, t.status as u8);
+                    }
                     acc
                 })
         } else {
@@ -322,7 +324,7 @@ impl Dom5Emu {
                             let db = pool_clone.get().unwrap();
                             let turn = Turn::get(inc_game_id, &db).unwrap();
                             let player_turns = turn.get_player_turns(&db).unwrap();
-                            if player_turns.iter().all(|pt| pt.status == 2) {
+                            if player_turns.iter().all(|pt| pt.status == 2 || pt.status == 3) {
                                 Self::scheduled_host(
                                     inc_game_id,
                                     tx_clone.clone(),
@@ -598,6 +600,7 @@ impl Dom5Emu {
                                             let pts = trn.get_player_turns(&db).unwrap();
                                             let passworded_nations: Vec<i32> = pts
                                                 .iter()
+                                                .filter(|pt| pt.status != 3)
                                                 .filter_map(|pt| {
                                                     let turn = pt.get_trn(&db).unwrap();
                                                     let trn = crate::files::saves::SaveFile::read_contents(
@@ -657,7 +660,9 @@ impl Dom5Emu {
                                                 &db,
                                             ) {
                                                 Ok((_turn, file)) => TrnResp {
-                                                    trn_contents: file.filebinary,
+                                                    // TODO: Dom5 might ask for a turn it thinks
+                                                    // should exist which doesnt?
+                                                    trn_contents: file.unwrap().filebinary,
                                                 }
                                                 .write_packet(&mut socket_send_clone),
                                                 Err(_) => TrnResp {

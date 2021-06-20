@@ -398,6 +398,7 @@ pub async fn map_thumb_handler(
             )
             .get_result::<(Map, File)>(&db)
             .unwrap();
+        drop(db);
         let cursor = std::io::Cursor::new(file.filebinary);
         let reader =
             crate::image::io::Reader::with_format(cursor.clone(), crate::image::ImageFormat::Tga)

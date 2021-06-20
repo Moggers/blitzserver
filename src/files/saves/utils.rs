@@ -7,8 +7,8 @@ pub trait ReadDom5Ext: std::io::Read {
             let c = self.read_u8()?;
             if c == std::u8::MAX {
                 break;
-                contents.push(c);
             }
+            contents.push(c);
         }
         Ok(contents)
     }
@@ -18,8 +18,8 @@ pub trait ReadDom5Ext: std::io::Read {
             let c = self.read_u16::<LittleEndian>()?;
             if c == std::u16::MAX {
                 break;
-                contents.push(c);
             }
+            contents.push(c);
         }
         Ok(contents)
     }
@@ -29,8 +29,8 @@ pub trait ReadDom5Ext: std::io::Read {
             let c = self.read_u32::<LittleEndian>()?;
             if c == std::u32::MAX {
                 break;
-                contents.push(c);
             }
+            contents.push(c);
         }
         Ok(contents)
     }
@@ -41,12 +41,12 @@ pub trait ReadDom5Ext: std::io::Read {
             if c ^ 0x4f == 0 {
                 break;
             }
-            newstr.push((c^0x4f).into());
+            newstr.push((c ^ 0x4f).into());
         }
         Ok(newstr)
     }
 
-    fn read_domsecret(&mut self) -> Result<String, std::io::Error>{
+    fn read_domsecret(&mut self) -> Result<String, std::io::Error> {
         let mut newstr = String::new();
         let mut magic = 0x78;
         loop {

@@ -151,7 +151,7 @@ table! {
         turn_number -> Int4,
         nation_id -> Int4,
         game_id -> Int4,
-        trnfile_id -> Int4,
+        trnfile_id -> Nullable<Int4>,
         twohfile_id -> Nullable<Int4>,
         archived -> Bool,
         status -> Int4,
