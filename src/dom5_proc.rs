@@ -1,4 +1,5 @@
-use crate::files::TwoH;
+use crate::files::saves::SaveFile;
+use std::io::Seek;
 use nonblock::NonBlockingReader;
 use std::io::Read;
 use std::ops::Add;
@@ -188,16 +189,19 @@ impl Dom5Proc {
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
-        let file = if let Ok(f) = std::fs::File::open(&self.savedir.join("ftherlnd")) {
+        let mut file = if let Ok(f) = std::fs::File::open(&self.savedir.join("ftherlnd")) {
             f
         } else {
             return;
         };
-        let ftherlnd = TwoH::read_contents(file).unwrap();
-        let new_file: File = NewFile::new("ftherlnd", &ftherlnd.file_contents).insert(db);
+        let mut contents = Vec::new();
+        file.read_to_end(&mut contents).unwrap();
+        file.seek(std::io::SeekFrom::Start(0)).unwrap();
+        let ftherlnd = SaveFile::read_contents(file).unwrap();
+        let new_file: File = NewFile::new("ftherlnd", &contents).insert(db);
         let _inserted = crate::models::NewTurn {
             game_id: self.game_id,
-            turn_number: ftherlnd.turnnumber,
+            turn_number: ftherlnd.header.turnnumber,
             file_id: new_file.id,
         }
         .insert(db)
@@ -326,23 +330,26 @@ impl Dom5Proc {
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
-        let file = if let Ok(f) = std::fs::File::open(&path) {
+        let mut file = if let Ok(f) = std::fs::File::open(&path) {
             f
         } else {
             return;
         };
-        let trn = TwoH::read_contents(file).unwrap();
+        let mut contents = Vec::new();
+        file.read_to_end(&mut contents).unwrap();
+        file.seek(std::io::SeekFrom::Start(0)).unwrap();
+        let trn = SaveFile::read_contents(file).unwrap();
         let file: File = NewFile::new(
             path.file_name().unwrap().to_str().unwrap(),
-            &trn.file_contents,
+            &contents,
         )
         .insert(db);
 
         (NewPlayerTurn {
             trnfile_id: file.id,
-            nation_id: trn.nationid,
+            nation_id: trn.header.nationid,
             game_id: self.game_id,
-            turn_number: trn.turnnumber,
+            turn_number: trn.header.turnnumber,
         })
         .insert(db)
         .unwrap();

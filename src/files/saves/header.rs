@@ -1,4 +1,4 @@
-use super::ReadDom5Ext;
+use super::{DomSaveReadError, ReadDom5Ext};
 use byteorder::{LittleEndian, ReadBytesExt};
 use std::io::Seek;
 
@@ -31,31 +31,29 @@ impl std::fmt::Debug for Header {
 }
 
 impl Header {
-    fn read_magic_marker<R: std::io::Read>(mut file: R) -> String {
-        let mut magic: [u8; 3] = [0, 0, 0];
-        file.read_exact(&mut magic).unwrap();
-        let magic_string = std::str::from_utf8(&magic).unwrap();
-        if magic_string != "DOM" {
-            panic!("Magic string bogus, expected DOM, found {}", magic_string);
+    fn read_magic_marker<R: std::io::Read>(mut file: R) -> Result<(), DomSaveReadError> {
+        let magic = file.read_u24::<LittleEndian>()?;
+        if magic != 5066564 {
+            return Err(DomSaveReadError::BadMagic((magic.into(), 5066564)));
         }
-        return magic_string.to_string();
+        return Ok(())
     }
 
-    pub fn read_contents<R: Seek + std::io::Read>(mut file: R) -> Option<Self> {
-        let _unk = file.read_u24::<LittleEndian>().unwrap();
-        Self::read_magic_marker(&mut file);
-        let cdkey = file.read_u64::<LittleEndian>().unwrap();
-        let turnnumber = file.read_i32::<LittleEndian>().unwrap();
-        let file_type = file.read_u32::<LittleEndian>().unwrap();
-        let _unk = file.read_u32::<LittleEndian>().unwrap();
-        let nationid = file.read_i32::<LittleEndian>().unwrap();
-        let status = file.read_i32::<LittleEndian>().unwrap();
-        file.read_i32::<LittleEndian>().unwrap();
-        let gamename = file.read_domstring().unwrap();
-        let password = file.read_domsecret().unwrap();
-        let masterpass = file.read_domsecret().unwrap();
-        let turnkey = file.read_u32::<LittleEndian>().unwrap();
-        Some(Self {
+    pub fn read_contents<R: Seek + std::io::Read>(mut file: R) -> Result<Header, DomSaveReadError> {
+        let _unk = file.read_u24::<LittleEndian>()?;
+        Self::read_magic_marker(&mut file)?;
+        let cdkey = file.read_u64::<LittleEndian>()?;
+        let turnnumber = file.read_i32::<LittleEndian>()?;
+        let file_type = file.read_u32::<LittleEndian>()?;
+        let _unk = file.read_u32::<LittleEndian>()?;
+        let nationid = file.read_i32::<LittleEndian>()?;
+        let status = file.read_i32::<LittleEndian>()?;
+        file.read_i32::<LittleEndian>()?;
+        let gamename = file.read_domstring()?;
+        let password = file.read_domsecret()?;
+        let masterpass = file.read_domsecret()?;
+        let turnkey = file.read_u32::<LittleEndian>()?;
+        Ok(Self {
             gamename,
             turnnumber,
             cdkey,
