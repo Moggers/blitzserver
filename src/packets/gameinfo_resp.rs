@@ -151,7 +151,7 @@ impl crate::packets::BodyContents for GameInfoResp {
         w.write_all(&[0, 0]).unwrap();
         for i in 1..=250 {
             match self.nation_statuses.get(&i) {
-                Some(1) => w.write_u8(1).unwrap(),
+                Some(d) => w.write_u8(*d).unwrap(),
                 _ => w.write_u8(0).unwrap(),
             }
         }

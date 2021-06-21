@@ -25,7 +25,7 @@ impl Kingdom {
         file.read_u16::<LittleEndian>()?;
         let magic = file.read_u16::<LittleEndian>()?;
         if magic != 12546 {
-            // return Err(DomSaveReadError::BadMagic((magic.into(), 12546)));
+            return Err(DomSaveReadError::BadMagic((magic.into(), 12546)));
         }
         let mut unk = [0u8; 16];
         file.read_exact(&mut unk)?;
@@ -42,7 +42,7 @@ impl Kingdom {
                 1 => KingdomType::Human,
                 2 => KingdomType::Computer,
                 3 => KingdomType::Special,
-                d => return Err(DomSaveReadError::BadKingdomType(d))
+                d => return Err(DomSaveReadError::BadKingdomType(d)),
             },
             name,
         }))
