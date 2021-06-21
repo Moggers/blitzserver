@@ -7,6 +7,7 @@ pub enum KingdomType {
     Human = 1,
     Computer = 2,
     Special = 3,
+    Defeated = 4
 }
 
 #[derive(Debug)]
@@ -29,12 +30,12 @@ impl Kingdom {
         }
         let mut unk = [0u8; 16];
         file.read_exact(&mut unk)?;
-        let player_type = file.read_u8()?;
-        let mut unk = [0u8; 367];
-        file.read_exact(&mut unk)?;
+        let player_type = file.read_u16::<LittleEndian>()?;
+        let mut unk1 = [0u8; 366];
+        file.read_exact(&mut unk1)?;
         let name = file.read_domstring()?;
-        let mut unk = [0u8; 1693];
-        file.read_exact(&mut unk)?;
+        let mut unk2 = [0u8; 1693];
+        file.read_exact(&mut unk2)?;
 
         Ok(Some(Self {
             nation_id,
@@ -42,6 +43,7 @@ impl Kingdom {
                 1 => KingdomType::Human,
                 2 => KingdomType::Computer,
                 3 => KingdomType::Special,
+                std::u16::MAX => KingdomType::Defeated,
                 d => return Err(DomSaveReadError::BadKingdomType(d)),
             },
             name,

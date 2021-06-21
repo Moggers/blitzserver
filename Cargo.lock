@@ -533,7 +533,7 @@ dependencies = [
 
 [[package]]
 name = "blitzserver"
-version = "0.7.9"
+version = "0.7.39"
 dependencies = [
  "actix-files",
  "actix-multipart",

@@ -22,7 +22,7 @@ pub enum DomSaveReadError {
     #[error("Invalid filetype")]
     BadFileType(u32),
     #[error("Invalid kingdom type")]
-    BadKingdomType(u8)
+    BadKingdomType(u16)
 }
 
 #[derive(Debug)]
@@ -56,7 +56,7 @@ mod tests {
     #[test]
     fn deserialize_game_1() {
         use crate::files::saves::SaveFile;
-        for entry in std::fs::read_dir("./test_data/game_2").unwrap() {
+        for entry in std::fs::read_dir("./test_data/game_sleepydominions").unwrap() {
             let entry = entry.unwrap();
             for entry in std::fs::read_dir(entry.path()).unwrap() {
                 let entry = entry.unwrap();

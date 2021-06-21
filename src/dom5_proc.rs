@@ -9,6 +9,7 @@ use super::models::{
     File, Game, GameMod, Map, Mod, Nation, NewFile, NewGameLog, NewNation, NewPlayerTurn, Player,
     PlayerTurn, Turn,
 };
+use crate::files::saves::kingdom::KingdomType;
 
 use std::io::Write;
 
@@ -150,7 +151,10 @@ impl Dom5Proc {
                 }
                 Err(_) => {
                     if wait_counter == 0 {
-                        panic!("Unable to find statusdump with nation info for game {}", game.id)
+                        panic!(
+                            "Unable to find statusdump with nation info for game {}",
+                            game.id
+                        )
                     } else {
                         wait_counter -= 1
                     }
@@ -215,36 +219,45 @@ impl Dom5Proc {
         let player_turns = kingdoms
             .into_iter()
             .map(|kingdom| match kingdom.player_type {
-                crate::files::saves::kingdom::KingdomType::Computer => Some((NewPlayerTurn {
-                    trnfile_id: None,
-                    status: 3,
-                    nation_id: kingdom.nation_id.into(),
-                    game_id: self.game_id,
-                    turn_number: turn_number,
-                })
-                .insert(db).unwrap()),
-                crate::files::saves::kingdom::KingdomType::Human => {
+                KingdomType::Computer => Some(
+                    (NewPlayerTurn {
+                        trnfile_id: None,
+                        status: 3,
+                        nation_id: kingdom.nation_id.into(),
+                        game_id: self.game_id,
+                        turn_number: turn_number,
+                    })
+                    .insert(db)
+                    .unwrap(),
+                ),
+                KingdomType::Human => {
                     let nation = nations
                         .iter()
                         .find(|n| n.nation_id == kingdom.nation_id as i32)
                         .unwrap();
-                    let mut twoh =
-                        std::fs::File::open(&self.savedir.join(format!("{}.trn", &nation.filename))).unwrap();
+                    let mut twoh = std::fs::File::open(
+                        &self.savedir.join(format!("{}.trn", &nation.filename)),
+                    )
+                    .unwrap();
 
                     let mut contents = Vec::new();
                     twoh.read_to_end(&mut contents).unwrap();
                     let file: File = NewFile::new(&nation.filename, &contents).insert(db);
 
-                    Some((NewPlayerTurn {
-                        trnfile_id: Some(file.id),
-                        nation_id: kingdom.nation_id.into(),
-                        game_id: self.game_id,
-                        turn_number: turn_number,
-                        status: 0,
-                    })
-                    .insert(db).unwrap())
+                    Some(
+                        (NewPlayerTurn {
+                            trnfile_id: Some(file.id),
+                            nation_id: kingdom.nation_id.into(),
+                            game_id: self.game_id,
+                            turn_number: turn_number,
+                            status: 0,
+                        })
+                        .insert(db)
+                        .unwrap(),
+                    )
                 }
-                crate::files::saves::kingdom::KingdomType::Special => None
+                KingdomType::Special => None,
+                KingdomType::Defeated => None,
             })
             .collect::<Vec<Option<PlayerTurn>>>();
     }
