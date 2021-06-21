@@ -24,8 +24,6 @@ extern crate tungstenite;
 extern crate url;
 extern crate zip;
 
-use self::diesel::prelude::*;
-use self::models::*;
 use actix_web::http::header;
 use actix_web::{get, middleware, App, HttpResponse, HttpServer, Result};
 use diesel::r2d2::ConnectionManager;
@@ -34,7 +32,6 @@ use dotenv::dotenv;
 use game_manager::{GameManager, GameManagerConfig};
 use serde::Deserialize;
 use std::env;
-use std::io::Write;
 
 pub mod discord;
 pub mod dom5_emu;
@@ -42,13 +39,12 @@ pub mod dom5_proc;
 pub mod email_manager;
 pub mod frontend;
 pub mod game_manager;
-pub mod map_file;
+pub mod files;
 pub mod models;
 pub mod msgbus;
 pub mod packets;
 pub mod schema;
 pub mod statusdump;
-pub mod twoh;
 pub mod util;
 
 use frontend::AppData;

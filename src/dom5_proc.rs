@@ -1,6 +1,7 @@
-use crate::twoh::TwoH;
+use crate::files::saves::SaveFile;
 use nonblock::NonBlockingReader;
 use std::io::Read;
+use std::io::Seek;
 use std::ops::Add;
 
 use super::diesel::prelude::*;
@@ -188,19 +189,64 @@ impl Dom5Proc {
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
-        let ftherlnd = if let Some(file) = TwoH::read_file(&self.savedir.join("ftherlnd")) {
-            file
+        let mut file = if let Ok(f) = std::fs::File::open(&self.savedir.join("ftherlnd")) {
+            f
         } else {
             return;
         };
-        let new_file: File = NewFile::new("ftherlnd", &ftherlnd.file_contents).insert(db);
+        let mut contents = Vec::new();
+        file.read_to_end(&mut contents).unwrap();
+        file.seek(std::io::SeekFrom::Start(0)).unwrap();
+        let ftherlnd = SaveFile::read_contents(file).unwrap();
+        let new_file: File = NewFile::new("ftherlnd", &contents).insert(db);
         let _inserted = crate::models::NewTurn {
             game_id: self.game_id,
-            turn_number: ftherlnd.turnnumber,
+            turn_number: ftherlnd.header.turnnumber,
             file_id: new_file.id,
         }
         .insert(db)
         .unwrap();
+        let nations = crate::models::Nation::get_all(self.game_id, db).unwrap();
+        let turn_number = ftherlnd.header.turnnumber;
+        let kingdoms = match ftherlnd.body {
+            crate::files::saves::SaveBody::TrnContents(trn) => trn.kingdoms,
+            _ => panic!("Ftherlnd contains orders."),
+        };
+        let player_turns = kingdoms
+            .into_iter()
+            .map(|kingdom| match kingdom.player_type {
+                crate::files::saves::kingdom::KingdomType::Computer => Some((NewPlayerTurn {
+                    trnfile_id: None,
+                    status: 3,
+                    nation_id: kingdom.nation_id.into(),
+                    game_id: self.game_id,
+                    turn_number: turn_number,
+                })
+                .insert(db).unwrap()),
+                crate::files::saves::kingdom::KingdomType::Human => {
+                    let nation = nations
+                        .iter()
+                        .find(|n| n.nation_id == kingdom.nation_id as i32)
+                        .unwrap();
+                    let mut twoh =
+                        std::fs::File::open(&self.savedir.join(format!("{}.trn", &nation.filename))).unwrap();
+
+                    let mut contents = Vec::new();
+                    twoh.read_to_end(&mut contents).unwrap();
+                    let file: File = NewFile::new(&nation.filename, &contents).insert(db);
+
+                    Some((NewPlayerTurn {
+                        trnfile_id: Some(file.id),
+                        nation_id: kingdom.nation_id.into(),
+                        game_id: self.game_id,
+                        turn_number: turn_number,
+                        status: 0,
+                    })
+                    .insert(db).unwrap())
+                }
+                crate::files::saves::kingdom::KingdomType::Special => None
+            })
+            .collect::<Vec<Option<PlayerTurn>>>();
     }
     fn populate_savegame<D>(&self, db: &D)
     where
@@ -257,7 +303,7 @@ impl Dom5Proc {
                     )
                     .inner_join(
                         super::schema::files::dsl::files
-                            .on(super::schema::files::dsl::id.eq(trnfile_id)),
+                            .on(super::schema::files::dsl::id.nullable().eq(trnfile_id)),
                     )
                     .get_results::<(PlayerTurn, File)>(db)
                     .unwrap()
@@ -325,22 +371,24 @@ impl Dom5Proc {
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
-        let trn = if let Some(file) = TwoH::read_file(&path) {
-            file
+        let mut file = if let Ok(f) = std::fs::File::open(&path) {
+            f
         } else {
             return;
         };
-        let file: File = NewFile::new(
-            path.file_name().unwrap().to_str().unwrap(),
-            &trn.file_contents,
-        )
-        .insert(db);
+        let mut contents = Vec::new();
+        file.read_to_end(&mut contents).unwrap();
+        file.seek(std::io::SeekFrom::Start(0)).unwrap();
+        let trn = SaveFile::read_contents(file).unwrap();
+        let file: File =
+            NewFile::new(path.file_name().unwrap().to_str().unwrap(), &contents).insert(db);
 
         (NewPlayerTurn {
-            trnfile_id: file.id,
-            nation_id: trn.nationid,
+            trnfile_id: Some(file.id),
+            nation_id: trn.header.nationid,
             game_id: self.game_id,
-            turn_number: trn.turnnumber,
+            turn_number: trn.header.turnnumber,
+            status: 0,
         })
         .insert(db)
         .unwrap();
@@ -549,17 +597,6 @@ impl Dom5Proc {
         child.kill().unwrap();
         child.wait().unwrap();
         self.handle_new_turn(db);
-        for entry in std::fs::read_dir(&self.savedir).unwrap() {
-            if let Ok(entry) = entry {
-                let file_name = std::path::PathBuf::from(entry.file_name());
-                match file_name.extension().and_then(std::ffi::OsStr::to_str) {
-                    Some("trn") => {
-                        self.handle_trn_update(&self.savedir.join(&file_name.to_path_buf()), db)
-                    }
-                    _ => {}
-                }
-            }
-        }
         match game.timer {
             Some(timer) => {
                 game.schedule_turn(

@@ -585,17 +585,10 @@ async fn timer(
         .finish())
 }
 #[get("/game/{id}/status")]
-async fn old_details(
-    (app_data, web::Path(path_id), session, payload): (
-        web::Data<AppData>,
-        web::Path<String>,
-        actix_session::Session,
-        serde_qs::actix::QsQuery<GameDetailsPayload>,
-    ),
-) -> Result<HttpResponse> {
-        return Ok(HttpResponse::PermanentRedirect()
-            .header(header::LOCATION, format!("/game/{}#status", path_id))
-            .finish());
+async fn old_details(web::Path(path_id): web::Path<String>) -> Result<HttpResponse> {
+    return Ok(HttpResponse::PermanentRedirect()
+        .header(header::LOCATION, format!("/game/{}#status", path_id))
+        .finish());
 }
 #[get("/game/{id}")]
 async fn details(

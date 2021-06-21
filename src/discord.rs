@@ -432,7 +432,6 @@ impl DiscordManager {
                     }
                     Ok(ProtocolMsg::Hello {
                         s,
-                        d: HelloPayload { heartbeat_interval },
                         ..
                     }) => {
                         if let Some(s) = s {
@@ -448,7 +447,7 @@ impl DiscordManager {
                             ))
                             .unwrap();
                     }
-                    Ok(ProtocolMsg::UnkResponse { op }) => {}
+                    Ok(ProtocolMsg::UnkResponse { .. }) => {}
                     Err(_) => {
                         socket = self.resume().unwrap();
                     }

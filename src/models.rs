@@ -3,7 +3,7 @@ use super::schema::{
     maps, mods, nations, player_turns, players, turns,
 };
 use crate::diesel::OptionalExtension;
-use crate::diesel::{BoolExpressionMethods, ExpressionMethods, QueryDsl};
+use crate::diesel::{NullableExpressionMethods, BoolExpressionMethods, ExpressionMethods, QueryDsl};
 use crate::diesel::{JoinOnDsl, RunQueryDsl};
 use serde::Deserialize;
 use std::hash::{Hash, Hasher};
@@ -766,7 +766,7 @@ pub struct PlayerTurn {
     pub turn_number: i32,
     pub nation_id: i32,
     pub game_id: i32,
-    pub trnfile_id: i32,
+    pub trnfile_id: Option<i32>,
     pub twohfile_id: Option<i32>,
     pub archived: bool,
     pub status: i32,
@@ -789,10 +789,15 @@ impl PlayerTurn {
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
-        use crate::schema::files::dsl as files_dsl;
-        files_dsl::files
-            .filter(files_dsl::id.eq(self.trnfile_id))
-            .get_result(db)
+        match self.trnfile_id {
+            Some(trnid) => {
+                use crate::schema::files::dsl as files_dsl;
+                files_dsl::files
+                    .filter(files_dsl::id.eq(trnid))
+                    .get_result(db)
+            }
+            None => Err(diesel::NotFound),
+        }
     }
     pub fn save_2h<D>(
         &self,
@@ -814,7 +819,7 @@ impl PlayerTurn {
         game_id: i32,
         nation_id: i32,
         db: &D,
-    ) -> Result<(PlayerTurn, File), diesel::result::Error>
+    ) -> Result<(PlayerTurn, Option<File>), diesel::result::Error>
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
@@ -829,7 +834,7 @@ impl PlayerTurn {
             )
             .order(pt_dsl::turn_number.desc())
             .limit(1)
-            .inner_join(files_dsl::files.on(files_dsl::id.eq(pt_dsl::trnfile_id)))
+            .left_join(files_dsl::files.on(files_dsl::id.nullable().eq(pt_dsl::trnfile_id)))
             .get_result(db)
     }
     pub fn get_player_turns<D>(
@@ -864,7 +869,8 @@ pub struct NewPlayerTurn {
     pub turn_number: i32,
     pub nation_id: i32,
     pub game_id: i32,
-    pub trnfile_id: i32,
+    pub trnfile_id: Option<i32>,
+    pub status: i32
 }
 
 impl NewPlayerTurn {
@@ -872,7 +878,12 @@ impl NewPlayerTurn {
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
-        diesel::sql_query(format!("INSERT INTO player_turns (turn_number, nation_id, game_id, trnfile_id) VALUES({}, {}, {}, {}) ON CONFLICT (game_id, turn_number, nation_id) WHERE archived IS false DO UPDATE SET trnfile_id={} RETURNING *", self.turn_number, self.nation_id, self.game_id, self.trnfile_id, self.trnfile_id))
+        diesel::sql_query("INSERT INTO player_turns (turn_number, nation_id, game_id, trnfile_id, status) VALUES($1, $2, $3, $4, $5) ON CONFLICT (game_id, turn_number, nation_id) WHERE archived IS false DO UPDATE SET trnfile_id=$4 RETURNING *")
+            .bind::<diesel::sql_types::Integer, _>(self.turn_number)
+            .bind::<diesel::sql_types::Integer, _>(self.nation_id)
+            .bind::<diesel::sql_types::Integer, _>(self.game_id)
+            .bind::<diesel::sql_types::Nullable<diesel::sql_types::Integer>, _>(self.trnfile_id)
+            .bind::<diesel::sql_types::Integer, _>(self.status)
             .get_result(db)
     }
 }

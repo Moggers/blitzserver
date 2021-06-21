@@ -97,8 +97,12 @@ impl Dom5Emu {
             nation_statuses: if let Ok(_) = &turn {
                 turn_statuses
                     .iter()
-                    .fold(std::collections::HashMap::new(), |mut acc, (k, _)| {
-                        acc.insert(*k, 1);
+                    .fold(std::collections::HashMap::new(), |mut acc, (k, t)| {
+                        if *t == 3 {
+                            acc.insert(*k, 2);
+                        } else {
+                            acc.insert(*k, 1);
+                        }
                         acc
                     })
             } else {
@@ -135,10 +139,11 @@ impl Dom5Emu {
             turnkey: match &turn {
                 Ok(t) => {
                     let fthlnd = t.get_ftherlnd(&db).unwrap();
-                    let fthrlnd_read =
-                        crate::twoh::TwoH::read_contents(std::io::Cursor::new(&fthlnd.filebinary))
-                            .unwrap();
-                    fthrlnd_read.turnkey
+                    let fthrlnd_read = crate::files::saves::SaveFile::read_contents(
+                        std::io::Cursor::new(&fthlnd.filebinary),
+                    )
+                    .unwrap();
+                    fthrlnd_read.header.turnkey
                 }
                 Err(_) => 0,
             },
@@ -178,25 +183,27 @@ impl Dom5Emu {
     where
         D: diesel::Connection<Backend = diesel::pg::Pg>,
     {
+        use crate::files::saves::SaveFile;
         use crate::models::{File, NewFile, NewPlayer};
-        use crate::twoh::TwoH;
-        let twoh = TwoH::read_contents(std::io::Cursor::new(&req.pretender_contents[..])).unwrap();
+        let twoh =
+            SaveFile::read_contents(std::io::Cursor::new(&req.pretender_contents[..])).unwrap();
         let existing = Player::get_players(game_id, db)
             .unwrap()
             .into_iter()
-            .find(|p| p.nationid == twoh.nationid);
+            .find(|p| p.nationid == twoh.header.nationid);
         if let Some(existing) = existing {
             let file = existing.get_newlord(db).unwrap();
-            let existing_twoh = TwoH::read_contents(std::io::Cursor::new(file.filebinary)).unwrap();
-            if existing_twoh.cdkey != twoh.cdkey {
+            let existing_twoh =
+                SaveFile::read_contents(std::io::Cursor::new(file.filebinary)).unwrap();
+            if existing_twoh.header.cdkey != twoh.header.cdkey {
                 return 1;
             }
         }
-        let nation: Nation = Nation::get(game_id, twoh.nationid, db).unwrap();
+        let nation: Nation = Nation::get(game_id, twoh.header.nationid, db).unwrap();
         let file: File =
             NewFile::new(&format!("{}.2h", nation.filename), &req.pretender_contents).insert(db);
 
-        let name = if let crate::twoh::FileBody::OrdersFile(o) = twoh.body {
+        let name = if let crate::files::saves::SaveBody::TwoHContents(o) = twoh.body {
             o.pretender_name
         } else {
             "".to_string()
@@ -322,7 +329,10 @@ impl Dom5Emu {
                             let db = pool_clone.get().unwrap();
                             let turn = Turn::get(inc_game_id, &db).unwrap();
                             let player_turns = turn.get_player_turns(&db).unwrap();
-                            if player_turns.iter().all(|pt| pt.status == 2) {
+                            if player_turns
+                                .iter()
+                                .all(|pt| pt.status == 2 || pt.status == 3)
+                            {
                                 Self::scheduled_host(
                                     inc_game_id,
                                     tx_clone.clone(),
@@ -598,14 +608,15 @@ impl Dom5Emu {
                                             let pts = trn.get_player_turns(&db).unwrap();
                                             let passworded_nations: Vec<i32> = pts
                                                 .iter()
+                                                .filter(|pt| pt.status != 3)
                                                 .filter_map(|pt| {
                                                     let turn = pt.get_trn(&db).unwrap();
-                                                    let trn = crate::twoh::TwoH::read_contents(
+                                                    let trn = crate::files::saves::SaveFile::read_contents(
                                                         std::io::Cursor::new(turn.filebinary),
                                                     )
                                                     .unwrap();
-                                                    if trn.password != "".to_string() {
-                                                        return Some(trn.nationid);
+                                                    if trn.header.password != "".to_string() {
+                                                        return Some(trn.header.nationid);
                                                     } else {
                                                         return None;
                                                     }
@@ -657,7 +668,10 @@ impl Dom5Emu {
                                                 &db,
                                             ) {
                                                 Ok((_turn, file)) => TrnResp {
-                                                    trn_contents: file.filebinary,
+                                                    trn_contents: match file {
+                                                        Some(f) => f.filebinary,
+                                                        None => vec![],
+                                                    },
                                                 }
                                                 .write_packet(&mut socket_send_clone),
                                                 Err(_) => TrnResp {
@@ -738,29 +752,30 @@ impl Dom5Emu {
                                          * it is not (time travelling pretenders are not allowed).
                                          */
                                         crate::packets::Body::Submit2hReq(pkt) => {
-                                            let twoh = crate::twoh::TwoH::read_contents(
-                                                std::io::Cursor::new(&pkt.twoh_contents),
-                                            )
-                                            .unwrap();
+                                            let twoh =
+                                                crate::files::saves::SaveFile::read_contents(
+                                                    std::io::Cursor::new(&pkt.twoh_contents),
+                                                )
+                                                .unwrap();
                                             let db = pool_clone.get().unwrap();
                                             if let Ok((trn, _)) =
-                                                PlayerTurn::get(game_id, twoh.nationid, &db)
+                                                PlayerTurn::get(game_id, twoh.header.nationid, &db)
                                             {
-                                                if trn.turn_number == twoh.turnnumber {
+                                                if trn.turn_number == twoh.header.turnnumber {
                                                     let nation = crate::models::Nation::get(
                                                         game_id,
-                                                        twoh.nationid,
+                                                        twoh.header.nationid,
                                                         &db,
                                                     )
                                                     .unwrap();
                                                     let fname = &format!("{}.2h", nation.filename);
                                                     let twohfile = crate::models::NewFile::new(
                                                         fname,
-                                                        &twoh.file_contents,
+                                                        &pkt.twoh_contents,
                                                     );
                                                     trn.save_2h(
                                                         twohfile,
-                                                        if twoh.status == 1 { 1 } else { 2 },
+                                                        if twoh.header.status == 1 { 1 } else { 2 },
                                                         &db,
                                                     )
                                                     .unwrap();
