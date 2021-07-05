@@ -206,6 +206,7 @@ async fn main() -> std::io::Result<()> {
             .service(frontend::mods::details)
             .service(frontend::mods::download)
             .service(frontend::mods::image)
+            .service(frontend::help::help)
     })
     .bind("0.0.0.0:8080")?
     .run()

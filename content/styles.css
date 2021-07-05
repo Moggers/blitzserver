@@ -710,3 +710,21 @@ table.log-table .log-args {
 .discord-help {
 	grid-area: help
 }
+.about {
+	font-size: 14px;
+}
+.about b {
+	color: var(--col-primary);
+	font-weight: 500;
+}
+.about pre {
+	display: inline;
+	color: var(--col-cyan);
+}
+.about h1 {
+	font-size: 20px;
+	font-weight: 600;
+}
+.about h2 {
+	font-size: 18px;
+}
