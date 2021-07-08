@@ -33,7 +33,7 @@ impl crate::packets::BodyContents for AstralPacketResp {
         if self.dmfiles.len() == 0 {
             w.write_u32::<LittleEndian>(0xffffffff).unwrap();
         } else {
-            w.write_all(&[0x1, 0x0]).unwrap();
+            w.write_u16::<LittleEndian>((self.dmfiles.len() + 1) as u16).unwrap();
             for (name, hash) in &self.dmfiles {
                 w.write_all(&[0x6, 0x0, 0x17, 0x0]).unwrap();
                 w.write_all(name.as_bytes()).unwrap();
