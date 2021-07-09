@@ -1,8 +1,9 @@
 use byteorder::{ReadBytesExt, WriteBytesExt};
+use crate::files::saves::utils::ReadDom5Ext;
 #[derive(Clone)]
 pub struct Submit2hReq {
     pub nation_id: u8,
-    pub unk: [u8; 7],
+    pub unk: [Vec<u8>; 4],
     pub twoh_contents: Vec<u8>,
 }
 
@@ -26,10 +27,14 @@ impl std::fmt::Debug for Submit2hReq {
 
 impl Submit2hReq {
     pub fn from_reader<R: std::io::Read>(r: &mut R) -> Submit2hReq {
-        let mut unk: [u8; 7] = [0; 7];
-        let mut twoh_contents = vec![];
         let nation_id = r.read_u8().unwrap();
-        r.read_exact(&mut unk).unwrap();
+        let unk = [
+            r.read_domu8vec_nt().unwrap(),
+            r.read_domu8vec_nt().unwrap(),
+            r.read_domu8vec_nt().unwrap(),
+            r.read_domu8vec_nt().unwrap()
+        ];
+        let mut twoh_contents = vec![];
         r.read_to_end(&mut twoh_contents).unwrap();
         Submit2hReq {
             nation_id,

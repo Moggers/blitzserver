@@ -12,6 +12,17 @@ pub trait ReadDom5Ext: std::io::Read {
         }
         Ok(contents)
     }
+    fn read_domu8vec_nt(&mut self) -> Result<Vec<u8>, std::io::Error> {
+        let mut contents = Vec::new();
+        loop {
+            let c = self.read_u8()?;
+            if c == 0 {
+                break;
+            }
+            contents.push(c);
+        }
+        Ok(contents)
+    }
     fn read_domu16vec(&mut self) -> Result<Vec<u16>, std::io::Error> {
         let mut contents = Vec::new();
         loop {

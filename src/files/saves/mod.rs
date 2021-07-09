@@ -3,7 +3,7 @@ pub mod land;
 pub mod kingdom;
 pub mod trn_contents;
 pub mod twoh_contents;
-mod utils;
+pub mod utils;
 
 use std::io::{Read, Seek};
 use thiserror::Error;
@@ -62,9 +62,7 @@ mod tests {
                 let entry = entry.unwrap();
                 if entry.file_name() == "ftherlnd" {
                     let f = std::fs::File::open(entry.path()).unwrap();
-                    let ftherlnd = SaveFile::read_contents(f).unwrap();
-                    println!("{:?}", entry.path());
-                    println!("{:#?}", ftherlnd);
+                    SaveFile::read_contents(f).unwrap();
                 }
             }
         }
